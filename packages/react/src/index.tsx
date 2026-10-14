@@ -1,36 +1,34 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { DoubleSide } from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
 import type { ComponentInstance, ComponentKind, ScadaScene, Vector3Tuple } from '@scada3d/core';
-import { componentCatalog } from '@scada3d/components';
+import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
+import { createEquipmentGeometries, disposeGeometries } from './geometry';
 
 function Equipment({ component, glass, selected, onSelect }: { component:ComponentInstance; glass:boolean; selected:boolean; onSelect:()=>void }) {
+  const definition = componentCatalog[component.kind];
+  const geometries = useMemo(() => createEquipmentGeometries(definition), [definition]);
+  useEffect(() => () => disposeGeometries(geometries), [geometries]);
   const level = Math.max(0, Math.min(100, Number(component.properties.level ?? 45))) / 100;
   const flowing = component.properties.flowing === true;
   const open = component.properties.open !== false;
-  const shellProps = {color:selected?'#63b3ed':'#7b9eb6',metalness:glass?0:0.65,roughness:0.35,transparent:glass,opacity:glass?0.21:1,depthWrite:!glass};
+  const shellProps = {color:selected?'#63b3ed':'#7b9eb6',metalness:glass?0:0.65,roughness:0.35,transparent:glass,opacity:glass?0.21:1,depthWrite:!glass,side:DoubleSide};
   return <group position={component.position} rotation={component.rotation} onClick={e=>{e.stopPropagation();onSelect();}}>
-    {component.kind === 'tank' && <>
-      <mesh><cylinderGeometry args={[1,1,3,40,1,true]}/><meshStandardMaterial {...shellProps} side={2}/></mesh>
-      <mesh position={[0,-1.5,0]}><cylinderGeometry args={[1,1,.07,40]}/><meshStandardMaterial {...shellProps}/></mesh>
-      <mesh position={[0,1.5,0]}><cylinderGeometry args={[1,1,.07,40]}/><meshStandardMaterial {...shellProps}/></mesh>
-      <mesh position={[0,-1.5+level*1.5,0]}><cylinderGeometry args={[.94,.94,Math.max(.002,level*3),40]}/><meshStandardMaterial color="#2a9dce" transparent opacity={0.65} depthWrite={false}/></mesh>
-    </>}
-    {component.kind === 'pipe' && <mesh rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.18,.18,2,24]}/><meshStandardMaterial {...shellProps}/></mesh>}
-    {component.kind === 'tee' && <>
-      <mesh rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.18,.18,2,24]}/><meshStandardMaterial {...shellProps}/></mesh>
-      <mesh position={[0,.5,0]}><cylinderGeometry args={[.18,.18,1,24]}/><meshStandardMaterial {...shellProps}/></mesh>
-    </>}
-    {component.kind === 'valve' && <>
-      <mesh rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.16,.16,1.2,24]}/><meshStandardMaterial {...shellProps}/></mesh>
-      <mesh><sphereGeometry args={[.33,24,16]}/><meshStandardMaterial color={open?'#48b983':'#e76e75'}/></mesh>
-      <mesh position={[0,.47,0]} rotation={[0,open?0:Math.PI/2,0]}><boxGeometry args={[.75,.08,.11]}/><meshStandardMaterial color="#e3d5a5"/></mesh>
-    </>}
-    {component.kind === 'pump' && <mesh><sphereGeometry args={[.6,24,16]}/><meshStandardMaterial {...shellProps}/></mesh>}
-    {component.kind === 'motor' && <mesh rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.38,.38,1,24]}/><meshStandardMaterial {...shellProps}/></mesh>}
-    {component.kind === 'sensor' && <mesh><boxGeometry args={[.3,.6,.3]}/><meshStandardMaterial {...shellProps}/></mesh>}
-    {flowing && (component.kind==='pipe'||component.kind==='tee') && <mesh rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.08,.08,1.9,16]}/><meshStandardMaterial color="#30caff" emissive="#137eaa" emissiveIntensity={.4}/></mesh>}
-    {componentCatalog[component.kind].ports.map(port=><mesh key={port.id} position={port.position}><sphereGeometry args={[.1,10,10]}/><meshBasicMaterial color="#ffd166"/></mesh>)}
+    {definition.parts.map((part, i) => {
+      const geometry = geometries[i];
+      if (part.role === 'liquid' && part.shape === 'cylinder') {
+        // Scale the liquid column from its bottom face so the surface tracks level.
+        const height = Math.max(0.001, level);
+        const bottom = part.center[1] - part.length / 2;
+        return <mesh key={i} geometry={geometry} scale={[1, height, 1]} position={[0, bottom * (1 - height), 0]}><meshStandardMaterial color="#2a9dce" transparent opacity={0.65} depthWrite={false}/></mesh>;
+      }
+      if (part.role === 'valve-ball') return <mesh key={i} geometry={geometry}><meshStandardMaterial color={open?'#48b983':'#e76e75'}/></mesh>;
+      if (part.role === 'valve-handle') return <mesh key={i} geometry={geometry} rotation={[0, open ? 0 : Math.PI / 2, 0]}><meshStandardMaterial color="#e3d5a5"/></mesh>;
+      return <mesh key={i} geometry={geometry}><meshStandardMaterial {...shellProps}/></mesh>;
+    })}
+    {flowing && (component.kind==='pipe'||component.kind==='tee') && <mesh rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[pipeOuterRadius*0.5,pipeOuterRadius*0.5,1.9,16]}/><meshStandardMaterial color="#30caff" emissive="#137eaa" emissiveIntensity={.4}/></mesh>}
+    {definition.ports.map(port=><mesh key={port.id} position={port.position}><sphereGeometry args={[.05,10,10]}/><meshBasicMaterial color="#ffd166"/></mesh>)}
   </group>;
 }
 

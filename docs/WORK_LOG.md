@@ -85,3 +85,19 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: nested transforms, scale (ADR-0004), snapping and normal-opposition checks (T-007). Renderer still draws port markers itself rather than through `portToWorld`.
 - Status: T-004 REVIEW until PR is merged.
 - Handoff: T-005 (versioned roundtrip) needs the ADR-0004 decision; T-006 (industrial geometry) is now dependency-ready after T-004.
+
+## 2026-10-15 — T-006 industrial geometry, ports and disposal
+- Branch: `feat/T-006-industrial-geometry` (from `develop` @ `410f900`; T-003 and T-004 merged and marked DONE).
+- Graphify: index NOT built. Fallback: read the catalog, renderer and core types directly.
+- Scope: `GeometryPart`/`IndustrialComponentDefinition` descriptors and bounds in `@scada3d/components`; new `elbow` kind (additive to `componentKinds`); pump gains suction/discharge ports; tank gains nozzles and an explicit liquid part; all fluid nozzles use `pipeOuterRadius` 0.084 m at DN150. `@scada3d/react` builds geometry from parts (`createEquipmentGeometries`, `disposeGeometries`) and disposes it on unmount. Visible change: pipes are thinner (true DN150 OD) and port markers smaller.
+- Tests written first; catalog and geometry tests failed before implementation. Bounds tolerance relaxed from 1e-9 to 1e-6 m after the first run showed float32 vertex rounding (~5e-8 m), not geometry errors.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (223 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (1 test).
+  - Browser check: Playwright screenshots of all 8 kinds in normal and glass mode; no console errors; liquid visible in glass mode; ports at pipe ends.
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: configurable dimensions, drain port, motor/sensor ports, material disposal test (materials are declarative R3F children, disposed by R3F), X-ray/cutaway (T-015).
+- Status: T-006 REVIEW until PR is merged.
+- Handoff: next is T-007 (compatible snap search and transform solver), now dependency-ready after T-004 and T-006. T-005 still waits on ADR-0004.

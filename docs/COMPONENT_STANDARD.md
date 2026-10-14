@@ -10,6 +10,17 @@ Each catalog entry must supply:
 - process value mapping (e.g. temperature, level, RPM), alarm indication, stale state;
 - safe resource disposal on unmount, test fixture, visual demo and usage documentation.
 
+## Current catalog (T-006)
+`@scada3d/components` exports `componentCatalog: Record<ComponentKind, IndustrialComponentDefinition>`. Each entry adds to the core `ComponentDefinition`:
+- `bounds`: axis-aligned local bounds in the default (open) state; `defaultSize` is derived from them.
+- `parts`: framework-neutral `GeometryPart` descriptors (`cylinder`, `sphere`, `box`, quarter-torus `bend`) in local metres, each with a `role` (`shell`, `liquid`, `valve-ball`, `valve-handle`) that tells the renderer which live state applies.
+
+All MVP fluid ports use nominal bore 0.15 m (DN150) and nozzles of outer radius `pipeOuterRadius` (0.084 m). Every port direction is axis-aligned and points away from the bounds face the port lies on. Kinds: vertical tank (inlet, outlet, liquid column), straight pipe, 90° elbow (bend radius 0.3 m, origin at the axis intersection), tee (left, right, branch), ball valve, centrifugal pump placeholder (suction, discharge). Sensor and motor are placeholders without ports.
+
+`@scada3d/react` builds Three.js geometry from the parts (`createEquipmentGeometries`) and disposes it on unmount (`disposeGeometries`). Tests check, against the real Three.js vertices, that geometry fills exactly the declared bounds, that each fluid port is centred on a pipe opening of `pipeOuterRadius`, and that no geometry extends past any port plane.
+
+Not yet: user-configurable dimensions (port lookup is per kind), drain port, mechanical/signal ports for motor and sensor, per-file component directories below.
+
 ## Proposed directories (target)
 ```
 packages/components/src/tanks/vertical-tank/
