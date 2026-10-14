@@ -245,3 +245,19 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: flow along component bodies (only routed connections carry readings), per-frame allocation in `pointAt` (small; optimise when benchmarked), GPU/memory baseline, tag bindings (T-016).
 - Status: T-014 REVIEW until PR is merged.
 - Handoff: next is T-015 (glass, X-ray, cutaway, water and heat). ADR-0005 awaits an owner decision.
+
+## 2026-10-15 — T-015 glass, x-ray, cutaway, water level and heat tint
+- Branch: `feat/T-015-view-modes` (from `develop` @ `066c59e`; #23 merged, T-014 marked DONE).
+- Graphify: index NOT built. Fallback: read the viewer/editor and the earlier glass-mode material fix.
+- Scope: `appearance.ts` (pure: `viewModes`, `effectiveViewMode`, `shellLook`, `liquidFill`, `heatColor`, `HEAT_RANGE_C`). Viewer `viewMode`/`viewOverrides` (replaces boolean `glass`), drei `Edges` in x-ray, local clipping plane in cutaway (`localClippingEnabled` set on canvas creation), liquid visibility/scale from the level policy, temperature tint and legend, `userData` tags (`componentId`, `role`) on parts. Editor: View select, per-component view select (display state only), temperature field, level notes for clamped/missing/invalid levels. Level no longer falls back to an assumed 45 % when missing.
+- Tests written first: `appearance.test.ts` (22 tests) failed to load and 4 new e2e tests failed before implementation. e2e inspects real rendered materials via the Three.js devtools hook (now shared in `e2e/helpers.ts`): shell opacity per mode, edge outlines in x-ray, clipping planes in cutaway with the liquid unclipped, per-component override isolation, saved JSON unchanged across modes, liquid scale/visibility for 100/0/imported 130 %, temperature tint #ff3333 at 100 °C and legend text.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (434 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (22 tests).
+  - Browser screenshots of a heated tank (85 °C, 70 %) in glass, x-ray and cutaway. A first scratch script missed the tank with a guessed click; re-run with a projected click.
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: camera-facing cutaway plane (fixed +Z for now), heat from live observations (T-016), transparency sorting tests with many overlapping glass parts, material disposal leak test.
+- Status: T-015 REVIEW until PR is merged. With T-015 merged, all M5 tasks (T-013–T-015) are done.
+- Handoff: next is M6, starting with T-016 (read-only telemetry: tag bindings, quality and timestamps). ADR-0005 awaits an owner decision.

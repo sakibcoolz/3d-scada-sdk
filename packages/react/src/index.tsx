@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DoubleSide, Object3D as Object3DImpl, type Camera, type InstancedMesh, type Object3D } from 'three';
+import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
+import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
 import { createEmptyScene, portToWorld, removeComponent, resolveFlow, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
@@ -9,40 +9,52 @@ import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type Dr
 
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
 import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile';
+import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance';
 import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances, pathLengths, pointAt, summarizeFlow } from './flowVisual';
 
 export { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
 export { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
 export { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES, type SceneImport } from './sceneFile';
 export { flowAppearance, summarizeFlow, type FlowAppearance } from './flowVisual';
+export { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type LiquidFill, type ShellLook, type ViewMode } from './appearance';
 
-function Equipment({ component, glass, selected, onSelect, objectRef }: { component:ComponentInstance; glass:boolean; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void }) {
+const LIQUID_COLOR = '#2a9dce';
+
+function Equipment({ component, viewMode, selected, onSelect, objectRef }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void }) {
   const definition = componentCatalog[component.type];
   const geometries = useMemo(() => createEquipmentGeometries(definition), [definition]);
   useEffect(() => () => disposeGeometries(geometries), [geometries]);
-  const level = Math.max(0, Math.min(100, Number(component.properties.level ?? 45))) / 100;
+  const fill = liquidFill(component.properties.level);
+  const liquidColor = heatColor(component.properties.temperature) ?? LIQUID_COLOR;
   const open = component.properties.open !== false;
-  // Materials are keyed on glass mode so toggling recreates them: Three.js only recompiles the
-  // opaque/transparent shader variant when a material is new or flagged needsUpdate.
-  const shellProps = {color:selected?'#63b3ed':'#7b9eb6',metalness:glass?0:0.65,roughness:0.35,transparent:glass,opacity:glass?0.21:1,depthWrite:!glass,side:DoubleSide};
+  const look = shellLook(viewMode);
+  // Cutaway removes the front (+Z) half of the shell in world space, through the component origin.
+  const clippingPlanes = useMemo(() => (look.clip ? [new Plane(new Vector3(0, 0, -1), component.position[2])] : null), [look.clip, component.position[2]]);
+  const tag = (role: string) => ({ componentId: component.id, role });
+  // Materials are keyed on view mode so switching recreates them: Three.js only recompiles the
+  // opaque/transparent/clipped shader variant when a material is new or flagged needsUpdate.
+  const shellProps = {color:selected?'#63b3ed':'#7b9eb6',metalness:look.metalness,roughness:0.35,transparent:look.transparent,opacity:look.opacity,depthWrite:look.depthWrite,side:DoubleSide,clippingPlanes};
   return <group ref={objectRef} position={component.position} quaternion={component.rotation} scale={component.scale} onClick={e=>{e.stopPropagation();onSelect();}}>
     {definition.parts.map((part, i) => {
       const geometry = geometries[i];
       if (part.role === 'liquid' && part.shape === 'cylinder') {
-        // Scale the liquid column from its bottom face so the surface tracks level.
-        const height = Math.max(0.001, level);
+        // Scale the liquid column from its bottom face so the surface tracks level; no level, no liquid.
+        const height = Math.max(0.001, fill.fraction ?? 0);
         const bottom = part.center[1] - part.length / 2;
-        return <mesh key={i} geometry={geometry} scale={[1, height, 1]} position={[0, bottom * (1 - height), 0]}><meshStandardMaterial color="#2a9dce" transparent opacity={0.65} depthWrite={false}/></mesh>;
+        return <mesh key={i} geometry={geometry} userData={tag('liquid')} visible={(fill.fraction ?? 0) > 0} scale={[1, height, 1]} position={[0, bottom * (1 - height), 0]}><meshStandardMaterial color={liquidColor} transparent opacity={0.65} depthWrite={false}/></mesh>;
       }
-      if (part.role === 'valve-ball') return <mesh key={i} geometry={geometry}><meshStandardMaterial color={open?'#48b983':'#e76e75'}/></mesh>;
-      if (part.role === 'valve-handle') return <mesh key={i} geometry={geometry} rotation={[0, open ? 0 : Math.PI / 2, 0]}><meshStandardMaterial color="#e3d5a5"/></mesh>;
-      return <mesh key={i} geometry={geometry}><meshStandardMaterial key={glass ? 'glass' : 'solid'} {...shellProps}/></mesh>;
+      if (part.role === 'valve-ball') return <mesh key={i} geometry={geometry} userData={tag('valve-ball')}><meshStandardMaterial color={open?'#48b983':'#e76e75'}/></mesh>;
+      if (part.role === 'valve-handle') return <mesh key={i} geometry={geometry} userData={tag('valve-handle')} rotation={[0, open ? 0 : Math.PI / 2, 0]}><meshStandardMaterial color="#e3d5a5"/></mesh>;
+      return <mesh key={i} geometry={geometry} userData={tag('shell')}>
+        <meshStandardMaterial key={viewMode} {...shellProps}/>
+        {look.edges && <Edges userData={tag('edges')} threshold={20} color="#9fd3ff"/>}
+      </mesh>;
     })}
     {definition.ports.map(port=><mesh key={port.id} position={port.position}><sphereGeometry args={[.05,10,10]}/><meshBasicMaterial color="#ffd166"/></mesh>)}
   </group>;
 }
 
-function RoutePipe({ route, glass }: { route: PipeRoute; glass: boolean }) {
+function RoutePipe({ route, viewMode }: { route: PipeRoute; viewMode: ViewMode }) {
   // Rebuild geometry only when the routed centreline changes, not on every scene update.
   const shape = route.status === 'ok' ? route.points.flat().join(',') : '';
   const geometries = useMemo(() => (route.status === 'ok' ? createRouteGeometries(route, pipeOuterRadius) : []), [shape]);
@@ -51,7 +63,9 @@ function RoutePipe({ route, glass }: { route: PipeRoute; glass: boolean }) {
     // Invalid route: dashed red line between the ports so the problem is visible, no pipe drawn.
     return 'from' in route ? <Line points={[route.from, route.to]} color="#e76e75" dashed dashSize={0.15} gapSize={0.1} lineWidth={2}/> : null;
   }
-  return <>{geometries.map((geometry, i) => <mesh key={i} geometry={geometry}><meshStandardMaterial key={glass ? 'glass' : 'solid'} color="#8fa9bc" metalness={glass?0:0.6} roughness={0.35} transparent={glass} opacity={glass?0.21:1} depthWrite={!glass}/></mesh>)}</>;
+  // Routed pipes follow glass/x-ray transparency; cutaway leaves them whole.
+  const look = shellLook(viewMode === 'cutaway' ? 'normal' : viewMode);
+  return <>{geometries.map((geometry, i) => <mesh key={i} geometry={geometry}><meshStandardMaterial key={viewMode} color="#8fa9bc" metalness={look.metalness} roughness={0.35} transparent={look.transparent} opacity={look.opacity} depthWrite={look.depthWrite}/></mesh>)}</>;
 }
 
 const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
@@ -125,7 +139,7 @@ function DropPreview({ scene, plan }: { scene: ScadaScene; plan: DropPlan }) {
   const port = owner && componentCatalog[owner.type].ports.find((p) => p.id === candidate.target.portId);
   const marker = owner && port ? portToWorld(owner, port).position : undefined;
   return <>
-    <Equipment component={plan.component} glass selected onSelect={() => {}}/>
+    <Equipment component={plan.component} viewMode="glass" selected onSelect={() => {}}/>
     {marker && <mesh position={marker}><sphereGeometry args={[0.14, 16, 16]}/><meshBasicMaterial color={plan.snap.ok ? '#48b983' : '#e76e75'} transparent opacity={0.85}/></mesh>}
   </>;
 }
@@ -142,7 +156,7 @@ export type TransformHandler = (id: string, position: Vector3Tuple, rotation: Qu
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,glass=false,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow}: {scene:ScadaScene;glass?:boolean;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput}) {
+export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput}) {
   const routes = useMemo(() => routeScene(scene, { resolvePorts }), [scene]);
   const now = useNow(1000);
   const flowStates = useMemo(
@@ -150,29 +164,44 @@ export function Scada3DViewer({scene,glass=false,onSelect,selectedId,preview,onC
     [scene, flow, now],
   );
   const stateById = useMemo(() => new Map(flowStates?.map((s) => [s.connectionId, s])), [flowStates]);
+  const showHeatLegend = scene.components.some((c) => heatColor(c.properties.temperature) !== undefined);
   const [selectedObject, setSelectedObject] = useState<Object3D | null>(null);
   const gesture = useRef(0);
   return <div style={{position:'relative',width:'100%',height:'100%'}}>
-  <Canvas camera={{position:[7,6,9],fov:50}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
+  <Canvas camera={{position:[7,6,9],fov:50}} onCreated={({gl})=>{gl.localClippingEnabled=true;}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
-    {scene.components.map(c=><Equipment key={c.id} component={c} glass={glass} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
+    {scene.components.map(c=><Equipment key={c.id} component={c} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
     {onTransform && transformMode && selectedId && selectedObject && <TransformControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
       onMouseDown={()=>{gesture.current++;}}
       onObjectChange={()=>onTransform(selectedId, selectedObject.position.toArray() as Vector3Tuple, selectedObject.quaternion.toArray() as QuaternionTuple, `transform:${selectedId}:${gesture.current}`)}/>}
-    {routes.map(route=><RoutePipe key={route.connectionId} route={route} glass={glass}/>)}
+    {routes.map(route=><RoutePipe key={route.connectionId} route={route} viewMode={viewMode}/>)}
     {flowStates && routes.map(route=>{const state=stateById.get(route.connectionId);return route.status==='ok'&&state?<FlowMarkers key={`flow:${route.connectionId}`} route={route} state={state}/>:null;})}
     {preview && <DropPreview scene={scene} plan={preview}/>}
     {onCamera && <CameraBridge onCamera={onCamera}/>}
     <OrbitControls makeDefault/><GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport/></GizmoHelper>
   </Canvas>
   {flow?.source==='SIMULATED'&&<div style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED FLOW</div>}
+  {showHeatLegend&&<div style={{position:'absolute',top:flow?.source==='SIMULATED'?44:10,right:12,padding:'4px 8px',borderRadius:4,background:'#0b1725cc',color:'#ebf2fa',fontSize:12,pointerEvents:'none'}}>
+    <div style={{height:8,borderRadius:2,marginBottom:4,background:`linear-gradient(90deg, ${heatColor(HEAT_RANGE_C.min)}, ${heatColor(HEAT_RANGE_C.max)})`}}/>
+    Temperature tint {HEAT_RANGE_C.min}–{HEAT_RANGE_C.max} °C (display only, not simulated)
+  </div>}
   {flowStates&&<div aria-label="Flow summary" aria-live="polite" style={{position:'absolute',bottom:10,left:12,padding:'4px 8px',borderRadius:4,background:'#0b1725cc',color:'#ebf2fa',fontSize:12,pointerEvents:'none'}}>{summarizeFlow(flowStates)}</div>}
   </div>;
 }
 
 const defaultProperties = { level: 45, open: true };
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const viewLabels: Record<ViewMode, string> = { normal: 'Normal', glass: 'Glass', xray: 'X-ray', cutaway: 'Cutaway' };
+
+/** Explains a level that cannot be drawn as entered (policy in `liquidFill`). */
+function LevelNote({ level }: { level: unknown }) {
+  const fill = liquidFill(level);
+  if (fill.status === 'ok') return null;
+  const text = fill.status === 'clamped' ? `Level ${level} % is outside 0–100 %; shown as ${fill.fraction * 100} %.` : fill.status === 'missing' ? 'No level set: liquid not shown.' : 'Level is not a number: liquid not shown.';
+  return <small style={{display:'block',color:'#ffd166'}}>{text}</small>;
+}
 
 function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
@@ -182,7 +211,9 @@ export function Scada3DEditor({initialScene,onChange,flow}:{initialScene?:ScadaS
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
   const scene=history.present;
   const [selected,setSelected]=useState<string>();
-  const [glass,setGlass]=useState(false);
+  const [viewMode,setViewMode]=useState<ViewMode>('normal');
+  /** Per-component view modes: editor display state only, never saved into the scene. */
+  const [viewOverrides,setViewOverrides]=useState<Record<string,ViewMode>>({});
   const [transformMode,setTransformMode]=useState<TransformMode>('translate');
   /** Every scene change goes through history; pass a mergeKey to fold a gesture into one undo step. */
   function update(next:ScadaScene, mergeKey?:string){setHistory(h=>commit(h,next,mergeKey));onChange?.(next);}
@@ -262,12 +293,12 @@ export function Scada3DEditor({initialScene,onChange,flow}:{initialScene?:ScadaS
       </div>
       <div role="group" aria-label="Transform tool" style={{display:'flex',gap:6}}>{toolButton('translate','Move')}{toolButton('rotate','Rotate')}</div>
       <h3>Components</h3>{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)} style={{display:'block',width:'100%',marginBottom:8,padding:9,cursor:'grab'}}>{componentCatalog[k].label} +</button>)}
-      <button onClick={()=>setGlass(!glass)}>{glass?'Normal view':'Glass / X-ray view'}</button>
+      <label style={{display:'block'}}>View <select aria-label="View mode" value={viewMode} onChange={e=>setViewMode(e.target.value as ViewMode)}>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
     </aside>
     <main onDragOver={e=>{if(!dragKind.current)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} glass={glass} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={transform} flow={flow}/>
+      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={transform} flow={flow}/>
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene):''}</div>
     </main>
     <aside style={{padding:14,borderLeft:'1px solid #3c5366'}}>
@@ -276,8 +307,13 @@ export function Scada3DEditor({initialScene,onChange,flow}:{initialScene?:ScadaS
         <p>{componentCatalog[component.type].label}</p>
         <small>Position (metres)</small>
         {(['X','Y','Z'] as const).map((axis,i)=><label key={axis} style={{display:'block',marginTop:8}}>{axis} <input type="number" step=".1" style={{width:100}} value={component.position[i]} onChange={e=>{const pos=[...component.position] as Vector3Tuple;pos[i]=Number(e.target.value);patch({position:pos},`position:${component.id}:${axis}`);}}/></label>)}
-        {component.type==='tank'&&<label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Number(component.properties.level??45)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>}
+        {component.type==='tank'&&<>
+          <label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Math.round((liquidFill(component.properties.level).fraction??0)*100)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>
+          <LevelNote level={component.properties.level}/>
+          <label style={{display:'block',marginTop:8}}>Temperature °C <input type="number" step="1" style={{width:70}} value={typeof component.properties.temperature==='number'?component.properties.temperature:''} onChange={e=>{const {temperature:_,...rest}=component.properties;patch({properties:e.target.value===''?rest:{...rest,temperature:Number(e.target.value)}},`temperature:${component.id}`);}}/></label>
+        </>}
         {component.type==='valve'&&<label><input type="checkbox" checked={component.properties.open!==false} onChange={e=>patch({properties:{...component.properties,open:e.target.checked}})}/> Valve open</label>}
+        <label style={{display:'block',marginTop:8}}>Component view <select aria-label="Component view" value={viewOverrides[component.id]??''} onChange={e=>{const value=e.target.value as ViewMode|'';setViewOverrides(({[component.id]:_,...rest})=>value?{...rest,[component.id]:value}:rest);}}><option value="">Use global</option>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
         <p><button onClick={()=>{const result=removeComponent(scene,component.id);if(result.ok)update(result.scene);setSelected(undefined);}}>Remove</button></p>
       </>:<p>Select equipment in the canvas.</p>}
       <hr/><small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={serialized} style={{width:'100%',height:170,boxSizing:'border-box'}}/>

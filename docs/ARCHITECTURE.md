@@ -176,6 +176,8 @@ Public React API (proposed, subject to M7 contract review): `Scada3DEditor`, `Sc
 
 **Display modes:** opaque, glass and X-ray material modes plus optional clipping/cutaway; resource reuse/disposal and transparency ordering are tested. A glass toggle affects display state, never live plant properties.
 
+**Implemented (T-015):** `packages/react/src/appearance.ts` holds the display rules. View modes `normal`, `glass` (shell opacity 0.21, no depth write so the liquid stays visible), `xray` (opacity 0.06 plus edge outlines) and `cutaway` (opaque shell with a world-space clipping plane removing the +Z half through the component origin; liquid left whole). The viewer takes `viewMode` and `viewOverrides` (per-component); the editor has a global View select and a per-component "Component view" select, held only in editor state and never saved. Routed pipes follow glass/x-ray and stay whole in cutaway. **Level policy (`liquidFill`):** a finite percent is clamped to 0–100 and flagged in the properties panel when outside; a missing or non-numeric level draws no liquid (no assumed default). **Heat:** a tank `temperature` property (°C) tints the liquid from blue at 0 °C to red at 100 °C (clamped), with a legend reading "display only, not simulated". `Scada3DViewer`'s boolean `glass` prop was replaced by `viewMode`.
+
 **Optional engineering simulator:** fixed-time-step tank mass-balance, bounded volume and documented pressure/valve/pump models, input assumptions, fixtures and validation tolerances. Always label results **SIMULATED**. Real CFD/particle fluid physics is not included in initial release; separate ADR and specialized solver evaluation required.
 
 ## 9. Telemetry and data adapters
