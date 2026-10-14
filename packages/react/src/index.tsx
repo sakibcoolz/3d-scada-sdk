@@ -13,12 +13,10 @@ import { describeProperty, summarizeTelemetry } from './telemetryView';
 import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance';
 import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances, pathLengths, pointAt, summarizeFlow } from './flowVisual';
 
-export { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
-export { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
+// Public API of @scada3d/react: the two components, their prop/handle types and scene import helpers.
+// Editor internals (drop planning, history, visual helpers) stay private. See docs/API.md.
 export { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES, type SceneImport } from './sceneFile';
-export { flowAppearance, summarizeFlow, type FlowAppearance } from './flowVisual';
-export { describeProperty, summarizeTelemetry } from './telemetryView';
-export { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type LiquidFill, type ShellLook, type ViewMode } from './appearance';
+export { viewModes, type ViewMode } from './appearance';
 
 const LIQUID_COLOR = '#2a9dce';
 /** Valve ball colour when its bound open/closed tag cannot be trusted. */

@@ -300,3 +300,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Verification: documentation only; no code or tests changed.
 - Handoff: T-023 is dependency-ready once #26 (T-017) merges.
 
+## 2026-10-15 — T-023 part A: public API surface
+- Branch: `feat/T-023a-api-surface` (from `develop` @ `034077f`; #26 and #27 merged, T-017 marked DONE).
+- Owner decision: ADR-0005 rejected for the MVP; snapping, graph and routing stay in `@scada3d/core`.
+- Graphify: index NOT built. Fallback: listed every `export` across packages with grep.
+- Scope: explicit named export lists replace `export *` in core and components; react keeps only `Scada3DViewer`, `Scada3DEditor`, `viewModes`, `importSceneText`, `formatSceneErrors`, `MAX_SCENE_FILE_BYTES` plus prop/handle types. Made internal: `qualities`, `assessObservation`, `isNewer`, `multiplyQuaternions`, `normalizeQuaternion`, `quaternionFromUnitVectors`, and the react drop/history/flow/telemetry/appearance helpers. API snapshot tests (`api.test.ts`) in all three packages; `docs/API.md` reference; ADR-0005 and ARCHITECTURE updated.
+- Tests written first: core and react snapshot tests failed against the old `export *` surface; components already matched.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (514 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (30 tests).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: type-level API snapshot (types are fixed by the explicit export lists, not by a test); declaration output and package `exports` maps for publishing (T-024).
+- Status: T-023 IN_PROGRESS (part A in review; parts B security, C accessibility, D performance next).
+

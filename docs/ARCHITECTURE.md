@@ -69,7 +69,7 @@ flowchart TB
 | `react` | hooks, contexts, editor/viewer React API, host callbacks | domain business rules |
 | `apps/playground` | demos, fixtures, R&D, feature acceptance examples | distributable SDK dependencies |
 
-**Current scaffold:** only `core`, `components`, `react`, and `apps/playground` have been introduced. The React package temporarily includes combined renderer/editor code. The other modules are future milestones; split by tested vertical slice, never by empty directory creation. Current pipe flow is a basic indicator, not routed particle flow.
+**Current packages (MVP):** `core`, `components`, `react` and `apps/playground`. Per ADR-0005 (rejected for the MVP), snapping, graph, routing, flow and telemetry live in `core` rather than separate packages; the public surface of each package is listed in [API.md](API.md). The React package temporarily includes combined renderer/editor code. The other modules are future milestones; split by tested vertical slice, never by empty directory creation. Current pipe flow is a basic indicator, not routed particle flow.
 
 ## 4. Authoritative data models
 

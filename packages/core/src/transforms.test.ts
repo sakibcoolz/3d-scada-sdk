@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   portToWorld,
   quaternionFromEuler as euler,
-  quaternionFromUnitVectors,
   quaternionToEuler,
   rotateVector,
   type ConnectionPort,
   type QuaternionTuple,
   type Vector3Tuple,
 } from './index';
+import { quaternionFromUnitVectors } from './quaternion';
 
 const { PI } = Math;
 const identity: QuaternionTuple = [0, 0, 0, 1];

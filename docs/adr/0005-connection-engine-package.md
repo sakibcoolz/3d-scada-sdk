@@ -1,6 +1,6 @@
 # ADR-0005: Split snapping/graph into `@scada3d/connection-engine` and routing into `@scada3d/pipe-routing`
 
-Status: Proposed (not accepted; rules.md §8 requires owner approval for package-boundary changes)
+Status: Rejected for the MVP (owner, 2026-10-15). Snapping, graph and routing stay in `@scada3d/core`; revisit only if a consumer needs core without them.
 
 ## Context
 ARCHITECTURE.md §3 assigns compatibility, snapping and graph traversal to a `connection-engine` package. To avoid an unapproved boundary change, T-007 (`snapping.ts`), T-008 (`graph.ts`) and T-009 (`routing.ts`) were added to `@scada3d/core`. ARCHITECTURE.md assigns routing to a separate `pipe-routing` package.
@@ -22,5 +22,8 @@ The packages are private and unpublished, so no external consumers exist. Move t
 ## Tests
 All existing snapping and graph tests move unchanged and pass; typecheck confirms core no longer exports them.
 
+## Outcome
+The owner chose to keep one core package for the MVP: fewer packages to install, version and publish. The public surface is fixed by explicit exports and API snapshot tests instead (T-023, docs/API.md).
+
 ## Date / Approvers
-2026-10-15 / pending owner approval.
+2026-10-15 / rejected by repository owner (sakibcoolz).
