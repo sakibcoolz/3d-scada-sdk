@@ -1,6 +1,6 @@
 # ADR-0004: Scene document v2 and migration from v1
 
-Status: Proposed (not accepted; owner decision required before T-005 implements it)
+Status: Accepted (owner, 2026-10-15); implemented in T-005
 
 ## Context
 The persisted scene is `ScadaScene` v1: `version: 1`, `kind`, Euler XYZ `rotation` in radians, no `scale`, no `units`. T-003 validates this shape unchanged. ARCHITECTURE.md §4 sketches a target `SceneDocument` with `schemaVersion`, `units: 'm'`, `type`, quaternion rotation and `scale`. Moving to it is a breaking saved-scene change and must not happen silently.
@@ -19,8 +19,10 @@ Quaternions are less readable in hand-edited JSON. Migration code and fixtures m
 ## Migration
 v1 Euler XYZ → quaternion; `scale` defaults to `[1, 1, 1]`; `kind` → `type`; `version` → `schemaVersion: 2`. Unknown fields remain errors.
 
+Scale policy chosen at implementation: components whose type has ports must keep scale `[1, 1, 1]` (`UNSUPPORTED_SCALE`); portless types may use any positive scale. Rotation must be a unit quaternion within 1e-6 and is never renormalised.
+
 ## Tests
 v1 fixture migrates to the expected v2 document; v2 roundtrips byte-identically; unsupported versions are rejected; migrated rotations produce the same world-port positions (T-004 fixtures).
 
 ## Date / Approvers
-2026-10-15 / pending owner approval.
+2026-10-15 / accepted by repository owner (sakibcoolz).

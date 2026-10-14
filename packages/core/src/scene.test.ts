@@ -11,7 +11,7 @@ const fluid = (nominalSize?: number): ConnectionPort => ({
 
 describe('createEmptyScene', () => {
   it('starts with no components or connections', () => {
-    expect(createEmptyScene()).toEqual({ version: 1, components: [], connections: [] });
+    expect(createEmptyScene()).toEqual({ schemaVersion: 2, units: 'm', components: [], connections: [] });
   });
 });
 

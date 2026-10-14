@@ -8,7 +8,7 @@ import { demoScene } from './demo';
 // `?demo` opens the MVP demo network, validated like any imported scene.
 function initialScene(): ScadaScene | undefined {
   if (!new URLSearchParams(location.search).has('demo')) return undefined;
-  const result = validateScene(demoScene, { resolvePorts: (kind) => componentCatalog[kind].ports });
+  const result = validateScene(demoScene, { resolvePorts: (type) => componentCatalog[type].ports });
   if (!result.ok) {
     console.error('Demo scene is invalid', result.errors);
     return undefined;

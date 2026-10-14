@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { componentKinds, snapComponent, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@scada3d/core';
+import { componentKinds, quaternionFromEuler, snapComponent, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius, type GeometryPart } from './index';
 
-const resolvePorts = (kind: ComponentKind) => componentCatalog[kind].ports;
+const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
 
-const component = (id: string, kind: ComponentKind) => ({
+const component = (id: string, type: ComponentKind) => ({
   id,
-  kind,
+  type,
   position: [0, 0, 0],
-  rotation: [0, 0, 0],
+  rotation: [0, 0, 0, 1],
+  scale: [1, 1, 1],
   properties: {},
 });
 
@@ -18,7 +19,8 @@ const axisIndex = (direction: readonly number[]) => direction.findIndex((n) => n
 describe('componentCatalog with validateScene', () => {
   it('validates the MVP tank -> valve -> pipe -> elbow -> tee chain', () => {
     const scene = {
-      version: 1,
+      schemaVersion: 2,
+      units: 'm',
       components: [
         component('tank', 'tank'),
         component('valve', 'valve'),
@@ -39,10 +41,18 @@ describe('componentCatalog with validateScene', () => {
 
 describe('componentCatalog with snapComponent', () => {
   it('snaps an elbow onto the tee branch and the result validates', () => {
-    const tee: ComponentInstance = { id: 'tee', kind: 'tee', position: [0, 0, 0], rotation: [0, 0, 0], properties: {} };
+    const tee: ComponentInstance = { id: 'tee', type: 'tee', position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: {} };
     // Elbow dropped near the branch with its "in" port roughly facing down.
-    const elbow: ComponentInstance = { id: 'elbow', kind: 'elbow', position: [0.25, 1.4, 0.05], rotation: [0, 0, Math.PI / 2 + 0.2], properties: {} };
-    const scene: ScadaScene = { version: 1, components: [tee], connections: [] };
+    const elbow: ComponentInstance = {
+      id: 'elbow',
+      type: 'elbow',
+      position: [0.25, 1.4, 0.05],
+      rotation: quaternionFromEuler([0, 0, Math.PI / 2 + 0.2]),
+      scale: [1, 1, 1],
+      properties: {},
+    };
+    const scene: ScadaScene = { schemaVersion: 2,
+      units: 'm', components: [tee], connections: [] };
     const result = snapComponent(scene, elbow, { resolvePorts });
     if (!result.ok) throw new Error('expected a snap');
     expect(result.connection).toEqual({ from: { instanceId: 'elbow', portId: 'in' }, to: { instanceId: 'tee', portId: 'branch' } });
@@ -53,9 +63,9 @@ describe('componentCatalog with snapComponent', () => {
 });
 
 describe('componentCatalog definitions', () => {
-  it('defines every component kind under its own key', () => {
+  it('defines every component type under its own key', () => {
     expect(Object.keys(componentCatalog).sort()).toEqual([...componentKinds].sort());
-    for (const [key, definition] of Object.entries(componentCatalog)) expect(definition.kind).toBe(key);
+    for (const [key, definition] of Object.entries(componentCatalog)) expect(definition.type).toBe(key);
   });
 
   it('includes the MVP equipment set', () => {
@@ -64,23 +74,23 @@ describe('componentCatalog definitions', () => {
     }
   });
 
-  it.each(definitions)('$kind declares unique port ids', ({ ports }) => {
+  it.each(definitions)('$type declares unique port ids', ({ ports }) => {
     const ids = ports.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it.each(definitions)('$kind has non-empty bounds that match defaultSize', ({ bounds, defaultSize }) => {
+  it.each(definitions)('$type has non-empty bounds that match defaultSize', ({ bounds, defaultSize }) => {
     for (let i = 0; i < 3; i++) {
       expect(bounds.max[i]).toBeGreaterThan(bounds.min[i]);
       expect(bounds.max[i] - bounds.min[i]).toBeCloseTo(defaultSize[i], 10);
     }
   });
 
-  it.each(definitions)('$kind has at least one shell part', ({ parts }) => {
+  it.each(definitions)('$type has at least one shell part', ({ parts }) => {
     expect(parts.some((p) => p.role === 'shell')).toBe(true);
   });
 
-  it.each(definitions.flatMap((d) => d.ports.map((p) => [`${d.kind}.${p.id}`, d, p] as const)))(
+  it.each(definitions.flatMap((d) => d.ports.map((p) => [`${d.type}.${p.id}`, d, p] as const)))(
     '%s points outward along one axis from the matching bounds face',
     (_, definition, port) => {
       const axis = axisIndex(port.direction);

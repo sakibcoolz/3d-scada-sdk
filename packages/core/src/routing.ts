@@ -35,7 +35,7 @@ export type PipeRoute =
   | { status: 'invalid'; connectionId: string; reason: 'UNRESOLVED'; message: string };
 
 export interface RoutingOptions {
-  resolvePorts: (kind: ComponentKind) => readonly ConnectionPort[] | undefined;
+  resolvePorts: (type: ComponentKind) => readonly ConnectionPort[] | undefined;
   /** Centreline bend radius, metres. Default 0.3 (2 × DN150, matching the catalog elbow). */
   bendRadius?: number;
 }
@@ -114,7 +114,7 @@ function polylineLength(points: Vector3Tuple[]): number {
 
 function resolve(scene: ScadaScene, endpoint: SceneConnection['from'], options: RoutingOptions): WorldPort | undefined {
   const owner = scene.components.find((c) => c.id === endpoint.instanceId);
-  const port = owner && options.resolvePorts(owner.kind)?.find((p) => p.id === endpoint.portId);
+  const port = owner && options.resolvePorts(owner.type)?.find((p) => p.id === endpoint.portId);
   return owner && port ? portToWorld(owner, port) : undefined;
 }
 

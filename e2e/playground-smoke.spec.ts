@@ -9,10 +9,10 @@ test('playground loads offline and can add and remove a tank', async ({ page }) 
   await expect(page.getByText('3D SCADA SDK')).toBeVisible();
 
   await page.getByRole('button', { name: 'Vertical Tank +' }).click();
-  await expect(page.getByLabel('Scene JSON')).toHaveValue(/"kind": "tank"/);
+  await expect(page.getByLabel('Scene JSON')).toHaveValue(/"type": "tank"/);
 
   await page.getByRole('button', { name: 'Remove' }).click();
-  await expect(page.getByLabel('Scene JSON')).not.toHaveValue(/"kind": "tank"/);
+  await expect(page.getByLabel('Scene JSON')).not.toHaveValue(/"type": "tank"/);
   await expect(page.getByText('Select equipment in the canvas.')).toBeVisible();
 
   expect(sockets).toEqual([]);

@@ -7,14 +7,14 @@ import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } f
 const definitions = Object.values(componentCatalog);
 
 describe('createEquipmentGeometries', () => {
-  it.each(definitions)('$kind creates one geometry per part', (definition) => {
+  it.each(definitions)('$type creates one geometry per part', (definition) => {
     const geometries = createEquipmentGeometries(definition);
     expect(geometries).toHaveLength(definition.parts.length);
     disposeGeometries(geometries);
   });
 
   // Three stores vertices as float32, so compare to 1e-6 m.
-  it.each(definitions)('$kind geometry fills exactly its declared bounds', (definition) => {
+  it.each(definitions)('$type geometry fills exactly its declared bounds', (definition) => {
     const geometries = createEquipmentGeometries(definition);
     const box = new Box3();
     for (const geometry of geometries) {
@@ -26,7 +26,7 @@ describe('createEquipmentGeometries', () => {
     disposeGeometries(geometries);
   });
 
-  it.each(definitions.flatMap((d) => d.ports.filter((p) => p.kind === 'fluid').map((p) => [`${d.kind}.${p.id}`, d, p] as const)))(
+  it.each(definitions.flatMap((d) => d.ports.filter((p) => p.kind === 'fluid').map((p) => [`${d.type}.${p.id}`, d, p] as const)))(
     '%s is centred on a pipe opening of the outer pipe radius',
     (_, definition, port) => {
       const geometries = createEquipmentGeometries(definition);
@@ -47,7 +47,7 @@ describe('createEquipmentGeometries', () => {
     },
   );
 
-  it.each(definitions.flatMap((d) => d.ports.map((p) => [`${d.kind}.${p.id}`, d, p] as const)))(
+  it.each(definitions.flatMap((d) => d.ports.map((p) => [`${d.type}.${p.id}`, d, p] as const)))(
     '%s has no geometry beyond the port plane',
     (_, definition, port) => {
       const geometries = createEquipmentGeometries(definition);

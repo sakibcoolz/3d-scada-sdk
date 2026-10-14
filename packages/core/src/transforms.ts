@@ -1,3 +1,4 @@
+import { rotateVector } from './quaternion';
 import type { ComponentInstance, ConnectionPort, Vector3Tuple } from './scene';
 
 /** A port expressed in scene (world) coordinates: metres, right-handed, Y up. */
@@ -8,30 +9,8 @@ export interface WorldPort {
   direction: Vector3Tuple;
 }
 
-export type ComponentTransform = Pick<ComponentInstance, 'position' | 'rotation'>;
-
-/**
- * Rotates a vector by Euler angles in radians using intrinsic XYZ order, the same convention as
- * Three.js `Euler(x, y, z, 'XYZ')`: the matrix is Rx · Ry · Rz, so Z is applied first.
- */
-export function rotateVector(vector: Vector3Tuple, rotation: Vector3Tuple): Vector3Tuple {
-  let [x, y, z] = vector;
-  const [rx, ry, rz] = rotation;
-
-  const cz = Math.cos(rz);
-  const sz = Math.sin(rz);
-  [x, y] = [x * cz - y * sz, x * sz + y * cz];
-
-  const cy = Math.cos(ry);
-  const sy = Math.sin(ry);
-  [x, z] = [x * cy + z * sy, -x * sy + z * cy];
-
-  const cx = Math.cos(rx);
-  const sx = Math.sin(rx);
-  [y, z] = [y * cx - z * sx, y * sx + z * cx];
-
-  return [x, y, z];
-}
+/** Position and rotation are required; scale defaults to [1, 1, 1]. */
+export type ComponentTransform = Pick<ComponentInstance, 'position' | 'rotation'> & Partial<Pick<ComponentInstance, 'scale'>>;
 
 function normalize(vector: Vector3Tuple, portId: string): Vector3Tuple {
   const length = Math.hypot(...vector);
@@ -42,11 +21,13 @@ function normalize(vector: Vector3Tuple, portId: string): Vector3Tuple {
 }
 
 /**
- * Converts a component-local port into world space. Scene v1 has no scale, so the local
- * position is rotated about the component origin and then translated; the direction is only rotated.
+ * Converts a component-local port into world space: scale, then rotate about the component
+ * origin, then translate. Directions are normals, so they use the inverse scale before rotating.
  */
 export function portToWorld(component: ComponentTransform, port: ConnectionPort): WorldPort {
-  const rotated = rotateVector(port.position, component.rotation);
+  const [sx, sy, sz] = component.scale ?? [1, 1, 1];
+  const rotated = rotateVector([port.position[0] * sx, port.position[1] * sy, port.position[2] * sz], component.rotation);
+  const direction = normalize(port.direction, port.id);
   return {
     id: port.id,
     position: [
@@ -54,6 +35,6 @@ export function portToWorld(component: ComponentTransform, port: ConnectionPort)
       rotated[1] + component.position[1],
       rotated[2] + component.position[2],
     ],
-    direction: rotateVector(normalize(port.direction, port.id), component.rotation),
+    direction: rotateVector(normalize([direction[0] / sx, direction[1] / sy, direction[2] / sz], port.id), component.rotation),
   };
 }

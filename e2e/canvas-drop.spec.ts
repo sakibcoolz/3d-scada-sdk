@@ -71,7 +71,7 @@ test('drops components at the pointer and snaps a valve onto the tank outlet', a
   scene = await sceneJson(page);
   expect(scene.components).toHaveLength(2);
   const valve = scene.components[1];
-  expect(valve.kind).toBe('valve');
+  expect(valve.type).toBe('valve');
   [x + 1.8, 0.635, z].forEach((n, i) => expect(valve.position[i]).toBeCloseTo(n, 9));
   expect(scene.connections).toEqual([
     { id: expect.any(String), from: { instanceId: valve.id, portId: 'in' }, to: { instanceId: tankId, portId: 'outlet' } },
