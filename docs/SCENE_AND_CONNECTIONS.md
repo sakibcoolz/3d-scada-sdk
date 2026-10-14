@@ -69,6 +69,15 @@ This is **target schema**, not necessarily current code. The v2 shape is propose
 ## Routing
 Distinguish logical edge from render mesh. Support straight runs and deterministic orthogonal elbows; tee is a 3-port junction node, not merely crossing meshes. Document pipe diameter, bend-radius constraints and clearance; never imply collision-free CAD-grade auto-routing without collision tests.
 
+## Current routing (T-009)
+`routeConnection` / `routeScene` in `packages/core/src/routing.ts` derive a `PipeRoute` per connection from world ports; routes are never persisted.
+- `direct`: ports coincide (zero length, no pipe). `straight`: normals opposed and the target lies straight ahead, at any angle. `orthogonal`: leave each port along its normal by the bend radius, then axis-aligned runs. All six axis orders are tried; the fewest bends wins, ties go to the first order (x, y, z first). Routes that double back are rejected.
+- Bend radius defaults to 0.3 m (2 × DN150, same as the catalog elbow). Every straight touching a bend must be at least one radius long per bend it touches.
+- Failures: `UNRESOLVED` (missing component/port), `UNSUPPORTED_ORIENTATION` (off-axis port that is not a straight run), `UNROUTABLE` (every order doubles back), `BEND_TOO_TIGHT`. Invalid routes keep the port anchors so the viewer draws a dashed red line instead of pipe.
+- `length` is the polyline length through the corners, not the arc length.
+- The React viewer renders routes with `createRouteGeometries` (trimmed straights plus quarter-torus bends) and disposes them when the centreline changes or unmounts. `/?demo` in the playground loads a validated tank → valve → pipe → tee network with two branches.
+- Not done: obstacle avoidance, collision checks, custom waypoints, non-axis-aligned orthogonal routing.
+
 ## Serialization
 Save authored scene only. Validate on load, reject/diagnose corrupt references, migrate supported versions, round-trip deterministically, avoid using React/Three objects or telemetry stream values in JSON.
 

@@ -131,3 +131,20 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: undo/redo (T-011), route regeneration (T-009), editor UI for connecting.
 - Status: T-008 REVIEW until PR is merged.
 - Handoff: next is T-009 (pipe routing, elbow and tee geometry). ADR-0004 and ADR-0005 await owner decisions.
+
+## 2026-10-15 — T-009 pipe routing, route geometry and demo network
+- Branch: `feat/T-009-pipe-routing` (from `develop` @ `3201ca9`; T-008 merged and marked DONE).
+- Graphify: index NOT built. Fallback: read `transforms.ts`, `graph.ts`, `geometry.ts` and the viewer directly.
+- Scope: `routeConnection` and `routeScene` in `packages/core/src/routing.ts` (direct/straight/orthogonal, fewest-bend axis order search, bend-radius room checks, typed failures). `createRouteGeometries` in `@scada3d/react` (trimmed straights plus quarter-torus bends); viewer renders routes and a dashed red line for invalid ones. Playground `/?demo` loads a validated tank → valve → pipe → tee network with straight runs and an L-shaped branch. Kept in core; ADR-0005 widened to propose `pipe-routing` too.
+- Tests written first: 20 routing tests and 4 route-geometry tests failed before implementation. One fixture was infeasible under the bend rules ((0.5, 2, −2) facing −X) and was changed to (1.5, 2, −2) before implementation.
+- Bug found in browser check: routed pipes stayed opaque in glass mode although their materials reported `transparent: true, opacity: 0.21` (inspected via the Three.js devtools hook). Three.js only recompiles the opaque shader variant on a new or `needsUpdate` material; shells worked only because double-sided transparent rendering sets `needsUpdate` each draw. Fixed by keying route and shell materials on glass mode; screenshots confirm uniform glass and a clean return to normal view.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (290 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (2 tests: add/remove, demo scene loads with no console errors).
+  - Browser screenshots of `/?demo` in normal and glass mode.
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: obstacle avoidance, collision checks, waypoints, routing for off-axis ports, editor connect UI.
+- Status: T-009 REVIEW until PR is merged.
+- Handoff: next dependency-ready is T-010 (3D canvas raycast drag/drop), after T-007 and T-009. T-013 (flow-state resolver) is also unblocked. ADR-0004 and ADR-0005 await owner decisions.

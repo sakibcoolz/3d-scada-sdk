@@ -3,3 +3,4 @@ export * from './validation';
 export * from './transforms';
 export * from './snapping';
 export * from './graph';
+export * from './routing';

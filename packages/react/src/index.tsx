@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { DoubleSide } from 'three';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
-import { removeComponent, type ComponentInstance, type ComponentKind, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, Line } from '@react-three/drei';
+import { removeComponent, routeScene, type ComponentInstance, type ComponentKind, type PipeRoute, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
-import { createEquipmentGeometries, disposeGeometries } from './geometry';
+import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 
 function Equipment({ component, glass, selected, onSelect }: { component:ComponentInstance; glass:boolean; selected:boolean; onSelect:()=>void }) {
   const definition = componentCatalog[component.kind];
@@ -13,6 +13,8 @@ function Equipment({ component, glass, selected, onSelect }: { component:Compone
   const level = Math.max(0, Math.min(100, Number(component.properties.level ?? 45))) / 100;
   const flowing = component.properties.flowing === true;
   const open = component.properties.open !== false;
+  // Materials are keyed on glass mode so toggling recreates them: Three.js only recompiles the
+  // opaque/transparent shader variant when a material is new or flagged needsUpdate.
   const shellProps = {color:selected?'#63b3ed':'#7b9eb6',metalness:glass?0:0.65,roughness:0.35,transparent:glass,opacity:glass?0.21:1,depthWrite:!glass,side:DoubleSide};
   return <group position={component.position} rotation={component.rotation} onClick={e=>{e.stopPropagation();onSelect();}}>
     {definition.parts.map((part, i) => {
@@ -25,18 +27,34 @@ function Equipment({ component, glass, selected, onSelect }: { component:Compone
       }
       if (part.role === 'valve-ball') return <mesh key={i} geometry={geometry}><meshStandardMaterial color={open?'#48b983':'#e76e75'}/></mesh>;
       if (part.role === 'valve-handle') return <mesh key={i} geometry={geometry} rotation={[0, open ? 0 : Math.PI / 2, 0]}><meshStandardMaterial color="#e3d5a5"/></mesh>;
-      return <mesh key={i} geometry={geometry}><meshStandardMaterial {...shellProps}/></mesh>;
+      return <mesh key={i} geometry={geometry}><meshStandardMaterial key={glass ? 'glass' : 'solid'} {...shellProps}/></mesh>;
     })}
     {flowing && (component.kind==='pipe'||component.kind==='tee') && <mesh rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[pipeOuterRadius*0.5,pipeOuterRadius*0.5,1.9,16]}/><meshStandardMaterial color="#30caff" emissive="#137eaa" emissiveIntensity={.4}/></mesh>}
     {definition.ports.map(port=><mesh key={port.id} position={port.position}><sphereGeometry args={[.05,10,10]}/><meshBasicMaterial color="#ffd166"/></mesh>)}
   </group>;
 }
 
+function RoutePipe({ route, glass }: { route: PipeRoute; glass: boolean }) {
+  // Rebuild geometry only when the routed centreline changes, not on every scene update.
+  const shape = route.status === 'ok' ? route.points.flat().join(',') : '';
+  const geometries = useMemo(() => (route.status === 'ok' ? createRouteGeometries(route, pipeOuterRadius) : []), [shape]);
+  useEffect(() => () => disposeGeometries(geometries), [geometries]);
+  if (route.status !== 'ok') {
+    // Invalid route: dashed red line between the ports so the problem is visible, no pipe drawn.
+    return 'from' in route ? <Line points={[route.from, route.to]} color="#e76e75" dashed dashSize={0.15} gapSize={0.1} lineWidth={2}/> : null;
+  }
+  return <>{geometries.map((geometry, i) => <mesh key={i} geometry={geometry}><meshStandardMaterial key={glass ? 'glass' : 'solid'} color="#8fa9bc" metalness={glass?0:0.6} roughness={0.35} transparent={glass} opacity={glass?0.21:1} depthWrite={!glass}/></mesh>)}</>;
+}
+
+const resolvePorts = (kind: ComponentKind) => componentCatalog[kind].ports;
+
 export function Scada3DViewer({scene,glass=false,onSelect,selectedId}: {scene:ScadaScene;glass?:boolean;onSelect?:(id:string)=>void;selectedId?:string}) {
+  const routes = useMemo(() => routeScene(scene, { resolvePorts }), [scene]);
   return <Canvas camera={{position:[7,6,9],fov:50}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
     {scene.components.map(c=><Equipment key={c.id} component={c} glass={glass} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)}/>)}
+    {routes.map(route=><RoutePipe key={route.connectionId} route={route} glass={glass}/>)}
     <OrbitControls makeDefault/><GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport/></GizmoHelper>
   </Canvas>;
 }

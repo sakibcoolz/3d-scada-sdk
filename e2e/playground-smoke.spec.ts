@@ -17,3 +17,18 @@ test('playground loads offline and can add and remove a tank', async ({ page }) 
 
   expect(sockets).toEqual([]);
 });
+
+test('demo scene loads a validated, routed network without errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(String(error)));
+
+  await page.goto('/?demo');
+  const json = page.getByLabel('Scene JSON');
+  await expect(json).toHaveValue(/"id": "tee-b"/);
+  await expect(page.locator('canvas')).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(errors).toEqual([]);
+});
