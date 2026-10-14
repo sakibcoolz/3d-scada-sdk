@@ -58,6 +58,14 @@ This is **target schema**, not necessarily current code. The v2 shape is propose
 - `snapComponent` takes the first `ok` candidate and returns the moving component's new `position` and `rotation` (Euler XYZ) plus the `from`/`to` endpoints, or `NO_CANDIDATE` with the nearest rejected candidate for preview messages. The rotation is the smallest turn that makes the normals oppose, so roll about the port axis is kept; a half turn prefers the world Y axis. The target component never moves.
 - Not done here: committing the edge and undo (T-008/T-011), preview UI and Escape cancel (T-010), collision checks.
 
+## Current graph operations (T-008)
+`packages/core/src/graph.ts`. All functions are pure and return a new scene (`{ ok: true, scene }`) or `{ ok: false, error: { code, message } }`; the input is never mutated.
+- `connect(scene, { id, from, to }, options)` validates the candidate scene with `validateScene`, so edge rules have one source of truth. The caller supplies the edge id. The input scene must already be valid; errors about the new edge are reported first.
+- `disconnect(scene, connectionId)` (`UNKNOWN_CONNECTION` if absent) frees both ports.
+- `removeComponent(scene, instanceId)` removes the component and every edge on either side (`UNKNOWN_INSTANCE` if absent). The editor's Remove button uses it.
+- `connectionsOf`, `reachableComponents` (direction-agnostic, breadth-first in connection order) and `connectedGroups` (disconnected networks, ordered by first component). Traversal is iterative: cycles terminate and a 5,000-component chain is tested.
+- Not done here: undo/redo (T-011), route regeneration (T-009).
+
 ## Routing
 Distinguish logical edge from render mesh. Support straight runs and deterministic orthogonal elbows; tee is a 3-port junction node, not merely crossing meshes. Document pipe diameter, bend-radius constraints and clearance; never imply collision-free CAD-grade auto-routing without collision tests.
 
