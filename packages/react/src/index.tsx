@@ -1,25 +1,26 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DoubleSide, type Camera, type Object3D } from 'three';
-import { Canvas, useThree } from '@react-three/fiber';
+import { DoubleSide, Object3D as Object3DImpl, type Camera, type InstancedMesh, type Object3D } from 'three';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { createEmptyScene, portToWorld, removeComponent, routeScene, serializeScene, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { createEmptyScene, portToWorld, removeComponent, resolveFlow, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
 
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
 import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile';
+import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances, pathLengths, pointAt, summarizeFlow } from './flowVisual';
 
 export { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
 export { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
 export { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES, type SceneImport } from './sceneFile';
+export { flowAppearance, summarizeFlow, type FlowAppearance } from './flowVisual';
 
 function Equipment({ component, glass, selected, onSelect, objectRef }: { component:ComponentInstance; glass:boolean; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void }) {
   const definition = componentCatalog[component.type];
   const geometries = useMemo(() => createEquipmentGeometries(definition), [definition]);
   useEffect(() => () => disposeGeometries(geometries), [geometries]);
   const level = Math.max(0, Math.min(100, Number(component.properties.level ?? 45))) / 100;
-  const flowing = component.properties.flowing === true;
   const open = component.properties.open !== false;
   // Materials are keyed on glass mode so toggling recreates them: Three.js only recompiles the
   // opaque/transparent shader variant when a material is new or flagged needsUpdate.
@@ -37,7 +38,6 @@ function Equipment({ component, glass, selected, onSelect, objectRef }: { compon
       if (part.role === 'valve-handle') return <mesh key={i} geometry={geometry} rotation={[0, open ? 0 : Math.PI / 2, 0]}><meshStandardMaterial color="#e3d5a5"/></mesh>;
       return <mesh key={i} geometry={geometry}><meshStandardMaterial key={glass ? 'glass' : 'solid'} {...shellProps}/></mesh>;
     })}
-    {flowing && (component.type==='pipe'||component.type==='tee') && <mesh rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[pipeOuterRadius*0.5,pipeOuterRadius*0.5,1.9,16]}/><meshStandardMaterial color="#30caff" emissive="#137eaa" emissiveIntensity={.4}/></mesh>}
     {definition.ports.map(port=><mesh key={port.id} position={port.position}><sphereGeometry args={[.05,10,10]}/><meshBasicMaterial color="#ffd166"/></mesh>)}
   </group>;
 }
@@ -55,6 +55,61 @@ function RoutePipe({ route, glass }: { route: PipeRoute; glass: boolean }) {
 }
 
 const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
+
+const markerDummy = new Object3DImpl();
+
+/**
+ * Flow along one routed pipe: beads slightly wider than the pipe that travel from→to or to→from,
+ * sit still when stopped, or a dashed overlay when the flow is unknown. Motion uses frame delta.
+ */
+function FlowMarkers({ route, state }: { route: Extract<PipeRoute, { status: 'ok' }>; state: FlowState }) {
+  const shape = route.points.flat().join(',');
+  const centerline = useMemo(() => sampleRouteCenterline(route), [shape]);
+  const lengths = useMemo(() => pathLengths(centerline), [centerline]);
+  const total = lengths[lengths.length - 1];
+  const count = markerDistances(total, FLOW_MARKER_SPACING, 0).length;
+  const appearance = flowAppearance(state);
+  const mesh = useRef<InstancedMesh>(null);
+  const travelled = useRef(0);
+  useFrame((_, delta) => {
+    if (!mesh.current) return;
+    const sign = appearance.motion === 'forward' ? 1 : appearance.motion === 'reverse' ? -1 : 0;
+    travelled.current = (travelled.current + sign * FLOW_MARKER_SPEED * delta) % total;
+    markerDistances(total, FLOW_MARKER_SPACING, travelled.current).forEach((d, i) => {
+      markerDummy.position.set(...pointAt(centerline, lengths, d));
+      markerDummy.updateMatrix();
+      mesh.current!.setMatrixAt(i, markerDummy.matrix);
+    });
+    mesh.current.instanceMatrix.needsUpdate = true;
+  });
+  if (total <= 0) return null;
+  if (appearance.dashed) {
+    // Drawn over the pipe (no depth test) so missing or untrusted data is never hidden by geometry.
+    return <Line points={centerline} color={appearance.color} dashed dashSize={0.15} gapSize={0.1} lineWidth={3} transparent opacity={appearance.opacity} depthTest={false} renderOrder={10}/>;
+  }
+  return <instancedMesh key={`${count}:${appearance.color}:${appearance.opacity}`} ref={mesh} args={[undefined, undefined, count]} frustumCulled={false}>
+    <sphereGeometry args={[pipeOuterRadius * 1.25, 12, 8]}/>
+    <meshBasicMaterial color={appearance.color} transparent={appearance.opacity < 1} opacity={appearance.opacity}/>
+  </instancedMesh>;
+}
+
+/** Current time, refreshed every `intervalMs`, so staleness advances without new readings. */
+function useNow(intervalMs: number): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
+
+/** Host-supplied flow input. Omit it to show no flow at all. */
+export interface FlowInput {
+  readings: readonly FlowReading[];
+  /** Which readings to show; measured and simulated are never mixed. Default MEASURED. */
+  source?: ValueSource;
+  staleAfterMs?: number;
+}
 
 /** Hands the active R3F camera to code outside the canvas (used for pointer-to-plane raycasts). */
 function CameraBridge({ onCamera }: { onCamera: (camera: Camera) => void }) {
@@ -87,11 +142,18 @@ export type TransformHandler = (id: string, position: Vector3Tuple, rotation: Qu
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,glass=false,onSelect,selectedId,preview,onCamera,transformMode,onTransform}: {scene:ScadaScene;glass?:boolean;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler}) {
+export function Scada3DViewer({scene,glass=false,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow}: {scene:ScadaScene;glass?:boolean;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput}) {
   const routes = useMemo(() => routeScene(scene, { resolvePorts }), [scene]);
+  const now = useNow(1000);
+  const flowStates = useMemo(
+    () => (flow ? resolveFlow(scene, flow.readings, { now, source: flow.source, staleAfterMs: flow.staleAfterMs }).states : undefined),
+    [scene, flow, now],
+  );
+  const stateById = useMemo(() => new Map(flowStates?.map((s) => [s.connectionId, s])), [flowStates]);
   const [selectedObject, setSelectedObject] = useState<Object3D | null>(null);
   const gesture = useRef(0);
-  return <Canvas camera={{position:[7,6,9],fov:50}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
+  return <div style={{position:'relative',width:'100%',height:'100%'}}>
+  <Canvas camera={{position:[7,6,9],fov:50}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
     {scene.components.map(c=><Equipment key={c.id} component={c} glass={glass} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
@@ -99,20 +161,24 @@ export function Scada3DViewer({scene,glass=false,onSelect,selectedId,preview,onC
       onMouseDown={()=>{gesture.current++;}}
       onObjectChange={()=>onTransform(selectedId, selectedObject.position.toArray() as Vector3Tuple, selectedObject.quaternion.toArray() as QuaternionTuple, `transform:${selectedId}:${gesture.current}`)}/>}
     {routes.map(route=><RoutePipe key={route.connectionId} route={route} glass={glass}/>)}
+    {flowStates && routes.map(route=>{const state=stateById.get(route.connectionId);return route.status==='ok'&&state?<FlowMarkers key={`flow:${route.connectionId}`} route={route} state={state}/>:null;})}
     {preview && <DropPreview scene={scene} plan={preview}/>}
     {onCamera && <CameraBridge onCamera={onCamera}/>}
     <OrbitControls makeDefault/><GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport/></GizmoHelper>
-  </Canvas>;
+  </Canvas>
+  {flow?.source==='SIMULATED'&&<div style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED FLOW</div>}
+  {flowStates&&<div aria-label="Flow summary" aria-live="polite" style={{position:'absolute',bottom:10,left:12,padding:'4px 8px',borderRadius:4,background:'#0b1725cc',color:'#ebf2fa',fontSize:12,pointerEvents:'none'}}>{summarizeFlow(flowStates)}</div>}
+  </div>;
 }
 
-const defaultProperties = { level: 45, open: true, flowing: false };
+const defaultProperties = { level: 45, open: true };
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
-export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void}) {
+export function Scada3DEditor({initialScene,onChange,flow}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput}) {
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
   const scene=history.present;
   const [selected,setSelected]=useState<string>();
@@ -201,7 +267,7 @@ export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;
     <main onDragOver={e=>{if(!dragKind.current)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} glass={glass} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={transform}/>
+      <Scada3DViewer scene={scene} glass={glass} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={transform} flow={flow}/>
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene):''}</div>
     </main>
     <aside style={{padding:14,borderLeft:'1px solid #3c5366'}}>
@@ -212,7 +278,6 @@ export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;
         {(['X','Y','Z'] as const).map((axis,i)=><label key={axis} style={{display:'block',marginTop:8}}>{axis} <input type="number" step=".1" style={{width:100}} value={component.position[i]} onChange={e=>{const pos=[...component.position] as Vector3Tuple;pos[i]=Number(e.target.value);patch({position:pos},`position:${component.id}:${axis}`);}}/></label>)}
         {component.type==='tank'&&<label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Number(component.properties.level??45)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>}
         {component.type==='valve'&&<label><input type="checkbox" checked={component.properties.open!==false} onChange={e=>patch({properties:{...component.properties,open:e.target.checked}})}/> Valve open</label>}
-        {(component.type==='pipe'||component.type==='tee')&&<label><input type="checkbox" checked={component.properties.flowing===true} onChange={e=>patch({properties:{...component.properties,flowing:e.target.checked}})}/> Flow indicator</label>}
         <p><button onClick={()=>{const result=removeComponent(scene,component.id);if(result.ok)update(result.scene);setSelected(undefined);}}>Remove</button></p>
       </>:<p>Select equipment in the canvas.</p>}
       <hr/><small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={serialized} style={{width:'100%',height:170,boxSizing:'border-box'}}/>

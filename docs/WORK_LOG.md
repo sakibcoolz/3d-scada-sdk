@@ -229,3 +229,19 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: rendering flow (T-014), tag-to-connection bindings (T-016), unit conversion for non-m³/s inputs, valve/flow conflict hints.
 - Status: T-013 REVIEW until PR is merged.
 - Handoff: next is T-014 (animated directional flow and stale cases), which renders these states along route centrelines. ADR-0005 awaits an owner decision.
+
+## 2026-10-15 — T-014 animated directional flow and stale cases
+- Branch: `feat/T-014-flow-animation` (from `develop` @ `0f590ba`; #22 merged, T-013 marked DONE).
+- Graphify: index NOT built. Fallback: read the viewer, routing and flow resolver directly.
+- Scope: `sampleRouteCenterline` (core; polyline through bend arcs). `flowVisual.ts` (pure: `flowAppearance`, `pathLengths`, `pointAt`, `markerDistances`, `summarizeFlow`). Viewer `flow` prop: 1 s clock for staleness, instanced travelling/still beads, dashed always-visible overlays for unknown states, SIMULATED badge, accessible summary. Editor passes `flow` through. Removed the manual `flowing` property/checkbox (it showed flow without data). Playground `?demo` flow feed panel (`FlowPanel.tsx`) with Live re-stamping.
+- Tests written first: 3 centreline tests and `flowVisual.test.ts` failed before implementation; 3 of 4 flow e2e tests failed before wiring. Fixed a float artefact in marker wrapping (0.6 became 0.5999999999999999). Playground typecheck caught an overwritten-defaults spread in the panel.
+- Browser checks: screenshots of measured, reverse+stale and simulated states. The grey "no reading" overlay was nearly invisible on grey pipe, so it is now light grey (#c3cdd8); re-checked. Marker motion measured from live instance matrices: +0.24 m in 0.3 s at rate 2, −0.24 m (wrapped) at rate −2, 0 at rate 0; kept as a permanent e2e test. Staleness verified with Playwright's fake clock.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (412 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (18 tests).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: flow along component bodies (only routed connections carry readings), per-frame allocation in `pointAt` (small; optimise when benchmarked), GPU/memory baseline, tag bindings (T-016).
+- Status: T-014 REVIEW until PR is merged.
+- Handoff: next is T-015 (glass, X-ray, cutaway, water and heat). ADR-0005 awaits an owner decision.

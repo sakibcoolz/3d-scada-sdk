@@ -181,3 +181,36 @@ export function routeConnection(scene: ScadaScene, connection: SceneConnection, 
 export function routeScene(scene: ScadaScene, options: RoutingOptions): PipeRoute[] {
   return scene.connections.map((connection) => routeConnection(scene, connection, options));
 }
+
+/**
+ * The pipe centreline as a polyline that follows each bend's arc (quarter circle of the bend
+ * radius inside the corner) instead of the sharp corner, for placing things inside the pipe.
+ * `segmentsPerBend` straight pieces approximate each arc. Consecutive duplicates are dropped.
+ */
+export function sampleRouteCenterline(route: Extract<PipeRoute, { status: 'ok' }>, segmentsPerBend = 8): Vector3Tuple[] {
+  const { points, bends } = route;
+  if (points.length < 3) return points.map((p) => [...p] as Vector3Tuple);
+  const unit = (v: Vector3Tuple): Vector3Tuple => {
+    const l = Math.hypot(...v);
+    return [v[0] / l, v[1] / l, v[2] / l];
+  };
+  const out: Vector3Tuple[] = [];
+  const push = (p: Vector3Tuple) => {
+    if (out.length === 0 || !same(p, out[out.length - 1])) out.push(p);
+  };
+  push([...points[0]]);
+  for (let i = 1; i < points.length - 1; i++) {
+    const corner = points[i];
+    const radius = bends[i - 1].radius;
+    const incoming = unit(sub(corner, points[i - 1]));
+    const outgoing = unit(sub(points[i + 1], corner));
+    // Arc centre sits one radius back along the incoming run and one radius along the outgoing run.
+    const centre = along(along(corner, incoming, -radius), outgoing, radius);
+    for (let k = 0; k <= segmentsPerBend; k++) {
+      const theta = (k / segmentsPerBend) * (Math.PI / 2);
+      push(along(along(centre, outgoing, -radius * Math.cos(theta)), incoming, radius * Math.sin(theta)));
+    }
+  }
+  push([...points[points.length - 1]]);
+  return out;
+}
