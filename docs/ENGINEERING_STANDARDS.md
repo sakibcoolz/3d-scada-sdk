@@ -15,6 +15,12 @@
 - Minimize per-frame allocations and mesh/material churn; measure before optimizing.
 - Semantic version public API/schema changes; document migration and deprecations.
 
+## Accessibility (MVP baseline, T-023 part C)
+- Every button, input, select and textarea has an accessible name (enforced by `e2e/accessibility.spec.ts`).
+- The 3D canvas is wrapped in a `region` named "3D scene view" with a text description of component and connection counts; live summaries (flow, telemetry, drop preview, import results) are text with `aria-live`.
+- Everything the mouse can do to a component (select, move, turn, remove, undo) is also possible from the keyboard; a keyboard-only browser test covers the path.
+- Not yet covered: colour-contrast audit, screen-reader testing on real assistive technology, focus management inside the 3D view, and reduced-motion handling for flow animation.
+
 ## Review gates
 Format/lint/typecheck, unit tests, integration tests, browser smoke, dependency audit appropriate to change. Require at least one independent review for schema and security boundary changes.
 
