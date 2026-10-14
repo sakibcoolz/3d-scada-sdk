@@ -54,3 +54,15 @@ export const demoTagRows: Record<string, TagRow> = {
   'TT-101': { value: '25', quality: 'GOOD' },
   'XV-101': { value: 'true', quality: 'GOOD' },
 };
+
+/**
+ * Benchmark scene "chain-N" for `?generate=N`: N valves in a zig-zag line (two bends per route),
+ * every connection bound to a flow tag fed with 1 m³/s so all flow markers animate.
+ */
+export function generatedScene(n: number): { scene: ScadaScene; rows: Record<string, TagRow> } {
+  const components: ComponentInstance[] = Array.from({ length: n }, (_, i) => at(`v${i}`, 'valve', [(i % 20) * 3, 0.2 + (i % 2) * 1.5, Math.floor(i / 20) * 4]));
+  const connections = components.slice(1).map((c, i) => ({ id: `e${i + 1}`, from: { instanceId: components[i].id, portId: 'out' }, to: { instanceId: c.id, portId: 'in' } }));
+  const tagBindings = connections.map((c) => ({ id: `b-${c.id}`, tagId: `FT-${c.id}`, kind: 'flow' as const, connectionId: c.id }));
+  const rows = Object.fromEntries(tagBindings.map((b) => [b.tagId, { value: '1', quality: 'GOOD' as const }]));
+  return { scene: { schemaVersion: 2, units: 'm', components, connections, tagBindings }, rows };
+}

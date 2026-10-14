@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Object3D } from 'three';
+import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
 import { connectProvider, createEmptyScene, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
@@ -18,6 +18,26 @@ import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances
 // Editor internals (drop planning, history, visual helpers) stay private. See docs/API.md.
 export { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES, type SceneImport } from './sceneFile';
 export { viewModes, type ViewMode } from './appearance';
+
+/**
+ * drei's TransformControls builds a new three-stdlib gizmo (about 17 geometries plus materials) on
+ * every mount, and its dispose() only removes listeners. Free the gizmo's GPU resources on unmount.
+ * `attach()` does not reparent the target, so this traversal never reaches the component's meshes.
+ */
+function GizmoControls(props: React.ComponentProps<typeof TransformControls>) {
+  const ref = useRef<React.ComponentRef<typeof TransformControls>>(null);
+  useEffect(() => {
+    const controls = ref.current;
+    return () => {
+      controls?.traverse((node) => {
+        const mesh = node as Partial<Mesh>;
+        mesh.geometry?.dispose();
+        for (const material of ([] as Material[]).concat(mesh.material ?? [])) material.dispose();
+      });
+    };
+  }, []);
+  return <TransformControls ref={ref} {...props}/>;
+}
 
 /** Readable by assistive technology, not shown on screen. */
 const visuallyHidden: React.CSSProperties = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', margin: -1, padding: 0, border: 0 };
@@ -237,7 +257,7 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
     {shown.components.map(c=><Equipment key={c.id} component={c} unknown={unknownByComponent.get(c.id)} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
-    {onTransform && transformMode && selectedId && selectedObject && <TransformControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
+    {onTransform && transformMode && selectedId && selectedObject && <GizmoControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
       onMouseDown={()=>{gesture.current++;}}
       onObjectChange={()=>onTransform(selectedId, selectedObject.position.toArray() as Vector3Tuple, selectedObject.quaternion.toArray() as QuaternionTuple, `transform:${selectedId}:${gesture.current}`)}/>}
     {routes.map(route=><RoutePipe key={route.connectionId} route={route} viewMode={viewMode}/>)}

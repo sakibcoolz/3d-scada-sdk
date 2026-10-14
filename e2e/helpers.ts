@@ -53,6 +53,8 @@ export async function installThreeHook(page: Page): Promise<void> {
     hook.addEventListener('observe', (e) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.isScene) (window as unknown as { __scenes: unknown[] }).__scenes.push(detail);
+      // Keep only the newest renderer: a remounted canvas creates a new one and disposes the old.
+      if (detail?.isWebGLRenderer) (window as unknown as { __renderers: unknown[] }).__renderers = [detail];
     });
     (window as unknown as { __THREE_DEVTOOLS__: EventTarget }).__THREE_DEVTOOLS__ = hook;
   });
@@ -92,4 +94,14 @@ export async function renderedParts(page: Page): Promise<PartInfo[]> {
     }
     return parts;
   });
+}
+
+/** GPU resource counts of every live Three.js renderer (collected by `installThreeHook`). */
+export async function rendererMemory(page: Page): Promise<{ geometries: number; textures: number }[]> {
+  return page.evaluate(() =>
+    ((window as unknown as { __renderers?: { info: { memory: { geometries: number; textures: number } } }[] }).__renderers ?? []).map((r) => ({
+      geometries: r.info.memory.geometries,
+      textures: r.info.memory.textures,
+    })),
+  );
 }

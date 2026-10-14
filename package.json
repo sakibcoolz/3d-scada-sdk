@@ -11,7 +11,9 @@
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck && tsc --noEmit -p tsconfig.tests.json",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "bench": "vitest bench --run",
+    "perf": "playwright test --config playwright.perf.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",

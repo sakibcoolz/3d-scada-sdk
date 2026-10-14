@@ -1,7 +1,16 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["e2e/**/*.ts", "packages/**/*.test.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": [
+    "e2e/**/*.ts",
+    "packages/**/*.test.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "perf/**/*.ts",
+    "playwright.perf.config.ts"
+  ]
 }

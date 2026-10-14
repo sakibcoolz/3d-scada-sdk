@@ -354,3 +354,19 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: contrast audit, real screen-reader testing, reduced-motion option for flow markers.
 - Status: T-023 IN_PROGRESS (A done; B, C in review; D performance next).
 
+## 2026-10-15 — T-023 part D: performance baseline
+- Branch: `feat/T-023d-performance` (from `feat/T-023c-accessibility` @ `db1a229`, PRs #29, #30, #31 open; targets `develop`).
+- Graphify: index NOT built. Fallback: read the viewer and drei TransformControls source.
+- Scope: `e2e/leaks.spec.ts` (GPU geometry/texture counts stable across remounts and editing churn; renderer collected via the devtools hook); `packages/core/src/scene.bench.ts` (chain-100/1000) with `pnpm bench`; `perf/frame-time.perf.ts` with `pnpm perf` and `playwright.perf.config.ts`; playground `?generate=N` benchmark scene; `docs/PERFORMANCE.md`; T-029 added for post-MVP rendering scale.
+- Defect found and fixed: drei `TransformControls` leaked its gizmo (17 geometries plus materials) on every selection change; `GizmoControls` now disposes it on unmount. The churn test failed (27 → 37 geometries) before the fix and passes after; gizmo e2e still passes.
+- Measurement notes: draw calls were first read after the axis-gizmo pass (info resets per render) and were wrong; now accumulated over the window. Browser runs use SwiftShader (CPU WebGL), so frame times are a floor; hardware-GPU measurement NOT RUN.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (539 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (36 tests).
+  - `pnpm bench` and `pnpm perf` run; results in PERFORMANCE.md.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-023 REVIEW once parts B–D merge (A merged).
+- Handoff: next is T-024 (independent consumer release verification: built packages with declarations and exports maps, installed into a separate React app without workspace aliases).
+
