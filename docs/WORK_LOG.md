@@ -148,3 +148,20 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: obstacle avoidance, collision checks, waypoints, routing for off-axis ports, editor connect UI.
 - Status: T-009 REVIEW until PR is merged.
 - Handoff: next dependency-ready is T-010 (3D canvas raycast drag/drop), after T-007 and T-009. T-013 (flow-state resolver) is also unblocked. ADR-0004 and ADR-0005 await owner decisions.
+
+## 2026-10-15 — T-010 canvas raycast drag/drop with snap preview
+- Branch: `feat/T-010-canvas-drop` (from `develop` @ `80958f4`; T-009 merged and marked DONE).
+- Graphify: index NOT built. Fallback: read the editor/viewer and snapping/graph APIs directly.
+- Scope: `screenToPlane`, `dropPosition`, `planDrop`, `applyDrop` and `describeDrop` in `packages/react/src/drop.ts`. Editor tracks the dragged palette kind, previews a ghost plus a green/red port marker and a status line, applies drop + connection as one validated change, and clears on Escape/dragend/leave. Click-to-add now rests components on the ground and never auto-connects.
+- Tests written first: `drop.test.ts` failed to load before implementation. New e2e `canvas-drop.spec.ts` drags a tank onto the projected world origin, then a valve beside the outlet, and checks the preview text, snapped position (exact) and connection; a second test cancels a drag with Escape.
+- Issues found: (1) first e2e run dropped the tank at x = −32 because the test dragged before R3F had sized the canvas (still 300×150) and aimed the camera; the test now waits for the canvas to fill `main`. This is a test timing issue, not an app bug. (2) Mid-drag screenshot showed the status line naming the target by UUID; `describeDrop` now takes the scene and uses catalog labels.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (305 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (4 tests).
+  - Browser screenshots mid-drag: ghost valve at snapped transform with green marker; free placement text for a pipe.
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: moving existing components, undo/redo, gizmos (T-011); non-ground drop surfaces.
+- Status: T-010 REVIEW until PR is merged.
+- Handoff: T-011 (gizmos and atomic undo/redo) needs T-005 (versioned roundtrip), which waits on ADR-0004. T-013 (flow-state resolver) is dependency-ready now.

@@ -12,8 +12,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-006 | M2 | P0 | T-004 | DONE | aligned industrial geometry, ports, disposal (part descriptors, elbow, geometry disposal; PR #13) |
 | T-007 | M3 | P0 | T-004,T-006 | DONE | compatible snap search and transform solver (`findSnapCandidates`, `snapComponent`; PR #14) |
 | T-008 | M3 | P0 | T-003,T-007 | DONE | persistent graph, cycles, tee and occupancy (`connect`, `disconnect`, `removeComponent`, traversal; PR #15) |
-| T-009 | M3 | P0 | T-008 | REVIEW | pipe routing, elbow and tee geometry (`routeScene`, route meshes, `?demo` network) |
-| T-010 | M4 | P0 | T-007,T-009 | TODO | 3D canvas raycast drag/drop |
+| T-009 | M3 | P0 | T-008 | DONE | pipe routing, elbow and tee geometry (`routeScene`, route meshes, `?demo` network; PR #16) |
+| T-010 | M4 | P0 | T-007,T-009 | REVIEW | 3D canvas raycast drag/drop (ground-plane drop, snap preview, Escape cancel) |
 | T-011 | M4 | P0 | T-005,T-010 | TODO | gizmos and atomic undo/redo |
 | T-012 | M4 | P0 | T-011 | TODO | scene import/export and browser roundtrip |
 | T-013 | M5 | P1 | T-008,T-009 | TODO | measured/simulated flow-state resolver |

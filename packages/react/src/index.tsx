@@ -1,10 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { DoubleSide } from 'three';
-import { Canvas } from '@react-three/fiber';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { DoubleSide, type Camera } from 'three';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, Line } from '@react-three/drei';
-import { removeComponent, routeScene, type ComponentInstance, type ComponentKind, type PipeRoute, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { portToWorld, removeComponent, routeScene, type ComponentInstance, type ComponentKind, type PipeRoute, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
+import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
+
+export { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
 
 function Equipment({ component, glass, selected, onSelect }: { component:ComponentInstance; glass:boolean; selected:boolean; onSelect:()=>void }) {
   const definition = componentCatalog[component.kind];
@@ -48,25 +51,69 @@ function RoutePipe({ route, glass }: { route: PipeRoute; glass: boolean }) {
 
 const resolvePorts = (kind: ComponentKind) => componentCatalog[kind].ports;
 
-export function Scada3DViewer({scene,glass=false,onSelect,selectedId}: {scene:ScadaScene;glass?:boolean;onSelect?:(id:string)=>void;selectedId?:string}) {
+/** Hands the active R3F camera to code outside the canvas (used for pointer-to-plane raycasts). */
+function CameraBridge({ onCamera }: { onCamera: (camera: Camera) => void }) {
+  const camera = useThree((state) => state.camera);
+  useEffect(() => onCamera(camera), [camera, onCamera]);
+  return null;
+}
+
+/** Ghost of the component being dropped, and a marker on the port it would (or cannot) connect to. */
+function DropPreview({ scene, plan }: { scene: ScadaScene; plan: DropPlan }) {
+  const candidate = plan.snap.ok ? plan.snap.candidate : plan.snap.nearest;
+  const owner = candidate && scene.components.find((c) => c.id === candidate.target.instanceId);
+  const port = owner && componentCatalog[owner.kind].ports.find((p) => p.id === candidate.target.portId);
+  const marker = owner && port ? portToWorld(owner, port).position : undefined;
+  return <>
+    <Equipment component={plan.component} glass selected onSelect={() => {}}/>
+    {marker && <mesh position={marker}><sphereGeometry args={[0.14, 16, 16]}/><meshBasicMaterial color={plan.snap.ok ? '#48b983' : '#e76e75'} transparent opacity={0.85}/></mesh>}
+  </>;
+}
+
+export function Scada3DViewer({scene,glass=false,onSelect,selectedId,preview,onCamera}: {scene:ScadaScene;glass?:boolean;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void}) {
   const routes = useMemo(() => routeScene(scene, { resolvePorts }), [scene]);
   return <Canvas camera={{position:[7,6,9],fov:50}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
     {scene.components.map(c=><Equipment key={c.id} component={c} glass={glass} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)}/>)}
     {routes.map(route=><RoutePipe key={route.connectionId} route={route} glass={glass}/>)}
+    {preview && <DropPreview scene={scene} plan={preview}/>}
+    {onCamera && <CameraBridge onCamera={onCamera}/>}
     <OrbitControls makeDefault/><GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport/></GizmoHelper>
   </Canvas>;
 }
+
+const defaultProperties = { level: 45, open: true, flowing: false };
+const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void}) {
   const [scene,setScene]=useState<ScadaScene>(initialScene??{version:1,components:[],connections:[]});
   const [selected,setSelected]=useState<string>();
   const [glass,setGlass]=useState(false);
   function update(next:ScadaScene){setScene(next);onChange?.(next);}
+  const camera=useRef<Camera|undefined>(undefined);
+  const dragKind=useRef<ComponentKind|undefined>(undefined);
+  const [preview,setPreview]=useState<DropPlan>();
+  // Keyboard/click add: rest on the ground in a row, never auto-connect.
   function add(kind:ComponentKind) {
-    const id=globalThis.crypto?.randomUUID?.()??String(Date.now());
-    update({...scene,components:[...scene.components,{id,kind,position:[scene.components.length*2.4,1.8,0],rotation:[0,0,0],properties:{level:45,open:true,flowing:false}}]});setSelected(id);
+    const id=newId();
+    const position=dropPosition(componentCatalog[kind],[scene.components.length*2.4,0,0]);
+    update({...scene,components:[...scene.components,{id,kind,position,rotation:[0,0,0],properties:{...defaultProperties}}]});setSelected(id);
+  }
+  function planAt(e:React.DragEvent<HTMLElement>, id:string):DropPlan|undefined {
+    const kind=dragKind.current, canvas=e.currentTarget.querySelector('canvas');
+    if(!kind||!camera.current||!canvas) return undefined;
+    const hit=screenToPlane({x:e.clientX,y:e.clientY},canvas.getBoundingClientRect(),camera.current);
+    return hit ? planDrop(scene,kind,hit,{createId:()=>id,properties:defaultProperties}) : undefined;
+  }
+  function endDrag(){dragKind.current=undefined;setPreview(undefined);}
+  function drop(e:React.DragEvent<HTMLElement>) {
+    e.preventDefault();
+    const plan=planAt(e,newId());
+    endDrag();
+    if(!plan) return;
+    const result=applyDrop(scene,plan,newId);
+    if(result.ok){update(result.scene);setSelected(plan.component.id);}
   }
   const component=scene.components.find(c=>c.id===selected);
   function patch(changes:Partial<ComponentInstance>) {
@@ -74,11 +121,14 @@ export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;
   }
   return <div style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui'}}>
     <aside style={{padding:14,borderRight:'1px solid #3c5366'}}>
-      <h3>Components</h3>{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>e.dataTransfer.setData('scada-kind',k)} onClick={()=>add(k)} style={{display:'block',width:'100%',marginBottom:8,padding:9,cursor:'grab'}}>{componentCatalog[k].label} +</button>)}
+      <h3>Components</h3>{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)} style={{display:'block',width:'100%',marginBottom:8,padding:9,cursor:'grab'}}>{componentCatalog[k].label} +</button>)}
       <button onClick={()=>setGlass(!glass)}>{glass?'Normal view':'Glass / X-ray view'}</button>
     </aside>
-    <main onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const kind=e.dataTransfer.getData('scada-kind') as ComponentKind;if(kind in componentCatalog)add(kind);}} style={{minWidth:0}}>
-      <Scada3DViewer scene={scene} glass={glass} selectedId={selected} onSelect={setSelected}/>
+    <main onDragOver={e=>{if(!dragKind.current)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
+      onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
+      onDrop={drop} style={{minWidth:0,position:'relative'}}>
+      <Scada3DViewer scene={scene} glass={glass} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}}/>
+      <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene):''}</div>
     </main>
     <aside style={{padding:14,borderLeft:'1px solid #3c5366'}}>
       <h3>Properties</h3>
