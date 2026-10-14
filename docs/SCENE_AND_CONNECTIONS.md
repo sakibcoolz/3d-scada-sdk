@@ -85,7 +85,13 @@ Distinguish logical edge from render mesh. Support straight runs and determinist
 - While dragging a palette item over the canvas, `planDrop` runs `snapComponent` (0.5 m reach, 45° tolerance) and the viewer shows a ghost at the planned transform plus a green marker on the target port, or a red marker on the nearest rejected port. A status line (`role="status"`) shows `describeDrop`: what will connect, why it cannot, or where it lands.
 - On drop, `applyDrop` adds the component and, if it snapped, its connection via `connect`, validated as one change. Escape (native drag cancel) or leaving the canvas clears the preview without changing the scene.
 - Click-to-add from the palette is kept for keyboard use: it rests the component on the ground in a row and never auto-connects.
-- Not done: moving existing components by drag (T-011 gizmos), undo (T-011), drop onto surfaces other than the ground plane.
+- Not done: drop onto surfaces other than the ground plane.
+
+## Editor history and gizmos (T-011)
+- `packages/react/src/history.ts`: immutable snapshot history (`createHistory`, `commit`, `undo`, `redo`, `canUndo`, `canRedo`), bounded to 100 steps. Undo returns the exact earlier scene object. A `commit` with the same `mergeKey` as the previous commit replaces it, so one gesture (gizmo drag, slider move, typing in a position field) is one undo step; undo clears the merge key and any commit clears redo.
+- Every editor change goes through history: click-add, drop (component and snapped connection together), remove (component and its edges together), property edits, position fields and gizmo transforms. Undo/Redo buttons and Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y; shortcuts are scoped to the editor element and ignored while typing in a field. Selection clears if undo removes the selected component.
+- Gizmos: drei `TransformControls` on the selected component, Move or Rotate. Orbit is disabled while dragging (drei default-controls handling). Rotation snaps to 90° in world space so ports stay on world axes for orthogonal routing; movement snaps to 0.05 m. Routes are derived, so they follow moved components immediately (invalid ones show as dashed red).
+- Not done: re-snapping or blocking a transform that leaves a connected port misaligned (routes show it instead), scale gizmo (scale policy forbids scaling parts with ports), multi-select.
 
 ## Serialization (T-005)
 `serializeScene(scene)` writes canonical JSON: `schemaVersion: 2` and `units` first, fixed key order for every object, property keys sorted, array order preserved, two-space indent, trailing newline. Only authored fields are written, so save → load → save is byte-identical. `parseScene(text, options)` checks length (`maxLength`, default 10,000,000 characters, `LIMIT_EXCEEDED`), parses (`INVALID_JSON`), then runs `validateScene`, which migrates version 1.

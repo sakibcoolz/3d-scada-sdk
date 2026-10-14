@@ -8,13 +8,13 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-002 | M0 | P0 | T-001 | DONE | CI, unit/E2E runner and browser smoke (PRs #8, #9; develop CI green) |
 | T-003 | M1 | P0 | T-002 | DONE | runtime scene schema and referential validation (`validateScene`, v1 shape; PR #10) |
 | T-004 | M1 | P0 | T-003 | DONE | world-space port transforms and unit fixtures (`rotateVector`, `portToWorld`; PR #11) |
-| T-005 | M1 | P0 | T-003 | REVIEW | versioned deterministic scene roundtrip (scene v2 per ADR-0004, v1 migration, `serializeScene`/`parseScene`) |
+| T-005 | M1 | P0 | T-003 | REVIEW | versioned deterministic scene roundtrip (scene v2 per ADR-0004, v1 migration, `serializeScene`/`parseScene`; #18 merged into the T-010 branch by stacking, landing on develop via PR #19) |
 | T-006 | M2 | P0 | T-004 | DONE | aligned industrial geometry, ports, disposal (part descriptors, elbow, geometry disposal; PR #13) |
 | T-007 | M3 | P0 | T-004,T-006 | DONE | compatible snap search and transform solver (`findSnapCandidates`, `snapComponent`; PR #14) |
 | T-008 | M3 | P0 | T-003,T-007 | DONE | persistent graph, cycles, tee and occupancy (`connect`, `disconnect`, `removeComponent`, traversal; PR #15) |
 | T-009 | M3 | P0 | T-008 | DONE | pipe routing, elbow and tee geometry (`routeScene`, route meshes, `?demo` network; PR #16) |
-| T-010 | M4 | P0 | T-007,T-009 | REVIEW | 3D canvas raycast drag/drop (ground-plane drop, snap preview, Escape cancel) |
-| T-011 | M4 | P0 | T-005,T-010 | TODO | gizmos and atomic undo/redo |
+| T-010 | M4 | P0 | T-007,T-009 | DONE | 3D canvas raycast drag/drop (ground-plane drop, snap preview, Escape cancel; PR #17) |
+| T-011 | M4 | P0 | T-005,T-010 | REVIEW | gizmos and atomic undo/redo (move/rotate gizmos, snapshot history with gesture merging) |
 | T-012 | M4 | P0 | T-011 | TODO | scene import/export and browser roundtrip |
 | T-013 | M5 | P1 | T-008,T-009 | TODO | measured/simulated flow-state resolver |
 | T-014 | M5 | P1 | T-013 | TODO | animated directional flow and stale cases |

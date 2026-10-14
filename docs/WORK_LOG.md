@@ -181,3 +181,20 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: import/export UI (T-012), `tagBindings` in the schema (T-016), nested transforms.
 - Status: T-005 REVIEW until PR is merged (after #17).
 - Handoff: T-011 (gizmos and atomic undo/redo) is dependency-ready once T-005 and T-010 merge. ADR-0005 still awaits an owner decision.
+
+## 2026-10-15 — T-011 gizmos and atomic undo/redo
+- Branch: `feat/T-011-gizmos-history` (from `feat/T-005-scene-v2` @ `814f520`).
+- Merge incident: PR #18 (T-005) was merged into `feat/T-010-canvas-drop` after #17 had already merged, so T-005 did not reach `develop`. Opened PR #19 to land commit `814f520` on `develop`. T-010 marked DONE (PR #17).
+- Graphify: index NOT built. Fallback: read the editor/viewer and drei `TransformControls` typings and source.
+- Scope: `history.ts` (snapshot history with gesture merge keys, bounded); editor routes every change through history; Undo/Redo buttons and editor-scoped shortcuts; Move/Rotate gizmos via drei `TransformControls` (90° rotation snap, 0.05 m translation snap, orbit disabled while dragging). e2e drag helpers moved to `e2e/helpers.ts`.
+- Tests written first: `history.test.ts` failed to load before implementation; 3 of 4 new undo/redo e2e tests failed before wiring (the typing-guard test passes trivially until the shortcut handler exists). Gizmo e2e drags the real X arrow (moved exactly 2 m, one undo restores) and the Y ring (exact quarter turn about Y).
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (364 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (10 tests).
+  - Browser screenshots: demo valve selected with gizmo, then dragged 1 m along Z; both connected routes re-route as S-bends.
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: blocking/re-snapping transforms that misalign connected ports, scale gizmo, multi-select. Position fields show raw floats (e.g. 0.634999999).
+- Status: T-011 REVIEW until PR is merged (after #19).
+- Handoff: next is T-012 (scene import/export UI and browser roundtrip), which builds on `serializeScene`/`parseScene`. T-013 also unblocked. ADR-0005 awaits an owner decision.
