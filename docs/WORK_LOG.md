@@ -315,3 +315,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: type-level API snapshot (types are fixed by the explicit export lists, not by a test); declaration output and package `exports` maps for publishing (T-024).
 - Status: T-023 IN_PROGRESS (part A in review; parts B security, C accessibility, D performance next).
 
+## 2026-10-15 — T-023 part B: security
+- Branch: `feat/T-023b-security` (from `feat/T-023a-api-surface` @ `b03d8e3`, PR #28 open; targets `develop`).
+- Graphify: index NOT built. Fallback: read validation, units, observation, dataInput and the editor's import paths.
+- Scope: `packages/core/src/security.test.ts` (seeded fuzzing of scene documents, scene text and host observations; prototype pollution; limits; deep nesting; store flood) and `e2e/untrusted-text.spec.ts` (markup in ids/properties/tags rendered as text). Audit and licence record in SECURITY_AND_SAFETY.md.
+- Defects found by the new tests and fixed: sparse-array holes and NaN unit length accepted; `-0` not round-tripping; `JSON.stringify` in error messages throwing on BigInt; `in`-based unit lookup throwing on null-prototype objects; `Date.parse` throwing on Symbol timestamps; store key building throwing on BigInt tag ids. Each has a regression test. One fuzz-harness bug (shared hostile objects forming cycles) was fixed in the test itself.
+- Audit: production dependencies have no known vulnerabilities; 4 dev-only advisories via vitest@3.2.7 (fix needs vitest ≥ 4.1.11, owner approval pending). Licences: MIT/ISC/Apache-2.0/BSD-3-Clause plus CC-BY-4.0 data (caniuse-lite); no copyleft.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (529 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (31 tests).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: vitest upgrade (needs approval); CSP guidance for hosts; asset (SVG/glTF) sanitisation is post-MVP (T-028).
+- Status: T-023 IN_PROGRESS (parts A and B in review; C accessibility and D performance next).
+

@@ -12,12 +12,17 @@ export interface FreshnessOptions {
   maxClockSkewMs?: number;
 }
 
+/** Epoch ms of an ISO timestamp, or NaN for anything else (host data is untrusted: `Date.parse` throws on a Symbol). */
+function parseTimestamp(value: unknown): number {
+  return typeof value === 'string' ? Date.parse(value) : Number.NaN;
+}
+
 export type ObservationProblem = 'BAD_QUALITY' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE';
 
 /** Why an observation cannot be trusted, or undefined if it can (UNCERTAIN is trusted but flagged). */
 export function assessObservation(o: { quality: Quality; sourceTimestamp: string }, options: FreshnessOptions): ObservationProblem | undefined {
   if (!qualities.includes(o.quality)) return 'INVALID_VALUE';
-  const observedAt = Date.parse(o.sourceTimestamp);
+  const observedAt = parseTimestamp(o.sourceTimestamp);
   if (Number.isNaN(observedAt) || observedAt - options.now > (options.maxClockSkewMs ?? 5_000)) return 'INVALID_TIMESTAMP';
   if (o.quality === 'BAD') return 'BAD_QUALITY';
   if (o.quality === 'STALE' || options.now - observedAt > (options.staleAfterMs ?? 10_000)) return 'STALE';
@@ -27,8 +32,8 @@ export function assessObservation(o: { quality: Quality; sourceTimestamp: string
 /** Newest wins; unparseable timestamps lose to any valid one; ties go to the later item. */
 export function isNewer(candidate: { sourceTimestamp: string }, current: { sourceTimestamp: string } | undefined): boolean {
   if (!current) return true;
-  const a = Date.parse(candidate.sourceTimestamp);
-  const b = Date.parse(current.sourceTimestamp);
+  const a = parseTimestamp(candidate.sourceTimestamp);
+  const b = parseTimestamp(current.sourceTimestamp);
   if (Number.isNaN(a)) return Number.isNaN(b);
   return Number.isNaN(b) || a >= b;
 }
