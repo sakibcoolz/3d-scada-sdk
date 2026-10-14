@@ -17,8 +17,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-011 | M4 | P0 | T-005,T-010 | DONE | gizmos and atomic undo/redo (move/rotate gizmos, snapshot history with gesture merging; PR #20) |
 | T-012 | M4 | P0 | T-011 | DONE | scene import/export and browser roundtrip (Export JSON, file/text import, byte-identical e2e roundtrip; PR #21) |
 | T-013 | M5 | P1 | T-008,T-009 | DONE | measured/simulated flow-state resolver (`resolveFlow`, per-connection readings; PR #22) |
-| T-014 | M5 | P1 | T-013 | REVIEW | animated directional flow and stale cases (instanced markers, unknown/stale overlays, SIMULATED badge, `flow` prop) |
-| T-015 | M5 | P1 | T-006,T-011 | TODO | glass, X-ray, cutaway, water and heat |
+| T-014 | M5 | P1 | T-013 | DONE | animated directional flow and stale cases (instanced markers, unknown/stale overlays, SIMULATED badge, `flow` prop; PR #23) |
+| T-015 | M5 | P1 | T-006,T-011 | REVIEW | glass, X-ray, cutaway, water and heat (view modes + per-component override, level policy, temperature tint) |
 | T-016 | M6 | P1 | T-012,T-013 | TODO | read-only telemetry, tag quality/timestamps |
 | T-017 | M6 | P1 | T-016 | TODO | optional DataProvider snapshot/subscribe or setTagValues API; no-network test and cleanup |
 | T-018 | M6 | P1 | T-017 | TODO | host-owned transport integration examples (REST, WebSocket, MQTT/backend OPC UA), not SDK dependencies |

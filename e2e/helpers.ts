@@ -44,3 +44,52 @@ export async function startDrag(page: Page, label: string, world: Vec3): Promise
 export async function sceneJson(page: Page) {
   return JSON.parse(await page.getByLabel('Scene JSON').inputValue());
 }
+
+/** Collects Three.js scenes through the devtools hook. Call before page.goto. */
+export async function installThreeHook(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const hook = new EventTarget();
+    (window as unknown as { __scenes: unknown[] }).__scenes = [];
+    hook.addEventListener('observe', (e) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.isScene) (window as unknown as { __scenes: unknown[] }).__scenes.push(detail);
+    });
+    (window as unknown as { __THREE_DEVTOOLS__: EventTarget }).__THREE_DEVTOOLS__ = hook;
+  });
+}
+
+export interface PartInfo {
+  componentId: string;
+  role: string;
+  visible: boolean;
+  opacity: number;
+  transparent: boolean;
+  clippingPlanes: number;
+  color: string;
+  scaleY: number;
+}
+
+/** Rendered parts tagged by the viewer with `userData.componentId` and `userData.role`. */
+export async function renderedParts(page: Page): Promise<PartInfo[]> {
+  return page.evaluate(() => {
+    const parts: PartInfo[] = [];
+    type Node = { userData: Record<string, string>; visible: boolean; material?: Record<string, unknown>; scale: { y: number }; traverse(f: (o: Node) => void): void };
+    for (const scene of (window as unknown as { __scenes: Node[] }).__scenes) {
+      scene.traverse((o) => {
+        if (!o.userData?.componentId || !o.material) return;
+        const m = o.material as { opacity: number; transparent: boolean; clippingPlanes: unknown[] | null; color?: { getHexString(): string } };
+        parts.push({
+          componentId: o.userData.componentId,
+          role: o.userData.role,
+          visible: o.visible,
+          opacity: m.opacity,
+          transparent: m.transparent,
+          clippingPlanes: m.clippingPlanes?.length ?? 0,
+          color: m.color ? `#${m.color.getHexString()}` : '',
+          scaleY: o.scale.y,
+        });
+      });
+    }
+    return parts;
+  });
+}
