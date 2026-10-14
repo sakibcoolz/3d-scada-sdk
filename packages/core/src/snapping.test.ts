@@ -33,18 +33,18 @@ const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = {
 const options: SnapOptions = { resolvePorts: (type) => ports[type] };
 
 /** Fixture rotations are written as Euler XYZ radians for readability. */
-const instance = (id: string, type: ComponentKind, position: Vector3Tuple, rotation: Vector3Tuple = [0, 0, 0]): ComponentInstance => ({
+const instance = (id: string, type: ComponentKind, [px, py, pz]: Vector3Tuple, [ex, ey, ez]: Vector3Tuple = [0, 0, 0]): ComponentInstance => ({
   id,
   type,
-  position,
-  rotation: quaternionFromEuler(rotation),
-  scale: [1, 1, 1],
+  position: { x: px, y: py, z: pz },
+  rotation: quaternionFromEuler({ x: ex, y: ey, z: ez }),
+  scale: { x: 1, y: 1, z: 1 },
   properties: {},
 });
 
 const tank = instance('tank-1', 'tank', [0, 0, 0]);
 // Tank outlet is at world (1.2, -0.9, 0) facing +X.
-const sceneWith = (...components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 2, units: 'm', components, connections: [] });
+const sceneWith = (...components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 3, units: 'm', components, connections: [] });
 
 function expectClose(actual: readonly number[], expected: readonly number[], digits = 9): void {
   actual.forEach((value, i) => expect(value).toBeCloseTo(expected[i], digits));
@@ -174,8 +174,8 @@ describe('snapComponent', () => {
     const result = snapComponent(sceneWith(tank), pipe, options);
     expect(result).toEqual(expect.objectContaining({ ok: true }));
     if (!result.ok) return;
-    expectClose(result.position, [2.2, -0.9, 0]);
-    expectClose(result.rotation, [0, 0, 0, 1]);
+    expectClose([result.position.x, result.position.y, result.position.z], [2.2, -0.9, 0]);
+    expectClose([result.rotation.x, result.rotation.y, result.rotation.z, result.rotation.w], [0, 0, 0, 1]);
   });
 
   it('produces a connection that the scene validator accepts', () => {
@@ -183,7 +183,7 @@ describe('snapComponent', () => {
     const result = snapComponent(sceneWith(tank), pipe, options);
     if (!result.ok) throw new Error('expected a snap');
     const scene = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       units: 'm',
       components: [tank, { ...pipe, position: result.position, rotation: result.rotation }],
       connections: [{ id: 'e1', ...result.connection }],

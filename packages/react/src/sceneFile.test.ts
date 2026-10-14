@@ -3,17 +3,17 @@ import { serializeScene, type ScadaScene, type SceneValidationError } from '@sca
 import { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile';
 
 const linked: ScadaScene = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   units: 'm',
   components: [
-    { id: 'tank', type: 'tank', position: [0, 1.535, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: { level: 60 } },
-    { id: 'valve', type: 'valve', position: [1.8, 0.635, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: { open: true } },
+    { id: 'tank', type: 'tank', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { level: 60 } },
+    { id: 'valve', type: 'valve', position: { x: 1.8, y: 0.635, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { open: true } },
   ],
   connections: [{ id: 'e1', from: { instanceId: 'valve', portId: 'in' }, to: { instanceId: 'tank', portId: 'outlet' } }],
 };
 
 describe('importSceneText', () => {
-  it('loads a canonical version 2 file against the catalog ports', () => {
+  it('loads a canonical version 3 file against the catalog ports', () => {
     expect(importSceneText(serializeScene(linked))).toEqual({ ok: true, scene: linked, message: 'Loaded 2 components and 1 connection.' });
   });
 

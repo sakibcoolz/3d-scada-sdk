@@ -9,6 +9,7 @@ import {
   type SceneValidationOptions,
   type Vector3Tuple,
 } from './index';
+import { quaternionFromEuler as quaternionTupleFromEuler } from './quaternion';
 
 const { PI } = Math;
 const fluid = (id: string, position: Vector3Tuple, direction: Vector3Tuple): ConnectionPort => ({
@@ -55,17 +56,17 @@ describe('version 1 migration', () => {
     connections: [{ id: 'e1', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'valve', portId: 'in' } }],
   });
 
-  it('converts kind, Euler rotation and missing scale into a version 2 scene', () => {
+  it('converts kind, Euler rotation and missing scale into a version 3 scene', () => {
     const result = validateScene(v1(), options);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.migratedFrom).toBe(1);
     expect(result.scene).toEqual({
-      schemaVersion: 2,
+      schemaVersion: 3,
       units: 'm',
       components: [
-        { id: 'tank', type: 'tank', position: [0, 1.535, 0], rotation: quaternionFromEuler([0.3, -1.1, 2.4]), scale: [1, 1, 1], properties: { level: 60 } },
-        { id: 'valve', type: 'valve', position: [3, 0.6, 0], rotation: quaternionFromEuler([0, PI / 2, 0]), scale: [1, 1, 1], properties: { open: true } },
+        { id: 'tank', type: 'tank', position: { x: 0, y: 1.535, z: 0 }, rotation: quaternionFromEuler({ x: 0.3, y: -1.1, z: 2.4 }), scale: { x: 1, y: 1, z: 1 }, properties: { level: 60 } },
+        { id: 'valve', type: 'valve', position: { x: 3, y: 0.6, z: 0 }, rotation: quaternionFromEuler({ x: 0, y: PI / 2, z: 0 }), scale: { x: 1, y: 1, z: 1 }, properties: { open: true } },
       ],
       connections: v1().connections,
     });
@@ -74,8 +75,8 @@ describe('version 1 migration', () => {
   it('keeps every world port position and direction', () => {
     const result = validateScene(v1(), options);
     if (!result.ok) throw new Error('expected migration');
-    const eulerRotated = (euler: Vector3Tuple, position: Vector3Tuple, port: ConnectionPort) =>
-      portToWorld({ position, rotation: quaternionFromEuler(euler) }, port);
+    const eulerRotated = ([ex, ey, ez]: Vector3Tuple, [x, y, z]: Vector3Tuple, port: ConnectionPort) =>
+      portToWorld({ position: { x, y, z }, rotation: quaternionFromEuler({ x: ex, y: ey, z: ez }) }, port);
     const migratedTank = result.scene.components[0];
     for (const port of ports.tank!) {
       const before = eulerRotated([0.3, -1.1, 2.4], [0, 1.535, 0], port);
@@ -106,8 +107,19 @@ describe('version 1 migration', () => {
 });
 
 describe('version 2 documents', () => {
-  it('accepts an identity transform', () => {
-    expect(validateScene(v2(), options)).toEqual({ ok: true, scene: v2() });
+  it('accepts an identity transform and migrates it to version 3 objects', () => {
+    expect(validateScene(v2(), options)).toEqual({
+      ok: true,
+      migratedFrom: 2,
+      scene: {
+        schemaVersion: 3,
+        units: 'm',
+        components: [
+          { id: 'valve', type: 'valve', position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} },
+        ],
+        connections: [],
+      },
+    });
   });
 
   it.each([
@@ -121,8 +133,14 @@ describe('version 2 documents', () => {
     expect(codes({ ...v2(), version: 1 })).toEqual(['UNKNOWN_FIELD']);
   });
 
-  it.each([2.5, 3, '2'])('rejects unsupported schemaVersion %p', (schemaVersion) => {
-    expect(codes({ ...v2(), schemaVersion })).toEqual(['UNSUPPORTED_VERSION']);
+  it.each([2.5, 4, '2'])('rejects unsupported schemaVersion %p', (schemaVersion) => {
+    // Unsupported numbers are read with the newest (version 3) rules, so give it object vectors.
+    const v3Component = v2Component({ position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 } });
+    expect(codes({ ...v2(v3Component), schemaVersion })).toEqual(['UNSUPPORTED_VERSION']);
+  });
+
+  it('rejects version 2 arrays in a document labelled schemaVersion 3', () => {
+    expect(codes({ ...v2(), schemaVersion: 3 })).toEqual(['INVALID_FIELD', 'INVALID_FIELD', 'INVALID_FIELD']);
   });
 
   it.each([
@@ -135,7 +153,7 @@ describe('version 2 documents', () => {
   });
 
   it('accepts a unit quaternion within rounding of length one', () => {
-    const q = quaternionFromEuler([0.7, -0.2, 1.9]);
+    const q = quaternionTupleFromEuler([0.7, -0.2, 1.9]);
     expect(codes(v2(v2Component({ rotation: q.map((n) => n * (1 + 1e-9)) })))).toEqual([]);
   });
 

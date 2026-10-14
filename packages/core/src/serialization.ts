@@ -7,20 +7,21 @@ export interface ParseSceneOptions extends SceneValidationOptions {
 }
 
 /**
- * Canonical JSON for a scene: current schema version, fixed key order, property keys sorted,
+ * Canonical JSON for a scene: current schema version (3), vectors as named objects in x, y, z(, w)
+ * order, fixed key order, property keys sorted,
  * two-space indent and a trailing newline. Only authored fields are written, so the same scene
  * always produces the same bytes. Array order (components, connections) is preserved.
  */
 export function serializeScene(scene: ScadaScene): string {
   const document = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     units: 'm',
     components: scene.components.map((c) => ({
       id: c.id,
       type: c.type,
-      position: c.position,
-      rotation: c.rotation,
-      scale: c.scale,
+      position: { x: c.position.x, y: c.position.y, z: c.position.z },
+      rotation: { x: c.rotation.x, y: c.rotation.y, z: c.rotation.z, w: c.rotation.w },
+      scale: { x: c.scale.x, y: c.scale.y, z: c.scale.z },
       properties: Object.fromEntries(Object.entries(c.properties).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),
     })),
     connections: scene.connections.map((c) => ({

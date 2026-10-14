@@ -1,5 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
-import type { ComponentInstance, QuaternionTuple, Vector3Tuple } from '@scada3d/core';
+import type { ComponentInstance, Vector3Tuple } from '@scada3d/core';
 
 const UP = new Vector3(0, 1, 0);
 const FINE = 0.1;
@@ -28,13 +28,14 @@ export function nudge(
   };
   const move = moves[event.key];
   if (move) {
-    const [x, y, z] = component.position;
-    return { position: [clean(x + move[0]), clean(y + move[1]), clean(z + move[2])], rotation: component.rotation };
+    const { x, y, z } = component.position;
+    return { position: { x: clean(x + move[0]), y: clean(y + move[1]), z: clean(z + move[2]) }, rotation: component.rotation };
   }
   if (event.key.toLowerCase() === 'r') {
     const turn = new Quaternion().setFromAxisAngle(UP, event.shiftKey ? -Math.PI / 2 : Math.PI / 2);
-    const rotation = new Quaternion(...component.rotation).premultiply(turn).normalize();
-    return { position: component.position, rotation: rotation.toArray() as QuaternionTuple };
+    const { x, y, z, w } = component.rotation;
+    const turned = new Quaternion(x, y, z, w).premultiply(turn).normalize();
+    return { position: component.position, rotation: { x: turned.x, y: turned.y, z: turned.z, w: turned.w } };
   }
   return undefined;
 }

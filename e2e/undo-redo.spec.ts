@@ -34,7 +34,7 @@ test('undo and redo add steps with buttons and keyboard', async ({ page }) => {
 test('a snapped drop undoes and redoes as one step with its connection', async ({ page }) => {
   await startDrag(page, 'Vertical Tank +', [0, 0, 0]);
   await page.mouse.up();
-  const [x, , z] = (await sceneJson(page)).components[0].position;
+  const { x, z } = (await sceneJson(page)).components[0].position;
   await startDrag(page, 'Ball Valve +', [x + 1.8, 0, z]);
   await page.mouse.up();
   let scene = await sceneJson(page);
@@ -55,7 +55,7 @@ test('a snapped drop undoes and redoes as one step with its connection', async (
 test('removing a connected component undoes back to the exact earlier scene', async ({ page }) => {
   await startDrag(page, 'Vertical Tank +', [0, 0, 0]);
   await page.mouse.up();
-  const [x, , z] = (await sceneJson(page)).components[0].position;
+  const { x, z } = (await sceneJson(page)).components[0].position;
   await startDrag(page, 'Ball Valve +', [x + 1.8, 0, z]);
   await page.mouse.up();
   const before = await page.getByLabel('Scene JSON').inputValue();

@@ -9,11 +9,13 @@ export type {
   ComponentKind,
   ConnectionPort,
   PortKind,
+  QuaternionLike,
   QuaternionTuple,
   Quantity,
   ScadaScene,
   SceneConnection,
   TagBinding,
+  Vector3Like,
   Vector3Tuple,
 } from './scene';
 export { canonicalUnits, isKnownUnit, toCanonical } from './units';
@@ -25,7 +27,7 @@ export { parseScene, serializeScene } from './serialization';
 export type { ParseSceneOptions } from './serialization';
 
 // Transforms
-export { identityQuaternion, quaternionFromEuler, quaternionToEuler, rotateVector } from './quaternion';
+export { identityQuaternion, quaternionFromEuler, quaternionToEuler, rotateVector } from './rotation';
 export { portToWorld } from './transforms';
 export type { ComponentTransform, WorldPort } from './transforms';
 

@@ -1,5 +1,6 @@
 import { rotateVector } from './quaternion';
 import type { ComponentInstance, ConnectionPort, Vector3Tuple } from './scene';
+import { quaternionToTuple } from './vectors';
 
 /** A port expressed in scene (world) coordinates: metres, right-handed, Y up. */
 export interface WorldPort {
@@ -25,16 +26,17 @@ function normalize(vector: Vector3Tuple, portId: string): Vector3Tuple {
  * origin, then translate. Directions are normals, so they use the inverse scale before rotating.
  */
 export function portToWorld(component: ComponentTransform, port: ConnectionPort): WorldPort {
-  const [sx, sy, sz] = component.scale ?? [1, 1, 1];
-  const rotated = rotateVector([port.position[0] * sx, port.position[1] * sy, port.position[2] * sz], component.rotation);
+  const { x: sx, y: sy, z: sz } = component.scale ?? { x: 1, y: 1, z: 1 };
+  const rotation = quaternionToTuple(component.rotation);
+  const rotated = rotateVector([port.position[0] * sx, port.position[1] * sy, port.position[2] * sz], rotation);
   const direction = normalize(port.direction, port.id);
   return {
     id: port.id,
     position: [
-      rotated[0] + component.position[0],
-      rotated[1] + component.position[1],
-      rotated[2] + component.position[2],
+      rotated[0] + component.position.x,
+      rotated[1] + component.position.y,
+      rotated[2] + component.position.z,
     ],
-    direction: rotateVector(normalize([direction[0] / sx, direction[1] / sy, direction[2] / sz], port.id), component.rotation),
+    direction: rotateVector(normalize([direction[0] / sx, direction[1] / sy, direction[2] / sz], port.id), rotation),
   };
 }

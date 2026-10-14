@@ -1,17 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import {
+  identityQuaternion as publicIdentity,
   portToWorld,
-  quaternionFromEuler as euler,
-  quaternionToEuler,
-  rotateVector,
+  quaternionFromEuler as publicEuler,
+  quaternionToEuler as publicQuaternionToEuler,
+  rotateVector as publicRotateVector,
+  type ComponentTransform,
   type ConnectionPort,
   type QuaternionTuple,
   type Vector3Tuple,
 } from './index';
-import { quaternionFromUnitVectors } from './quaternion';
+// The maths below is written with the internal tuple helpers; the public object API is checked against them.
+import { quaternionFromEuler as euler, quaternionFromUnitVectors, quaternionToEuler, rotateVector } from './quaternion';
+import { quaternionToTuple, tupleToQuaternion, tupleToVector, vectorToTuple } from './vectors';
 
 const { PI } = Math;
 const identity: QuaternionTuple = [0, 0, 0, 1];
+
+/** Builds a scene transform from tuple fixtures. */
+const transform = (position: Vector3Tuple, rotation: QuaternionTuple, scale?: Vector3Tuple): ComponentTransform => ({
+  position: tupleToVector(position),
+  rotation: tupleToQuaternion(rotation),
+  ...(scale ? { scale: tupleToVector(scale) } : {}),
+});
 
 function expectClose(actual: readonly number[], expected: readonly number[]): void {
   expect(actual).toHaveLength(expected.length);
@@ -82,42 +93,58 @@ describe('quaternion helpers', () => {
   });
 });
 
+describe('public object rotation helpers', () => {
+  it('match the tuple maths', () => {
+    const angles: Vector3Tuple = [0.3, -1.1, 2.4];
+    const q = publicEuler(tupleToVector(angles));
+    expect(Object.keys(q)).toEqual(['x', 'y', 'z', 'w']);
+    expectClose(quaternionToTuple(q), euler(angles));
+    expectClose(vectorToTuple(publicQuaternionToEuler(q)), quaternionToEuler(euler(angles)));
+    expectClose(vectorToTuple(publicRotateVector({ x: 3, y: 4, z: 12 }, q)), rotateVector([3, 4, 12], euler(angles)));
+  });
+
+  it('expose a frozen identity quaternion', () => {
+    expect(publicIdentity).toEqual({ x: 0, y: 0, z: 0, w: 1 });
+    expect(Object.isFrozen(publicIdentity)).toBe(true);
+  });
+});
+
 describe('portToWorld', () => {
   it('translates the position but not the direction', () => {
-    const world = portToWorld({ position: [10, 2, -3], rotation: identity }, outlet);
+    const world = portToWorld(transform([10, 2, -3], identity), outlet);
     expectClose(world.position, [11, 1.1, -3]);
     expectClose(world.direction, [1, 0, 0]);
   });
 
   it('rotates position about the component origin before translating', () => {
-    const world = portToWorld({ position: [5, 0, 0], rotation: euler([0, PI / 2, 0]) }, outlet);
+    const world = portToWorld(transform([5, 0, 0], euler([0, PI / 2, 0])), outlet);
     expectClose(world.position, [5, -0.9, -1]);
     expectClose(world.direction, [0, 0, -1]);
   });
 
   it('turns an outlet to face back toward -X after 180° about Y', () => {
-    const world = portToWorld({ position: [0, 0, 0], rotation: euler([0, PI, 0]) }, outlet);
+    const world = portToWorld(transform([0, 0, 0], euler([0, PI, 0])), outlet);
     expectClose(world.position, [-1, -0.9, 0]);
     expectClose(world.direction, [-1, 0, 0]);
   });
 
   it('keeps the port id and returns a unit direction', () => {
     const tilted: ConnectionPort = { ...outlet, direction: [0, 2, 0] };
-    const world = portToWorld({ position: [0, 0, 0], rotation: euler([0.4, 0.2, -0.7]) }, tilted);
+    const world = portToWorld(transform([0, 0, 0], euler([0.4, 0.2, -0.7])), tilted);
     expect(world.id).toBe('outlet');
     expect(Math.hypot(...world.direction)).toBeCloseTo(1, 10);
   });
 
   it('places two opposite ports on opposite sides', () => {
     const inlet: ConnectionPort = { ...outlet, id: 'in', position: [-1, -0.9, 0], direction: [-1, 0, 0] };
-    const transform = { position: [2, 1, 4] as Vector3Tuple, rotation: euler([0.5, 1.2, -0.3]) };
-    const a = portToWorld(transform, outlet).direction;
-    const b = portToWorld(transform, inlet).direction;
+    const placed = transform([2, 1, 4], euler([0.5, 1.2, -0.3]));
+    const a = portToWorld(placed, outlet).direction;
+    const b = portToWorld(placed, inlet).direction;
     expectClose([a[0] + b[0], a[1] + b[1], a[2] + b[2]], [0, 0, 0]);
   });
 
   it('scales the position before rotating and translating', () => {
-    const world = portToWorld({ position: [1, 0, 0], rotation: euler([0, 0, PI / 2]), scale: [2, 3, 1] }, outlet);
+    const world = portToWorld(transform([1, 0, 0], euler([0, 0, PI / 2]), [2, 3, 1]), outlet);
     // Scaled local (2, -2.7, 0), turned +90° about Z to (2.7, 2, 0), then moved by (1, 0, 0).
     expectClose(world.position, [3.7, 2, 0]);
   });
@@ -125,12 +152,12 @@ describe('portToWorld', () => {
   it('keeps a scaled normal perpendicular to the scaled surface', () => {
     // A port on the diagonal face x + y = 1 of a unit shape, stretched 2× along X.
     const diagonal: ConnectionPort = { ...outlet, position: [0.5, 0.5, 0], direction: [1, 1, 0] };
-    const world = portToWorld({ position: [0, 0, 0], rotation: identity, scale: [2, 1, 1] }, diagonal);
+    const world = portToWorld(transform([0, 0, 0], identity, [2, 1, 1]), diagonal);
     // The stretched face runs along (2, -1, 0); its normal is (1, 2, 0) / √5.
     expectClose(world.direction, [1 / Math.sqrt(5), 2 / Math.sqrt(5), 0]);
   });
 
   it('rejects a zero-length direction', () => {
-    expect(() => portToWorld({ position: [0, 0, 0], rotation: identity }, { ...outlet, direction: [0, 0, 0] })).toThrow(/zero-length/);
+    expect(() => portToWorld(transform([0, 0, 0], identity), { ...outlet, direction: [0, 0, 0] })).toThrow(/zero-length/);
   });
 });

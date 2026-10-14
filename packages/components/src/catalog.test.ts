@@ -7,9 +7,9 @@ const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
 const component = (id: string, type: ComponentKind) => ({
   id,
   type,
-  position: [0, 0, 0],
-  rotation: [0, 0, 0, 1],
-  scale: [1, 1, 1],
+  position: { x: 0, y: 0, z: 0 },
+  rotation: { x: 0, y: 0, z: 0, w: 1 },
+  scale: { x: 1, y: 1, z: 1 },
   properties: {},
 });
 
@@ -19,7 +19,7 @@ const axisIndex = (direction: readonly number[]) => direction.findIndex((n) => n
 describe('componentCatalog with validateScene', () => {
   it('validates the MVP tank -> valve -> pipe -> elbow -> tee chain', () => {
     const scene = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       units: 'm',
       components: [
         component('tank', 'tank'),
@@ -41,17 +41,17 @@ describe('componentCatalog with validateScene', () => {
 
 describe('componentCatalog with snapComponent', () => {
   it('snaps an elbow onto the tee branch and the result validates', () => {
-    const tee: ComponentInstance = { id: 'tee', type: 'tee', position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: {} };
+    const tee: ComponentInstance = { id: 'tee', type: 'tee', position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} };
     // Elbow dropped near the branch with its "in" port roughly facing down.
     const elbow: ComponentInstance = {
       id: 'elbow',
       type: 'elbow',
-      position: [0.25, 1.4, 0.05],
-      rotation: quaternionFromEuler([0, 0, Math.PI / 2 + 0.2]),
-      scale: [1, 1, 1],
+      position: { x: 0.25, y: 1.4, z: 0.05 },
+      rotation: quaternionFromEuler({ x: 0, y: 0, z: Math.PI / 2 + 0.2 }),
+      scale: { x: 1, y: 1, z: 1 },
       properties: {},
     };
-    const scene: ScadaScene = { schemaVersion: 2,
+    const scene: ScadaScene = { schemaVersion: 3,
       units: 'm', components: [tee], connections: [] };
     const result = snapComponent(scene, elbow, { resolvePorts });
     if (!result.ok) throw new Error('expected a snap');

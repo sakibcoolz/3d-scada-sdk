@@ -20,9 +20,30 @@ ConnectionEdge {
 ```
 The version 2 shape is implemented ([ADR-0004](adr/0004-scene-document-v2.md), accepted), including optional `tagBindings` ([ADR-0006](adr/0006-tag-bindings-in-scene.md), accepted): `{ id, tagId, kind: 'property', instanceId, property, unit? }` or `{ id, tagId, kind: 'flow', connectionId, unit? }`. Validation checks unique ids, existing targets, bindable property per catalog type (`resolveBindable`), accepted units, and one binding per target (`UNKNOWN_CONNECTION`, `UNBINDABLE_PROPERTY`, `INVALID_UNIT`, `DUPLICATE_BINDING_ID`, `DUPLICATE_BINDING_TARGET`). `removeComponent` and `disconnect` drop bindings to removed targets; serialization omits the field when absent.
 
-## Current runtime validation (T-003, version 2 since T-005)
-`validateScene(input, { resolvePorts, limits? })` in `@scada3d/core` validates a version 2 `ScadaScene` (`schemaVersion: 2`, `units: 'm'`, components with `type`, `position`, unit-quaternion `rotation`, `scale`, `properties`). Version 1 input (`version: 1`, `kind`, Euler XYZ radians, no scale) is migrated: Euler XYZ → quaternion, `kind` → `type`, scale `[1, 1, 1]`, and the result carries `migratedFrom: 1`. Errors use the input's own field names. The caller supplies `resolvePorts` (e.g. from `componentCatalog`) because core does not import the catalog.
-- Rotation must be four finite numbers with length within 1e-6 of 1 (never renormalised). Scale must be three positive finite numbers. **Scale policy:** components whose type has ports must keep scale `[1, 1, 1]` (`UNSUPPORTED_SCALE`), because scaling would move ports and break the nominal bore; portless types may scale.
+## Scene file example (version 3, ADR-0007)
+```json
+{
+  "schemaVersion": 3,
+  "units": "m",
+  "components": [
+    {
+      "id": "tank",
+      "type": "tank",
+      "position": { "x": 0, "y": 1.535, "z": 0 },
+      "rotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "properties": { "level": 60 }
+    }
+  ],
+  "connections": [],
+  "tagBindings": [{ "id": "b1", "tagId": "LT-101", "kind": "property", "instanceId": "tank", "property": "level" }]
+}
+```
+(`serializeScene` writes the same content with one key per line.) Version 3 requires named objects: arrays, missing or non-finite axes are `INVALID_FIELD`, extra axes are `UNKNOWN_FIELD` (e.g. `components[0].position.w`). Version 2 files with arrays still load and report `migratedFrom: 2`.
+
+## Current runtime validation (T-003; version 2 since T-005, version 3 since T-030)
+`validateScene(input, { resolvePorts, resolveBindable?, limits? })` in `@scada3d/core` validates a scene and returns it in the version 3 model (`schemaVersion: 3`, `units: 'm'`, components with `type`, `position {x,y,z}`, unit-quaternion `rotation {x,y,z,w}`, `scale {x,y,z}`, `properties`). Version 2 input (array vectors) migrates with `migratedFrom: 2`; version 1 input (`version: 1`, `kind`, Euler XYZ radians, no scale) migrates with `migratedFrom: 1` (Euler XYZ → quaternion, `kind` → `type`, scale `{1,1,1}`). Errors use the input's own field names. The caller supplies `resolvePorts` (e.g. from `componentCatalog`) because core does not import the catalog.
+- Rotation must be four finite numbers (`x, y, z, w`) with length within 1e-6 of 1 (never renormalised). Scale must be three positive finite numbers. **Scale policy:** components whose type has ports must keep scale `{ x: 1, y: 1, z: 1 }` (`UNSUPPORTED_SCALE`), because scaling would move ports and break the nominal bore; portless types may scale.
 - Returns `{ ok: true, scene }` with a fresh copy, or `{ ok: false, errors }` with typed `{ code, path, message }` errors in input order. Input is never mutated or repaired.
 - Structure first: object root, `version === 1`, required arrays, non-empty ids, three finite numbers for position/rotation, property values limited to string/boolean/finite number. Unknown fields are rejected (`UNKNOWN_FIELD`), not dropped.
 - References only after structure is valid: unique component and connection ids, known component kind, endpoints resolve to an existing instance and declared port, no self-connection, `portsCompatible` domain and bore, one connection per port (`PORT_OCCUPIED`), no repeated pair in either direction (`DUPLICATE_EDGE`). Tees and loops are valid.
@@ -95,7 +116,7 @@ Distinguish logical edge from render mesh. Support straight runs and determinist
 - Not done: re-snapping or blocking a transform that leaves a connected port misaligned (routes show it instead), scale gizmo (scale policy forbids scaling parts with ports), multi-select.
 
 ## Serialization (T-005)
-`serializeScene(scene)` writes canonical JSON: `schemaVersion: 2` and `units` first, fixed key order for every object, property keys sorted, array order preserved, two-space indent, trailing newline. Only authored fields are written, so save → load → save is byte-identical. `parseScene(text, options)` checks length (`maxLength`, default 10,000,000 characters, `LIMIT_EXCEEDED`), parses (`INVALID_JSON`), then runs `validateScene`, which migrates version 1.
+`serializeScene(scene)` writes canonical JSON: `schemaVersion: 3` and `units` first, vectors as objects in `x, y, z(, w)` order, fixed key order for every object, property keys sorted, array order preserved, two-space indent, trailing newline. Only authored fields are written, so save → load → save is byte-identical. `parseScene(text, options)` checks length (`maxLength`, default 10,000,000 characters, `LIMIT_EXCEEDED`), parses (`INVALID_JSON`), then runs `validateScene`, which migrates version 1.
 
 ### Editor import/export (T-012)
 - **Export JSON** downloads `scene.json` with exactly `serializeScene(scene)`; the Scene JSON panel shows the same canonical text.

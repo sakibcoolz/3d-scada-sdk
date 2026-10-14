@@ -22,8 +22,8 @@ const bindable: Partial<Record<ComponentKind, Record<string, Quantity>>> = {
 const scene: ScadaScene = {
   ...createEmptyScene(),
   components: [
-    { id: 'tank', type: 'tank', position: [0, 1.535, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: { level: 45, temperature: 20 } },
-    { id: 'valve', type: 'valve', position: [1.8, 0.635, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: { open: true } },
+    { id: 'tank', type: 'tank', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { level: 45, temperature: 20 } },
+    { id: 'valve', type: 'valve', position: { x: 1.8, y: 0.635, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { open: true } },
   ],
   connections: [{ id: 'e1', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'valve', portId: 'in' } }],
   tagBindings: [

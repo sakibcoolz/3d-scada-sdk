@@ -3,13 +3,15 @@ import {
   type ComponentInstance,
   type ComponentKind,
   type ConnectionPort,
-  type QuaternionTuple,
+  type QuaternionLike,
+  type Vector3Like,
   type ScadaScene,
   type SceneConnection,
   type Vector3Tuple,
 } from './scene';
 import { multiplyQuaternions, normalizeQuaternion, quaternionFromUnitVectors } from './quaternion';
 import { portToWorld, type WorldPort } from './transforms';
+import { quaternionToTuple, tupleToQuaternion, tupleToVector } from './vectors';
 
 export type SnapStatus = 'ok' | 'incompatible' | 'occupied' | 'misaligned';
 
@@ -36,8 +38,8 @@ export type SnapResult =
       ok: true;
       candidate: SnapCandidate;
       /** Transform for the moving component that makes the ports coincide with opposing normals. */
-      position: Vector3Tuple;
-      rotation: QuaternionTuple;
+      position: Vector3Like;
+      rotation: QuaternionLike;
       connection: Pick<SceneConnection, 'from' | 'to'>;
     }
   | { ok: false; reason: 'NO_CANDIDATE'; nearest?: SnapCandidate };
@@ -117,13 +119,11 @@ export function snapComponent(scene: ScadaScene, moving: ComponentInstance, opti
   const current = portToWorld(moving, movingPort);
 
   const wanted: Vector3Tuple = [-target.direction[0], -target.direction[1], -target.direction[2]];
-  const rotation = normalizeQuaternion(multiplyQuaternions(quaternionFromUnitVectors(current.direction, wanted), moving.rotation));
-  const anchor = portToWorld({ position: [0, 0, 0], rotation, scale: moving.scale }, movingPort).position;
-  const position: Vector3Tuple = [
-    target.position[0] - anchor[0],
-    target.position[1] - anchor[1],
-    target.position[2] - anchor[2],
-  ];
+  const rotation = tupleToQuaternion(
+    normalizeQuaternion(multiplyQuaternions(quaternionFromUnitVectors(current.direction, wanted), quaternionToTuple(moving.rotation))),
+  );
+  const anchor = portToWorld({ position: { x: 0, y: 0, z: 0 }, rotation, scale: moving.scale }, movingPort).position;
+  const position = tupleToVector([target.position[0] - anchor[0], target.position[1] - anchor[1], target.position[2] - anchor[2]]);
   return {
     ok: true,
     candidate,
