@@ -278,3 +278,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: authored property controls do not yet say they are overridden by a live tag; INVALID_UNIT on flow tags surfaces as INVALID_VALUE; DataProvider/subscription API and no-network/cleanup tests (T-017).
 - Status: T-016 REVIEW until PR is merged (after #24).
 - Handoff: next is T-017 (optional DataProvider snapshot/subscribe or setTagValues API; no-network test and cleanup). ADR-0005 awaits an owner decision.
+
+## 2026-10-15 — T-017 DataProvider, setTagValues, no-network and cleanup
+- Branch: `feat/T-017-data-provider` (from `develop` @ `213f2e7`; #25 merged, T-016 marked DONE).
+- Graphify: index NOT built. Fallback: read telemetry/flow modules and the viewer/editor directly.
+- Scope: core `dataInput.ts` (`DataProvider`, `createObservationStore`, `connectProvider`). React `useTelemetryFeed` (provider subscription with effect cleanup, `useSyncExternalStore` over the store, `useImperativeHandle` for `setTagValues`); `TelemetryInput.observations` now optional plus `provider`; viewer and editor take `ref`. Playground demo feed is now a real `DataProvider` (exposes `active()` for tests), with "Mount editor" and "Second viewer" toggles and the editor handle on `window.__scadaEditor`.
+- Tests written first: 14 store/provider unit tests and 5 e2e tests failed before implementation. e2e: subscription via provider, release across 5 unmount/remount cycles, two viewers hold two subscriptions, `setTagValues` through the handle, and no network in any mode. The no-network detectors were validated by a scratch copy that makes a deliberate `fetch` and `WebSocket`, which the test caught (scratch file removed).
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (511 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (30 tests).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: provider error surfacing in the UI (logged via `onError`, default console.error); GPU/heap leak measurement on repeated mounts (subscription cleanup is tested, memory is not measured).
+- Status: T-017 REVIEW until PR is merged. With T-017 merged, the MVP-required M6 tasks are done (T-018 is optional host examples).
+- Handoff: remaining MVP path is T-023 (perf/security/a11y and API hardening) → T-024 (independent consumer release). T-023 currently also depends on T-018 and T-020, which MVP.md says are not release blockers; per AGENTS.md this needs a backlog/ADR change before starting. ADR-0005 awaits an owner decision.

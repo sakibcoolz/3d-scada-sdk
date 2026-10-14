@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import type { Observation, Quality, ScadaScene, ValueSource } from '@scada3d/core';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import type { DataProvider, Observation, Quality, ScadaScene, ValueSource } from '@scada3d/core';
 
 /**
- * Stands in for a host application's data feed: one row per bound tag, typed by hand.
- * "Live" re-stamps every observation each second like a polling host; unticking it lets them go stale.
+ * Stands in for a host application's data feed, delivered through a `DataProvider`: one row per
+ * bound tag, typed by hand. Every edit pushes the rows; "Live" re-sends them each second like a
+ * polling host, and unticking it lets them go stale. Clearing a value stops sending that tag.
  */
 export interface TagRow {
   value: string;
@@ -23,31 +24,46 @@ export function useDemoFeed(scene: ScadaScene, initialRows: Record<string, TagRo
   const [rows, setRows] = useState(initialRows);
   const [source, setSource] = useState<ValueSource>('MEASURED');
   const [live, setLive] = useState(true);
-  const [stamp, setStamp] = useState(() => new Date().toISOString());
+  const subscribers = useRef(new Set<(observations: readonly Observation[]) => void>());
+  const current = useRef<() => Observation[]>(() => []);
+  current.current = () =>
+    Object.entries(rows)
+      .filter(([, row]) => row.value.trim() !== '')
+      .map(([tagId, row]) => ({ tagId, value: parseValue(row.value), quality: row.quality, source, sourceTimestamp: new Date().toISOString() }));
 
+  /** The host side of the SDK contract; `active()` exists only so tests can check cleanup. */
+  const provider = useMemo<DataProvider & { active(): number }>(
+    () => ({
+      getSnapshot: () => current.current(),
+      subscribe(onObservations) {
+        subscribers.current.add(onObservations);
+        return () => subscribers.current.delete(onObservations);
+      },
+      active: () => subscribers.current.size,
+    }),
+    [],
+  );
+  (window as unknown as { __demoFeed: typeof provider }).__demoFeed = provider;
+
+  const send = () => {
+    const batch = current.current();
+    for (const subscriber of [...subscribers.current]) subscriber(batch);
+  };
+  useEffect(send, [rows, source]);
   useEffect(() => {
     if (!live) return undefined;
-    setStamp(new Date().toISOString());
-    const timer = setInterval(() => setStamp(new Date().toISOString()), 1000);
+    send();
+    const timer = setInterval(send, 1000);
     return () => clearInterval(timer);
   }, [live]);
 
   const tags = useMemo(() => [...new Set((scene.tagBindings ?? []).map((b) => b.tagId))], [scene]);
 
-  const observations = useMemo<Observation[]>(
-    () =>
-      Object.entries(rows)
-        .filter(([, row]) => row.value.trim() !== '')
-        .map(([tagId, row]) => ({ tagId, value: parseValue(row.value), quality: row.quality, source, sourceTimestamp: stamp })),
-    [rows, source, stamp],
-  );
-
   function update(tagId: string, change: Partial<TagRow>) {
-    setRows((current) => {
-      const previous: TagRow = current[tagId] ?? { value: '', quality: 'GOOD' };
-      return { ...current, [tagId]: { ...previous, ...change } };
+    setRows((existing) => {
+      const previous: TagRow = existing[tagId] ?? { value: '', quality: 'GOOD' };
+      return { ...existing, [tagId]: { ...previous, ...change } };
     });
-    setStamp(new Date().toISOString());
   }
 
   const panel = (
@@ -78,5 +94,5 @@ export function useDemoFeed(scene: ScadaScene, initialRows: Record<string, TagRo
     </div>
   );
 
-  return { telemetry: { observations, source }, panel };
+  return { telemetry: { provider, source }, panel };
 }

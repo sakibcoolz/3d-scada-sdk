@@ -19,8 +19,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-013 | M5 | P1 | T-008,T-009 | DONE | measured/simulated flow-state resolver (`resolveFlow`, per-connection readings; PR #22) |
 | T-014 | M5 | P1 | T-013 | DONE | animated directional flow and stale cases (instanced markers, unknown/stale overlays, SIMULATED badge, `flow` prop; PR #23) |
 | T-015 | M5 | P1 | T-006,T-011 | REVIEW | glass, X-ray, cutaway, water and heat (view modes + per-component override, level policy, temperature tint) |
-| T-016 | M6 | P1 | T-012,T-013 | REVIEW | read-only telemetry, tag quality/timestamps (tagBindings per ADR-0006, `resolveTelemetry`, `displayScene`, binding editor) |
-| T-017 | M6 | P1 | T-016 | TODO | optional DataProvider snapshot/subscribe or setTagValues API; no-network test and cleanup |
+| T-016 | M6 | P1 | T-012,T-013 | DONE | read-only telemetry, tag quality/timestamps (tagBindings per ADR-0006, `resolveTelemetry`, `displayScene`, binding editor; PR #25) |
+| T-017 | M6 | P1 | T-016 | REVIEW | optional DataProvider snapshot/subscribe or setTagValues API; no-network test and cleanup (`createObservationStore`, `connectProvider`, `telemetry.provider`, `ScadaHandle.setTagValues`) |
 | T-018 | M6 | P1 | T-017 | TODO | host-owned transport integration examples (REST, WebSocket, MQTT/backend OPC UA), not SDK dependencies |
 | T-019 | M7 | P1 | T-006 | TODO | sanitized SVG extrusion/reference mapping |
 | T-020 | M7 | P1 | T-019 | TODO | glTF importer, provenance and disposal |
