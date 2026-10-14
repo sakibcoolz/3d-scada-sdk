@@ -22,3 +22,6 @@ Assets: operational state, layout IP, credentials, availability. Threats: malici
 
 ## Agent stop condition
 If requirements imply real actuator commands, emergency switching, disabling alarms, or using an unverified process value for safety actions, stop and seek a documented architectural/safety review.
+
+## Transport-independent SDK rule
+The SDK must never require a WebSocket connection, broker, network endpoint, credentials or OPC UA service to initialize, edit or render a scene. Host applications own acquisition and network connections, while the SDK accepts optional validated read-only observations through a snapshot, push call or host-supplied provider. Test offline operation and prevent socket creation from SDK core/render/editor modules.
