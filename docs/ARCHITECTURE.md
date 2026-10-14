@@ -207,6 +207,8 @@ interface DataProvider {
   subscribe?(onData:(observations:Observation[])=>void): () => void;
 }
 ```
+**Implemented (T-016):** `resolveTelemetry(scene, observations, { now, source?, staleAfterMs?, resolveBindable? })` in `packages/core/src/telemetry.ts`. Observations are `{ tagId, value, quality, sourceTimestamp, source?, unit? }`. Per tag the newest observation of the chosen source wins; property bindings resolve to a trusted canonical value (unit converted via `units.ts`: K/°F → °C, m³/h, L/s, L/min → m³/s) or `unknown` with `NO_READING`, `BAD_QUALITY`, `STALE`, `INVALID_TIMESTAMP`, `INVALID_VALUE` or `INVALID_UNIT`; flow bindings become `FlowReading`s for `resolveFlow`. Quality/timestamp rules are shared with flow in `observation.ts`. `displayScene` produces the drawn copy: trusted values replace authored ones and untrusted bound properties are removed (liquid hidden, valve ball grey) so authored defaults are never shown as live. Viewer/editor prop `telemetry: { observations, source?, staleAfterMs? }`; overlay "Tags: …" summary; editor "Tag bindings" fields (commit on Enter/blur, one undo step each) and a "Live values" list. Playground `?demo` binds LT-101, TT-101, XV-101 and FT-101…104 and feeds them from a demo tag panel. The provider/subscription API and no-network/cleanup tests are T-017.
+
 An app may instead invoke an imperative `setTagValues` API. Tests must prove editor/viewer work without any provider and accept host-supplied updates without opening sockets. If observation timestamps stop advancing, SDK marks values stale by documented policy without requiring knowledge of transport connectivity.
 
 ## 10. Performance, security and reliability

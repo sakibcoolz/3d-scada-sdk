@@ -9,13 +9,13 @@ test('demo flow shows host readings, reverse flow and bad quality without invent
   // tee-b has no reading in the demo, so it stays unknown even though its valve is open.
   await expect(summary(page)).toHaveText('Flow: 4 forward, 0 reverse, 0 stopped, 1 unknown (1 no reading)');
 
-  await page.getByLabel('Rate tank-valve').fill('-2');
+  await page.getByLabel('Value FT-101').fill('-2');
   await expect(summary(page)).toHaveText('Flow: 3 forward, 1 reverse, 0 stopped, 1 unknown (1 no reading)');
 
-  await page.getByLabel('Rate valve-pipe').fill('0');
+  await page.getByLabel('Value FT-102').fill('0');
   await expect(summary(page)).toHaveText('Flow: 2 forward, 1 reverse, 1 stopped, 1 unknown (1 no reading)');
 
-  await page.getByLabel('Quality pipe-tee').selectOption('BAD');
+  await page.getByLabel('Quality FT-103').selectOption('BAD');
   await expect(summary(page)).toHaveText('Flow: 1 forward, 1 reverse, 1 stopped, 2 unknown (1 bad quality, 1 no reading)');
 
   await expect(page.getByText('SIMULATED FLOW')).toHaveCount(0);
@@ -98,7 +98,7 @@ test('markers move from→to for positive rates, back for negative, and stay put
     ['-2', (d: number) => expect(d).toBeLessThan(-0.02)],
     ['0', (d: number) => expect(Math.abs(d)).toBeLessThan(1e-6)],
   ] as const) {
-    await page.getByLabel('Rate tank-valve').fill(rate);
+    await page.getByLabel('Value FT-101').fill(rate);
     await page.waitForTimeout(300);
     const result = await shifts();
     expect(result.length).toBeGreaterThan(0);

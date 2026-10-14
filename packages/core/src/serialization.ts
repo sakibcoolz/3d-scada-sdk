@@ -28,6 +28,17 @@ export function serializeScene(scene: ScadaScene): string {
       from: { instanceId: c.from.instanceId, portId: c.from.portId },
       to: { instanceId: c.to.instanceId, portId: c.to.portId },
     })),
+    ...(scene.tagBindings
+      ? {
+          tagBindings: scene.tagBindings.map((b) => ({
+            id: b.id,
+            tagId: b.tagId,
+            kind: b.kind,
+            ...(b.kind === 'property' ? { instanceId: b.instanceId, property: b.property } : { connectionId: b.connectionId }),
+            ...(b.unit !== undefined ? { unit: b.unit } : {}),
+          })),
+        }
+      : {}),
   };
   // JSON.stringify already writes -0 as 0.
   return `${JSON.stringify(document, null, 2)}\n`;

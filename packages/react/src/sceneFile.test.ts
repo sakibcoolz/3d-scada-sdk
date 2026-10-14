@@ -63,3 +63,10 @@ describe('formatSceneErrors', () => {
     expect(lines[20]).toBe('…and 5 more errors.');
   });
 });
+
+describe('importSceneText with tag bindings', () => {
+  it('rejects a binding to a property the catalog does not allow', () => {
+    const text = serializeScene({ ...linked, tagBindings: [{ id: 'b', tagId: 'T', kind: 'property', instanceId: 'valve', property: 'level' }] });
+    expect(importSceneText(text)).toEqual({ ok: false, errors: ['tagBindings[0].property: A valve has no bindable property "level".'] });
+  });
+});

@@ -26,6 +26,7 @@ export const componentCatalog: Record<ComponentKind, IndustrialComponentDefiniti
   tank: define({
     type: 'tank',
     label: 'Vertical Tank',
+    bindable: { level: 'percent', temperature: 'temperature' },
     ports: [fluidPort('inlet', [-1.2, 0.8, 0], [-1, 0, 0]), fluidPort('outlet', [1.2, -0.9, 0], [1, 0, 0])],
     bounds: { min: [-1.2, -1.535, -1], max: [1.2, 1.535, 1] },
     parts: [
@@ -78,6 +79,7 @@ export const componentCatalog: Record<ComponentKind, IndustrialComponentDefiniti
   valve: define({
     type: 'valve',
     label: 'Ball Valve',
+    bindable: { open: 'boolean' },
     ports: [fluidPort('in', [-0.6, 0, 0], [-1, 0, 0]), fluidPort('out', [0.6, 0, 0], [1, 0, 0])],
     bounds: { min: [-0.6, -0.2, -0.2], max: [0.6, 0.495, 0.2] },
     parts: [

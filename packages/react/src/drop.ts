@@ -14,6 +14,7 @@ import {
 import { componentCatalog, type IndustrialComponentDefinition } from '@scada3d/components';
 
 const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
+const resolveBindable = (type: ComponentKind) => componentCatalog[type].bindable;
 
 export interface ScreenRect {
   left: number;
@@ -72,8 +73,8 @@ export function planDrop(scene: ScadaScene, type: ComponentKind, hit: Vector3Tup
 /** Adds the planned component and, when it snapped, its connection, validated as one change. */
 export function applyDrop(scene: ScadaScene, plan: DropPlan, createConnectionId: () => string): GraphResult {
   const added: ScadaScene = { ...scene, components: [...scene.components, plan.component] };
-  if (plan.snap.ok) return connect(added, { id: createConnectionId(), ...plan.snap.connection }, { resolvePorts });
-  const result = validateScene(added, { resolvePorts });
+  if (plan.snap.ok) return connect(added, { id: createConnectionId(), ...plan.snap.connection }, { resolvePorts, resolveBindable });
+  const result = validateScene(added, { resolvePorts, resolveBindable });
   if (result.ok) return result;
   return { ok: false, error: { code: result.errors[0].code, message: result.errors[0].message } };
 }

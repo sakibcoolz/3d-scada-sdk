@@ -4,12 +4,15 @@ import {
   type ComponentInstance,
   type ComponentKind,
   type ConnectionPort,
+  type Quantity,
   type QuaternionTuple,
   type ScadaScene,
+  type TagBinding,
   type SceneConnection,
   type Vector3Tuple,
 } from './scene';
 import { quaternionFromEuler } from './quaternion';
+import { isKnownUnit } from './units';
 
 export type SceneValidationErrorCode =
   | 'NOT_AN_OBJECT'
@@ -27,7 +30,12 @@ export type SceneValidationErrorCode =
   | 'PORT_OCCUPIED'
   | 'DUPLICATE_EDGE'
   | 'UNSUPPORTED_SCALE'
-  | 'INVALID_JSON';
+  | 'INVALID_JSON'
+  | 'UNKNOWN_CONNECTION'
+  | 'UNBINDABLE_PROPERTY'
+  | 'INVALID_UNIT'
+  | 'DUPLICATE_BINDING_ID'
+  | 'DUPLICATE_BINDING_TARGET';
 
 export interface SceneValidationError {
   code: SceneValidationErrorCode;
@@ -44,6 +52,7 @@ export type SceneValidationResult =
 export interface SceneLimits {
   maxComponents: number;
   maxConnections: number;
+  maxBindings: number;
   maxIdLength: number;
   maxProperties: number;
   maxStringLength: number;
@@ -52,6 +61,7 @@ export interface SceneLimits {
 export const defaultSceneLimits: Readonly<SceneLimits> = {
   maxComponents: 10_000,
   maxConnections: 20_000,
+  maxBindings: 20_000,
   maxIdLength: 128,
   maxProperties: 64,
   maxStringLength: 1024,
@@ -60,6 +70,11 @@ export const defaultSceneLimits: Readonly<SceneLimits> = {
 export interface SceneValidationOptions {
   /** Declared ports for a component type. Core does not import the catalog, so the caller supplies it. */
   resolvePorts: (type: ComponentKind) => readonly ConnectionPort[] | undefined;
+  /**
+   * Bindable properties and their quantities for a component type. When omitted, property bindings
+   * are only checked for an existing component, and their units are not checked.
+   */
+  resolveBindable?: (type: ComponentKind) => Readonly<Record<string, Quantity>> | undefined;
   limits?: Partial<SceneLimits>;
 }
 
@@ -69,7 +84,7 @@ type Json = Record<string, unknown>;
 type SchemaVersion = 1 | 2;
 const sceneKeys: Record<SchemaVersion, string[]> = {
   1: ['version', 'components', 'connections'],
-  2: ['schemaVersion', 'units', 'components', 'connections'],
+  2: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings'],
 };
 const componentKeys: Record<SchemaVersion, string[]> = {
   1: ['id', 'kind', 'position', 'rotation', 'properties'],
@@ -78,6 +93,10 @@ const componentKeys: Record<SchemaVersion, string[]> = {
 /** Accepted deviation of a rotation quaternion's length from 1; larger values are rejected, never renormalised. */
 const UNIT_TOLERANCE = 1e-6;
 const connectionKeys = ['id', 'from', 'to'];
+const bindingKeys = {
+  property: ['id', 'tagId', 'kind', 'instanceId', 'property', 'unit'],
+  flow: ['id', 'tagId', 'kind', 'connectionId', 'unit'],
+};
 const endpointKeys = ['instanceId', 'portId'];
 
 function isObject(value: unknown): value is Json {
@@ -233,6 +252,83 @@ function readConnection(value: unknown, path: string, limits: SceneLimits, error
   return { id, from, to };
 }
 
+function readBinding(value: unknown, path: string, limits: SceneLimits, errors: Errors): TagBinding | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a binding object.' });
+    return undefined;
+  }
+  const before = errors.length;
+  const kind = value.kind;
+  if (kind !== 'property' && kind !== 'flow') {
+    errors.push({ code: 'INVALID_FIELD', path: `${path}.kind`, message: 'Expected kind "property" or "flow".' });
+    return undefined;
+  }
+  checkKeys(value, bindingKeys[kind], path, errors);
+  const id = readId(value.id, `${path}.id`, limits, errors);
+  const tagId = readId(value.tagId, `${path}.tagId`, limits, errors);
+  if (value.unit !== undefined && typeof value.unit !== 'string') {
+    errors.push({ code: 'INVALID_FIELD', path: `${path}.unit`, message: 'Expected a unit string.' });
+  }
+  const unit = typeof value.unit === 'string' ? { unit: value.unit } : {};
+  if (kind === 'property') {
+    const instanceId = readId(value.instanceId, `${path}.instanceId`, limits, errors);
+    const property = readId(value.property, `${path}.property`, limits, errors);
+    if (errors.length > before || !id || !tagId || !instanceId || !property) return undefined;
+    return { id, tagId, kind, instanceId, property, ...unit };
+  }
+  const connectionId = readId(value.connectionId, `${path}.connectionId`, limits, errors);
+  if (errors.length > before || !id || !tagId || !connectionId) return undefined;
+  return { id, tagId, kind, connectionId, ...unit };
+}
+
+function checkBindings(scene: ScadaScene, options: SceneValidationOptions, errors: Errors): void {
+  const components = new Map(scene.components.map((c) => [c.id, c]));
+  const connections = new Set(scene.connections.map((c) => c.id));
+  const ids = new Set<string>();
+  const targets = new Set<string>();
+  scene.tagBindings?.forEach((binding, i) => {
+    const path = `tagBindings[${i}]`;
+    if (ids.has(binding.id)) {
+      errors.push({ code: 'DUPLICATE_BINDING_ID', path: `${path}.id`, message: `Duplicate binding id "${binding.id}".` });
+      return;
+    }
+    ids.add(binding.id);
+    let quantity: Quantity | undefined;
+    let target: string;
+    if (binding.kind === 'property') {
+      const owner = components.get(binding.instanceId);
+      if (!owner) {
+        errors.push({ code: 'UNKNOWN_INSTANCE', path: `${path}.instanceId`, message: `No component "${binding.instanceId}".` });
+        return;
+      }
+      if (options.resolveBindable) {
+        quantity = options.resolveBindable(owner.type)?.[binding.property];
+        if (!quantity) {
+          errors.push({ code: 'UNBINDABLE_PROPERTY', path: `${path}.property`, message: `A ${owner.type} has no bindable property "${binding.property}".` });
+          return;
+        }
+      }
+      target = JSON.stringify(['property', binding.instanceId, binding.property]);
+    } else {
+      if (!connections.has(binding.connectionId)) {
+        errors.push({ code: 'UNKNOWN_CONNECTION', path: `${path}.connectionId`, message: `No connection "${binding.connectionId}".` });
+        return;
+      }
+      quantity = 'flow';
+      target = JSON.stringify(['flow', binding.connectionId]);
+    }
+    if (quantity && !isKnownUnit(quantity, binding.unit)) {
+      errors.push({ code: 'INVALID_UNIT', path: `${path}.unit`, message: `Unit "${binding.unit}" is not accepted for ${quantity}.` });
+      return;
+    }
+    if (targets.has(target)) {
+      errors.push({ code: 'DUPLICATE_BINDING_TARGET', path, message: 'Another binding already drives this target.' });
+      return;
+    }
+    targets.add(target);
+  });
+}
+
 function readList<T>(
   value: unknown,
   path: string,
@@ -366,10 +462,15 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
   const connections = readList(input.connections, 'connections', limits.maxConnections, errors, (item, path) =>
     readConnection(item, path, limits, errors),
   );
+  const tagBindings =
+    version === 2 && input.tagBindings !== undefined
+      ? readList(input.tagBindings, 'tagBindings', limits.maxBindings, errors, (item, path) => readBinding(item, path, limits, errors))
+      : undefined;
   if (errors.length > 0 || !components || !connections) return { ok: false, errors };
 
-  const scene: ScadaScene = { schemaVersion: 2, units: 'm', components, connections };
+  const scene: ScadaScene = { schemaVersion: 2, units: 'm', components, connections, ...(tagBindings ? { tagBindings } : {}) };
   checkReferences(scene, options, errors);
+  checkBindings(scene, options, errors);
   if (errors.length > 0) return { ok: false, errors };
   return version === 1 ? { ok: true, scene, migratedFrom: 1 } : { ok: true, scene };
 }

@@ -1,3 +1,4 @@
+import { assessObservation, isNewer, qualities } from './observation';
 import type { ScadaScene } from './scene';
 
 export type Quality = 'GOOD' | 'BAD' | 'UNCERTAIN' | 'STALE';
@@ -60,17 +61,6 @@ export interface FlowResolution {
   unmatchedConnectionIds: string[];
 }
 
-const qualities: readonly Quality[] = ['GOOD', 'BAD', 'UNCERTAIN', 'STALE'];
-
-/** Newest reading wins; unparseable timestamps lose to any valid one; ties go to the later reading. */
-function newer(candidate: FlowReading, current: FlowReading | undefined): boolean {
-  if (!current) return true;
-  const a = Date.parse(candidate.sourceTimestamp);
-  const b = Date.parse(current.sourceTimestamp);
-  if (Number.isNaN(a)) return Number.isNaN(b);
-  return Number.isNaN(b) || a >= b;
-}
-
 /**
  * Decides the flow direction of every connection from host-supplied readings only. Topology and
  * valve state are never used to infer flow: no trustworthy reading means `unknown`, and a known
@@ -91,7 +81,7 @@ export function resolveFlow(scene: ScadaScene, readings: readonly FlowReading[],
       continue;
     }
     if (r.source !== source) continue;
-    if (newer(r, latest.get(r.connectionId))) latest.set(r.connectionId, r);
+    if (isNewer(r, latest.get(r.connectionId))) latest.set(r.connectionId, r);
   }
 
   const states = scene.connections.map((connection): FlowState => {
@@ -109,11 +99,9 @@ export function resolveFlow(scene: ScadaScene, readings: readonly FlowReading[],
       sourceTimestamp: r.sourceTimestamp,
     });
 
-    if (!validQuality || typeof r.rate !== 'number' || !Number.isFinite(r.rate)) return unknown('INVALID_VALUE');
-    const observedAt = Date.parse(r.sourceTimestamp);
-    if (Number.isNaN(observedAt) || observedAt - options.now > maxClockSkewMs) return unknown('INVALID_TIMESTAMP');
-    if (r.quality === 'BAD') return unknown('BAD_QUALITY');
-    if (r.quality === 'STALE' || options.now - observedAt > staleAfterMs) return unknown('STALE');
+    if (typeof r.rate !== 'number' || !Number.isFinite(r.rate)) return unknown('INVALID_VALUE');
+    const problem = assessObservation(r, { now: options.now, staleAfterMs, maxClockSkewMs });
+    if (problem) return unknown(problem);
 
     const direction = Math.abs(r.rate) <= zeroThreshold ? 'stopped' : r.rate > 0 ? 'forward' : 'reverse';
     return {
