@@ -16,8 +16,8 @@ Purpose: executable expectations for agents. Every scenario must map to an autom
 | Transform gizmos | rotate connected valve 90° | world ports recalc and route refresh | no accidental orbit during gizmo drag |
 | Physics lite | known inflow/outflow over timestep | volume conserved within specified tolerance | no 'actual physical' claim; no negative contents |
 | SVG import | safe closed shape + template | reproducible 3D extrusion with separately assigned ports | scripts, remote refs, malformed SVG rejected |
-| WebSocket telemetry | live, stale, out-of-order, reconnect | tagged values and quality shown, old observation rejected | secret never enters browser SDK bundles |
-| OPC UA | gateway forwards tag via authenticated bridge | browser sees observations only | no raw OPC UA or PLC writes from browser |
+| Host-driven data updates | no provider, static snapshot, push values, stale/out-of-order | standalone viewer works offline; bound values and quality update, old observation rejected | SDK creates no sockets; provider unsubscribes on unmount |
+| Optional external OPC UA integration | host bridges tags and calls SDK input contract | renderer sees observations only | SDK has no OPC UA client/PLC writes or mandatory transport |
 | Consumer SDK | independent React app installs built package | viewer/editor render without source workspace aliases | no dependence on Z-Factory or playground packages |
 
 ## Cross-cutting gates

@@ -20,8 +20,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-014 | M5 | P1 | T-013 | TODO | animated directional flow and stale cases |
 | T-015 | M5 | P1 | T-006,T-011 | TODO | glass, X-ray, cutaway, water and heat |
 | T-016 | M6 | P1 | T-012,T-013 | TODO | read-only telemetry, tag quality/timestamps |
-| T-017 | M6 | P1 | T-016 | TODO | WebSocket adapter lifecycle |
-| T-018 | M6 | P1 | T-017 | TODO | MQTT-over-WebSocket and edge OPC UA example |
+| T-017 | M6 | P1 | T-016 | TODO | optional DataProvider snapshot/subscribe or setTagValues API; no-network test and cleanup |
+| T-018 | M6 | P1 | T-017 | TODO | host-owned transport integration examples (REST, WebSocket, MQTT/backend OPC UA), not SDK dependencies |
 | T-019 | M7 | P1 | T-006 | TODO | sanitized SVG extrusion/reference mapping |
 | T-020 | M7 | P1 | T-019 | TODO | glTF importer, provenance and disposal |
 | T-021 | M7 | P2 | T-013,T-016 | TODO | mass-balance simulation and fixtures |

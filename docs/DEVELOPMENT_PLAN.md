@@ -22,7 +22,7 @@ Target modules (not current implementation claims): `packages/core`, `packages/c
 | M3 Connections + routing | snap and unsnap, explicit graph, straight/orthogonal routes, tee branches, clearance limits | M1,M2 | save/reload keeps edges; reject incompatible/double-booked ports; branch/cycle tests pass |
 | M4 Editor + persistence UX | canvas raycast drop, selection, move/rotate/scale gizmos, command undo/redo, import/export | M3 | E2E edit/undo/redo/rotate/reload reproduces same topology |
 | M5 Visual process runtime | measured or simulated fill, valve state, flow direction, heat indication, glass/X-ray/cutaway | M3,M4 | flow respects data quality, direction and valve scenario; rendering assertions pass |
-| M6 Read-only telemetry | adapter contracts, host WebSocket bridge, MQTT-over-WebSocket and backend OPC UA adapter example | M5 | timestamp, reconnect, stale/out-of-order, subscription cleanup tests pass |
+| M6 Host-driven observations | optional DataProvider contract and setTagValues; host-only integration examples | M5 | editor/viewer work without sockets; snapshot, subscription cleanup, stale/out-of-order tests pass |
 | M7 Assets, advanced simulation and hardening | SVG authoring converter, glTF ingestion, optional engineering network simulation, perf/security/API hardening | M0–M6 | golden asset fixtures; simulation checked against known balance equations; published consumer example builds |
 | M8 Packaging and external adoption | versioned SDK, declarations, exports, sample host apps, migration docs | M7 | independent React app uses package, scenes migrate, clean release checks pass |
 
@@ -72,9 +72,9 @@ M7 physics scope is **simplified fluid network / mass-balance simulation** (opti
 - Golden image/model fixtures, malformed-file tests, resource limits, predictable fallback to original 2D reference.
 
 ### G. Live PLC data adapters — M6
-- SDK public adapter consumes typed observations: `tagId`, `value`, `unit`, `quality`, `sourceTimestamp`; handles start/stop/reconnect/disposal.
-- WebSocket bridge reference implementation first; MQTT over WebSockets adapter only where allowed by host auth; OPC UA communicates through a protected **backend/edge gateway**, never raw browser OPC UA.
-- Map tags to component properties and alarms; stale/out-of-order states visibly indicated. Bound update/render frequencies and queue backpressure; enforce host-owned authorization.
+- SDK transport-independent input consumes typed observations: `tagId`, `value`, `unit`, `quality`, `sourceTimestamp`; handles start/stop/reconnect/disposal.
+- The SDK does **not** require or open WebSocket/MQTT/OPC UA connections. The host supplies observations through an optional provider, external state binding, or push API such as `setTagValues`. Separate host application examples may source data from REST, WebSocket, MQTT or an OPC UA backend bridge; those transports remain outside the SDK package.
+- Map tags to component properties and alarms; stale/out-of-order states visibly indicated. Bound render/update frequencies and support unsubscribe/dispose. Verify standalone offline operation; host owns all network transport and authorization.
 - No PLC write path in the SDK. Future industrial control requires dedicated ADR + safety engineering and is not authorized by this plan.
 
 ## Estimation and sequencing

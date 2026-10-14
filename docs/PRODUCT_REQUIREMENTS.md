@@ -21,7 +21,7 @@ A reusable, framework-neutral 3D industrial visualization engine plus a React ed
 - FR-06 normal, glass, X-ray and section/cutaway modes (with meaningful interior representation).
 - FR-07 stable scene JSON import/export, validation, migrations and deterministic serialization.
 - FR-08 framework-neutral core API and React integration with editor/viewer exports.
-- FR-09 read-only telemetry adapter with stale/disconnected indicators; safe lifecycle disposal.
+- FR-09 transport-independent, optional read-only observation inputs (imperative updates or host DataProvider); stale/quality indicators and safe subscription disposal; editor/viewer must run fully offline without WebSocket.
 - FR-10 accessible editor controls, keyboard basics and selection inspection.
 - FR-11 loadable reusable GLB/glTF models; SVG is **input reference only** unless geometry can be reconstructed correctly.
 - FR-12 examples, searchable component documentation and extensibility guide.
