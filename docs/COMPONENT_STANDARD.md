@@ -19,7 +19,7 @@ All MVP fluid ports use nominal bore 0.15 m (DN150) and nozzles of outer radius 
 
 `@scada3d/react` builds Three.js geometry from the parts (`createEquipmentGeometries`) and disposes it on unmount (`disposeGeometries`). Tests check, against the real Three.js vertices, that geometry fills exactly the declared bounds, that each fluid port is centred on a pipe opening of `pipeOuterRadius`, and that no geometry extends past any port plane.
 
-Not yet: user-configurable dimensions (port lookup is per kind), drain port, mechanical/signal ports for motor and sensor, per-file component directories below.
+Configurable dimensions (T-033): a definition may declare shape `parameters` (`ParameterSpec`: label, unit, default, min, max, step) stored in `properties`. The straight pipe declares `length` (m, default 2, 0.2–20); `definitionFor(type, properties)` returns the per-instance definition (ports, bounds and parts follow the length; cached per value), `validateProperties` reports out-of-range values, and `catalogResolvers` bundles `resolvePorts`/`resolveBounds` (both receive the component's properties), `resolveBindable` and `validateProperties` for core. Not yet: other parametric types, drain port, mechanical/signal ports for motor and sensor, per-file component directories below.
 
 ## Proposed directories (target)
 ```

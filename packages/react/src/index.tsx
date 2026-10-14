@@ -2,8 +2,8 @@ import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState
 import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { connectProvider, createEmptyScene, findCollisions, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
-import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
+import { connectProvider, connectionsOf, createEmptyScene, findCollisions, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { catalogResolvers, componentCatalog, definitionFor, pipeOuterRadius, type ParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
 
@@ -46,12 +46,13 @@ const visuallyHidden: React.CSSProperties = { position: 'absolute', width: 1, he
 const LIQUID_COLOR = '#2a9dce';
 /** Shell colour of components whose solid bodies overlap (display only). */
 const COLLISION_COLOR = '#e5484d';
-const resolveBounds = (type: ComponentKind) => componentCatalog[type].bounds;
+const { resolveBounds, resolvePorts, resolveBindable } = catalogResolvers;
 /** Valve ball colour when its bound open/closed tag cannot be trusted. */
 const VALVE_UNKNOWN = '#8a96a3';
 
 function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown, colliding }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void; /** Bound properties whose live value cannot be trusted. */ unknown?:ReadonlySet<string>; /** Overlaps another solid component. */ colliding?:boolean }) {
-  const definition = componentCatalog[component.type];
+  // Per-instance definition: parametric types (pipe length) change ports, bounds and parts.
+  const definition = definitionFor(component.type, component.properties);
   const geometries = useMemo(() => createEquipmentGeometries(definition), [definition]);
   useEffect(() => () => disposeGeometries(geometries), [geometries]);
   const fill = liquidFill(component.properties.level);
@@ -98,7 +99,6 @@ function RoutePipe({ route, viewMode }: { route: PipeRoute; viewMode: ViewMode }
   return <>{geometries.map((geometry, i) => <mesh key={i} geometry={geometry}><meshStandardMaterial key={viewMode} color="#8fa9bc" metalness={look.metalness} roughness={0.35} transparent={look.transparent} opacity={look.opacity} depthWrite={look.depthWrite}/></mesh>)}</>;
 }
 
-const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
 
 const markerDummy = new Object3DImpl();
 
@@ -189,7 +189,6 @@ function useTelemetryFeed(telemetry: TelemetryInput | undefined, ref: React.Ref<
   }, [telemetry, fed]);
 }
 
-const resolveBindable = (type: ComponentKind) => componentCatalog[type].bindable;
 
 /** Resolves telemetry against a clock refreshed every second, so values age into STALE. */
 function useTelemetry(scene: ScadaScene, telemetry: TelemetryInput | undefined, now: number) {
@@ -210,7 +209,7 @@ function CameraBridge({ onCamera }: { onCamera: (camera: Camera) => void }) {
 function DropPreview({ scene, plan, colliding }: { scene: ScadaScene; plan: DropPlan; colliding: boolean }) {
   const candidate = plan.snap.ok ? plan.snap.candidate : plan.snap.nearest;
   const owner = candidate && scene.components.find((c) => c.id === candidate.target.instanceId);
-  const port = owner && componentCatalog[owner.type].ports.find((p) => p.id === candidate.target.portId);
+  const port = owner && definitionFor(owner.type, owner.properties).ports.find((p) => p.id === candidate.target.portId);
   const marker = owner && port ? portToWorld(owner, port).position : undefined;
   return <>
     <Equipment component={plan.component} viewMode="glass" selected colliding={colliding} onSelect={() => {}}/>
@@ -235,7 +234,7 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   const collision = useMemo(() => (collisions ? findCollisions(scene, { resolveBounds }) : undefined), [scene, collisions]);
   const previewCollides = useMemo(() => !!(collisions && preview && collidingWith({ ...scene, components: [...scene.components, preview.component] }, preview.component.id).length), [scene, preview, collisions]);
   const names = useMemo(() => componentNames(scene), [scene]);
-  const routes = useMemo(() => routeScene(scene, { resolvePorts }), [scene]);
+  const routes = useMemo(() => routeScene(scene, catalogResolvers), [scene]);
   const now = useNow(1000);
   const live = useTelemetry(scene, telemetry, now);
   // What is drawn: live values over authored ones; never saved.
@@ -284,7 +283,13 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   </div>;
 }
 
-const defaultProperties = { level: 45, open: true };
+/** Authored starting properties for a newly added component of each type. */
+function defaultProperties(type: ComponentKind): ComponentInstance['properties'] {
+  if (type === 'tank') return { level: 45 };
+  if (type === 'valve') return { open: true };
+  const parameters = componentCatalog[type].parameters ?? {};
+  return Object.fromEntries(Object.entries(parameters).map(([name, spec]) => [name, spec.default]));
+}
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 /** A text field that commits on Enter or blur, so typing a tag is one undo step. */
@@ -395,6 +400,42 @@ function RotationFields({ rotation, onChange }: { rotation: QuaternionLike; onCh
   </fieldset>;
 }
 
+/**
+ * A shape parameter such as pipe length. Values outside the catalog range are not applied; the
+ * field says why. One end stays where it is: the connected end if only one end is connected,
+ * otherwise the first port (a pipe's inlet). So a component joined at the fixed end stays joined.
+ */
+function ParameterField({ name, spec, component, connectedPorts, onChange }: {
+  name: string; spec: ParameterSpec; component: ComponentInstance; connectedPorts: ReadonlySet<string>;
+  onChange: (changes: Pick<ComponentInstance, 'position' | 'properties'>) => void;
+}) {
+  const current = typeof component.properties[name] === 'number' ? component.properties[name] as number : spec.default;
+  const [draft, setDraft] = useState<string | undefined>(undefined);
+  const value = draft ?? String(current);
+  const n = Number(value);
+  const valid = value.trim() !== '' && Number.isFinite(n) && n >= spec.min && n <= spec.max;
+  function apply(next: number) {
+    const properties = { ...component.properties, [name]: next };
+    const ports = definitionFor(component.type, component.properties).ports;
+    const connected = ports.filter((p) => connectedPorts.has(p.id));
+    const anchorId = (connected.length === 1 ? connected[0] : ports[0])?.id;
+    const anchor = (props: ComponentInstance['properties']) => definitionFor(component.type, props).ports.find((p) => p.id === anchorId);
+    const before = anchor(component.properties), after = anchor(properties);
+    let position = component.position;
+    if (before && after) {
+      const [b, a] = [portToWorld(component, before).position, portToWorld(component, after).position];
+      position = { x: position.x + b[0] - a[0], y: position.y + b[1] - a[1], z: position.z + b[2] - a[2] };
+    }
+    onChange({ position, properties });
+  }
+  const label = `${spec.label} (${spec.unit})`;
+  return <label style={{display:'block',marginTop:10}}>{label} <input aria-label={label} type="number" min={spec.min} max={spec.max} step={spec.step} style={{width:80}} value={value}
+      onFocus={()=>setDraft(String(current))} onBlur={()=>setDraft(undefined)}
+      onChange={e=>{setDraft(e.target.value);const v=Number(e.target.value);if(e.target.value.trim()!==''&&Number.isFinite(v)&&v>=spec.min&&v<=spec.max)apply(v);}}/>
+    {!valid&&<small role="alert" style={{display:'block',color:'#ff9aa2'}}>{spec.label} must be between {spec.min} and {spec.max} {spec.unit}.</small>}
+  </label>;
+}
+
 const viewLabels: Record<ViewMode, string> = { normal: 'Normal', glass: 'Glass', xray: 'X-ray', cutaway: 'Cutaway' };
 
 /** Explains a level that cannot be drawn as entered (policy in `liquidFill`). */
@@ -468,14 +509,14 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
   // Keyboard/click add: rest on the ground in a row, never auto-connect.
   function add(type:ComponentKind) {
     const id=newId();
-    const position=dropPosition(componentCatalog[type],[scene.components.length*2.4,0,0]);
-    update({...scene,components:[...scene.components,{id,type,position,rotation:{x:0,y:0,z:0,w:1},scale:{x:1,y:1,z:1},properties:{...defaultProperties}}]});setSelected(id);
+    const position=dropPosition(definitionFor(type,defaultProperties(type)),[scene.components.length*2.4,0,0]);
+    update({...scene,components:[...scene.components,{id,type,position,rotation:{x:0,y:0,z:0,w:1},scale:{x:1,y:1,z:1},properties:defaultProperties(type)}]});setSelected(id);
   }
   function planAt(e:React.DragEvent<HTMLElement>, id:string):DropPlan|undefined {
     const kind=dragKind.current, canvas=e.currentTarget.querySelector('canvas');
     if(!kind||!camera.current||!canvas) return undefined;
     const hit=screenToPlane({x:e.clientX,y:e.clientY},canvas.getBoundingClientRect(),camera.current);
-    return hit ? planDrop(scene,kind,hit,{createId:()=>id,properties:defaultProperties}) : undefined;
+    return hit ? planDrop(scene,kind,hit,{createId:()=>id,properties:defaultProperties(kind)}) : undefined;
   }
   function endDrag(){dragKind.current=undefined;setPreview(undefined);}
   function drop(e:React.DragEvent<HTMLElement>) {
@@ -554,6 +595,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
         <small>Position (metres)</small>
         {(['x','y','z'] as const).map(axis=><label key={axis} style={{display:'block',marginTop:8}}>{axis.toUpperCase()} <input type="number" step=".1" style={{width:100}} value={component.position[axis]} onChange={e=>patch({position:{...component.position,[axis]:Number(e.target.value)}},`position:${component.id}:${axis}`)}/></label>)}
         <RotationFields rotation={component.rotation} onChange={(rotation,mergeKey)=>patch({rotation},mergeKey&&`rotation:${component.id}:${mergeKey}`)}/>
+        {Object.entries(componentCatalog[component.type].parameters??{}).map(([name,spec])=><ParameterField key={`${component.id}:${name}`} name={name} spec={spec} component={component} connectedPorts={new Set(connectionsOf(scene,component.id).flatMap(c=>[c.from,c.to]).filter(e=>e.instanceId===component.id).map(e=>e.portId))} onChange={(changes)=>patch(changes,`parameter:${component.id}:${name}`)}/>)}
         {component.type==='tank'&&<>
           <label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Math.round((liquidFill(component.properties.level).fraction??0)*100)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>
           <LevelNote level={component.properties.level}/>

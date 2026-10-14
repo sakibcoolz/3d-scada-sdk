@@ -38,7 +38,8 @@ export type SceneValidationErrorCode =
   | 'UNBINDABLE_PROPERTY'
   | 'INVALID_UNIT'
   | 'DUPLICATE_BINDING_ID'
-  | 'DUPLICATE_BINDING_TARGET';
+  | 'DUPLICATE_BINDING_TARGET'
+  | 'INVALID_PROPERTY';
 
 export interface SceneValidationError {
   code: SceneValidationErrorCode;
@@ -71,13 +72,21 @@ export const defaultSceneLimits: Readonly<SceneLimits> = {
 };
 
 export interface SceneValidationOptions {
-  /** Declared ports for a component type. Core does not import the catalog, so the caller supplies it. */
-  resolvePorts: (type: ComponentKind) => readonly ConnectionPort[] | undefined;
+  /**
+   * Declared ports for a component type. Core does not import the catalog, so the caller supplies it.
+   * `properties` lets parametric types (e.g. pipe length) return per-instance ports.
+   */
+  resolvePorts: (type: ComponentKind, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
   /**
    * Bindable properties and their quantities for a component type. When omitted, property bindings
    * are only checked for an existing component, and their units are not checked.
    */
   resolveBindable?: (type: ComponentKind) => Readonly<Record<string, Quantity>> | undefined;
+  /**
+   * Checks authored property values (e.g. pipe length range). Each problem becomes an
+   * INVALID_PROPERTY error at `components[i].properties.<property>`. Optional.
+   */
+  validateProperties?: (type: ComponentKind, properties: ComponentInstance['properties']) => readonly { property: string; message: string }[];
   limits?: Partial<SceneLimits>;
 }
 
@@ -432,7 +441,10 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
   const componentsById = new Map<string, ComponentInstance>();
   scene.components.forEach((c, i) => {
     // Scaling a part with ports would change its port positions and bore away from the catalog.
-    const hasPorts = (options.resolvePorts(c.type)?.length ?? 0) > 0;
+    for (const problem of options.validateProperties?.(c.type, c.properties) ?? []) {
+      errors.push({ code: 'INVALID_PROPERTY', path: `components[${i}].properties.${problem.property}`, message: problem.message });
+    }
+    const hasPorts = (options.resolvePorts(c.type, c.properties)?.length ?? 0) > 0;
     if (hasPorts && (c.scale.x !== 1 || c.scale.y !== 1 || c.scale.z !== 1)) {
       errors.push({ code: 'UNSUPPORTED_SCALE', path: `components[${i}].scale`, message: 'Components with ports must keep scale { x: 1, y: 1, z: 1 }.' });
     }
@@ -463,7 +475,7 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
         errors.push({ code: 'UNKNOWN_INSTANCE', path: `${path}.${side}.instanceId`, message: `No component "${endpoint.instanceId}".` });
         return undefined;
       }
-      const port = options.resolvePorts(owner.type)?.find((p) => p.id === endpoint.portId);
+      const port = options.resolvePorts(owner.type, owner.properties)?.find((p) => p.id === endpoint.portId);
       if (!port) {
         errors.push({ code: 'UNKNOWN_PORT', path: `${path}.${side}.portId`, message: `A ${owner.type} has no port "${endpoint.portId}".` });
       }

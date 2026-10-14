@@ -21,8 +21,20 @@ export interface Bounds {
   max: Vector3Tuple;
 }
 
+/** A numeric property that changes a component's shape, e.g. pipe length. */
+export interface ParameterSpec {
+  label: string;
+  unit: string;
+  default: number;
+  min: number;
+  max: number;
+  step: number;
+}
+
 export interface IndustrialComponentDefinition extends ComponentDefinition {
   /** Axis-aligned local bounds of all parts in the default (open) state. */
   bounds: Bounds;
   parts: GeometryPart[];
+  /** Shape parameters stored in `properties`; ports, bounds and parts follow them via `definitionFor`. */
+  parameters?: Readonly<Record<string, ParameterSpec>>;
 }
