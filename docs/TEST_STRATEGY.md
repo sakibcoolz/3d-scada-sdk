@@ -15,7 +15,7 @@ pnpm typecheck
 pnpm build
 pnpm dev
 ```
-`pnpm typecheck` runs `tsc --noEmit` in `@scada3d/core`, `@scada3d/components`, `@scada3d/react`, and `@scada3d/playground`. `pnpm build` produces the playground Vite bundle. The repository does not yet provide a dedicated unit-test or E2E command. **T-002 must add test runner, CI and smoke tests.** Do not report these checks as passing before execution.
+`pnpm typecheck` runs `tsc --noEmit` in `@scada3d/core`, `@scada3d/components`, `@scada3d/react`, and `@scada3d/playground`, then typechecks the test projects. `pnpm test` runs Vitest. `pnpm test:e2e` runs Playwright against the playground production preview. `pnpm build` produces the playground Vite bundle. CI runs these in `.github/workflows/ci.yml`. `pnpm lint` is not available yet.
 
 ## Future standard commands
 ```sh
@@ -24,7 +24,7 @@ pnpm test
 pnpm test:e2e
 pnpm build
 ```
-These are desired tasks, not currently available scripts.
+`pnpm test`, `pnpm test:e2e`, and `pnpm build` exist. `pnpm lint` is still a later task. Do not report a check as passing before execution.
 
 ## Evidence in PR
 Record command, runtime versions, result (PASS/FAIL/NOT RUN), failure details and follow-up. Include screenshot/video only as supporting evidence, never substitute for correctness assertions. Create reproducible fixtures and include edge cases listed in `SCENE_AND_CONNECTIONS.md`.
