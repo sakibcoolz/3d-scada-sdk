@@ -26,3 +26,21 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Scope: documented optional local Graphify code knowledge graph, query-first policy, source-backed impact analysis, privacy boundaries, freshness and token-budget measurement.
 - Verification: documentation change only; Graphify NOT INSTALLED/NOT RUN by this session. No token savings measured.
 - Handoff: complete T-001/T-002; then T-027 Graphify local onboarding when environment permits.
+
+## 2026-10-14T19:44:52Z — T-001 foundation install/typecheck/build
+- Branch: `feat/T-001-foundation-build` (from `develop` @ `b3d6a8f`).
+- Scope: package typecheck projects for core, components, and react; React type dependencies so `@scada3d/react` typechecks in isolation; Node `>=20` engines field; committed-ready `pnpm-lock.yaml`.
+- Graphify: NOT INSTALLED. Fallback: read package scripts, tsconfigs, and package entry files directly.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm install` PASS (130 packages, lockfile written).
+  - `pnpm typecheck` PASS (core, components, react, playground).
+  - `pnpm build` PASS (playground Vite production bundle).
+  - `pnpm test` / `pnpm test:e2e` / browser smoke NOT RUN (owned by T-002).
+- Status: T-001 REVIEW until a PR is merged. Not DONE.
+- Handoff: commit and open the T-001 PR, then start T-002 (CI, unit/E2E runner, browser smoke).
+
+## 2026-10-14T19:46:00Z — Graphify CLI install (not T-027)
+- Branch: `feat/T-001-foundation-build`.
+- `uv tool install graphifyy`: already installed. `graphify --version` → 0.9.53.
+- `graphify install --platform cursor` wrote `.cursor/rules/graphify.mdc`.
+- Index NOT built. `graphify-out/` does not exist. T-027 remains TODO. No hosted indexing.

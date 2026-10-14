@@ -15,7 +15,7 @@ pnpm typecheck
 pnpm build
 pnpm dev
 ```
-The repository does not yet provide a dedicated unit-test or E2E command. **T-002 must add test runner, CI and smoke tests.** Do not report these checks as passing before execution.
+`pnpm typecheck` runs `tsc --noEmit` in `@scada3d/core`, `@scada3d/components`, `@scada3d/react`, and `@scada3d/playground`. `pnpm build` produces the playground Vite bundle. The repository does not yet provide a dedicated unit-test or E2E command. **T-002 must add test runner, CI and smoke tests.** Do not report these checks as passing before execution.
 
 ## Future standard commands
 ```sh
