@@ -13,7 +13,7 @@ import {
 } from '@scada3d/core';
 import { componentCatalog, type IndustrialComponentDefinition } from '@scada3d/components';
 
-const resolvePorts = (kind: ComponentKind) => componentCatalog[kind].ports;
+const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
 
 export interface ScreenRect {
   left: number;
@@ -56,12 +56,13 @@ export interface DropOptions {
 }
 
 /** Decides where a palette drop lands and what it would connect to. Pure: the scene is not changed. */
-export function planDrop(scene: ScadaScene, kind: ComponentKind, hit: Vector3Tuple, options: DropOptions): DropPlan {
+export function planDrop(scene: ScadaScene, type: ComponentKind, hit: Vector3Tuple, options: DropOptions): DropPlan {
   const placed: ComponentInstance = {
     id: options.createId(),
-    kind,
-    position: dropPosition(componentCatalog[kind], hit),
-    rotation: [0, 0, 0],
+    type,
+    position: dropPosition(componentCatalog[type], hit),
+    rotation: [0, 0, 0, 1],
+    scale: [1, 1, 1],
     properties: { ...options.properties },
   };
   const snap = snapComponent(scene, placed, { resolvePorts });
@@ -85,10 +86,10 @@ const rejection: Record<Exclude<SnapStatus, 'ok'>, string> = {
 
 /** One-line preview text for a drop, for the editor status line. Targets are named by catalog label. */
 export function describeDrop(plan: DropPlan, scene: ScadaScene): string {
-  const label = componentCatalog[plan.component.kind].label;
+  const label = componentCatalog[plan.component.type].label;
   const targetLabel = (instanceId: string) => {
     const target = scene.components.find((c) => c.id === instanceId);
-    return target ? componentCatalog[target.kind].label : instanceId;
+    return target ? componentCatalog[target.type].label : instanceId;
   };
   if (plan.snap.ok) {
     const { candidate } = plan.snap;

@@ -4,7 +4,7 @@ import { validateScene, type ComponentKind, type ScadaScene, type Vector3Tuple }
 import { componentCatalog } from '@scada3d/components';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane } from './drop';
 
-const resolvePorts = (kind: ComponentKind) => componentCatalog[kind].ports;
+const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
 
 function counter(prefix: string): () => string {
   let n = 0;
@@ -16,8 +16,9 @@ function expectClose(actual: Vector3Tuple, expected: Vector3Tuple): void {
 }
 
 const tankOnGround = (): ScadaScene => ({
-  version: 1,
-  components: [{ id: 'tank', kind: 'tank', position: [0, 1.535, 0], rotation: [0, 0, 0], properties: {} }],
+  schemaVersion: 2,
+  units: 'm',
+  components: [{ id: 'tank', type: 'tank', position: [0, 1.535, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: {} }],
   connections: [],
 });
 
@@ -67,8 +68,8 @@ describe('dropPosition', () => {
 
 describe('planDrop', () => {
   it('places a new component on the plane when nothing is in reach', () => {
-    const plan = planDrop({ version: 1, components: [], connections: [] }, 'tank', [0, 0, 0], { createId: counter('c') });
-    expect(plan.component).toEqual({ id: 'c1', kind: 'tank', position: [0, 1.535, 0], rotation: [0, 0, 0], properties: {} });
+    const plan = planDrop({ schemaVersion: 2, units: 'm', components: [], connections: [] }, 'tank', [0, 0, 0], { createId: counter('c') });
+    expect(plan.component).toEqual({ id: 'c1', type: 'tank', position: [0, 1.535, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: {} });
     expect(plan.snap).toEqual({ ok: false, reason: 'NO_CANDIDATE' });
   });
 
@@ -85,7 +86,7 @@ describe('planDrop', () => {
   it('keeps the plane position when the nearest port cannot connect', () => {
     const scene: ScadaScene = {
       ...tankOnGround(),
-      components: [...tankOnGround().components, { id: 'v0', kind: 'valve', position: [9, 0.2, 0], rotation: [0, 0, 0], properties: {} }],
+      components: [...tankOnGround().components, { id: 'v0', type: 'valve', position: [9, 0.2, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: {} }],
       connections: [{ id: 'e0', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'v0', portId: 'in' } }],
     };
     const plan = planDrop(scene, 'valve', [1.8, 0, 0], { createId: counter('c') });
@@ -141,7 +142,7 @@ describe('describeDrop', () => {
   it('explains why the nearest port cannot connect', () => {
     const scene: ScadaScene = {
       ...tankOnGround(),
-      components: [...tankOnGround().components, { id: 'v0', kind: 'valve', position: [9, 0.2, 0], rotation: [0, 0, 0], properties: {} }],
+      components: [...tankOnGround().components, { id: 'v0', type: 'valve', position: [9, 0.2, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: {} }],
       connections: [{ id: 'e0', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'v0', portId: 'in' } }],
     };
     expect(describeDrop(planDrop(scene, 'valve', [1.8, 0, 0], { createId: counter('c') }), scene)).toBe(

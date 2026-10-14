@@ -165,3 +165,19 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: moving existing components, undo/redo, gizmos (T-011); non-ground drop surfaces.
 - Status: T-010 REVIEW until PR is merged.
 - Handoff: T-011 (gizmos and atomic undo/redo) needs T-005 (versioned roundtrip), which waits on ADR-0004. T-013 (flow-state resolver) is dependency-ready now.
+
+## 2026-10-15 — T-005 scene version 2, migration and deterministic serialization
+- Branch: `feat/T-005-scene-v2` (stacked on `feat/T-010-canvas-drop` @ `8bec5a3`, PR #17 open, to avoid conflicts in the drop code).
+- Owner decision: ADR-0004 accepted (version 2 scene format). ADR status and decision log updated.
+- Graphify: index NOT built. Fallback: `grep` for every `kind`/`version`/`rotation` use across packages, apps and e2e.
+- Scope: `ScadaScene` is now `{ schemaVersion: 2, units: 'm', components: [{ id, type, position, rotation: quaternion, scale, properties }], connections }`. `validateScene` reads v1 and v2, migrates v1 (Euler XYZ → quaternion, `kind` → `type`, scale [1, 1, 1], `migratedFrom: 1`), enforces unit quaternions (1e-6, never renormalised), positive scale and the scale policy (`UNSUPPORTED_SCALE` for types with ports). New `quaternion.ts` (shared helpers; snapping now returns quaternions directly, removing the Euler gimbal path), `portToWorld` applies scale with a correct normal transform, `serializeScene`/`parseScene` (canonical key order, sorted property keys, `INVALID_JSON`, length limit). Catalog definitions, React renderer (`quaternion`/`scale` props), drop planning, playground demo and all fixtures moved to v2.
+- Tests written first: 31 new serialization/migration tests failed before implementation. Existing fixtures converted (Euler fixtures kept readable via `quaternionFromEuler`); added scale and quaternion-helper tests.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (353 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (4 tests; demo scene renders with quaternion/scale props and no console errors).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: import/export UI (T-012), `tagBindings` in the schema (T-016), nested transforms.
+- Status: T-005 REVIEW until PR is merged (after #17).
+- Handoff: T-011 (gizmos and atomic undo/redo) is dependency-ready once T-005 and T-010 merge. ADR-0005 still awaits an owner decision.

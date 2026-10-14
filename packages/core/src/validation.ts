@@ -4,10 +4,12 @@ import {
   type ComponentInstance,
   type ComponentKind,
   type ConnectionPort,
+  type QuaternionTuple,
   type ScadaScene,
   type SceneConnection,
   type Vector3Tuple,
 } from './scene';
+import { quaternionFromEuler } from './quaternion';
 
 export type SceneValidationErrorCode =
   | 'NOT_AN_OBJECT'
@@ -23,7 +25,9 @@ export type SceneValidationErrorCode =
   | 'SELF_CONNECTION'
   | 'INCOMPATIBLE_PORTS'
   | 'PORT_OCCUPIED'
-  | 'DUPLICATE_EDGE';
+  | 'DUPLICATE_EDGE'
+  | 'UNSUPPORTED_SCALE'
+  | 'INVALID_JSON';
 
 export interface SceneValidationError {
   code: SceneValidationErrorCode;
@@ -33,7 +37,8 @@ export interface SceneValidationError {
 }
 
 export type SceneValidationResult =
-  | { ok: true; scene: ScadaScene }
+  /** `migratedFrom` is set when the input was an older schema version that was upgraded. */
+  | { ok: true; scene: ScadaScene; migratedFrom?: 1 }
   | { ok: false; errors: SceneValidationError[] };
 
 export interface SceneLimits {
@@ -53,16 +58,25 @@ export const defaultSceneLimits: Readonly<SceneLimits> = {
 };
 
 export interface SceneValidationOptions {
-  /** Declared ports for a component kind. Core does not import the catalog, so the caller supplies it. */
-  resolvePorts: (kind: ComponentKind) => readonly ConnectionPort[] | undefined;
+  /** Declared ports for a component type. Core does not import the catalog, so the caller supplies it. */
+  resolvePorts: (type: ComponentKind) => readonly ConnectionPort[] | undefined;
   limits?: Partial<SceneLimits>;
 }
 
 type Errors = SceneValidationError[];
 type Json = Record<string, unknown>;
 
-const sceneKeys = ['version', 'components', 'connections'];
-const componentKeys = ['id', 'kind', 'position', 'rotation', 'properties'];
+type SchemaVersion = 1 | 2;
+const sceneKeys: Record<SchemaVersion, string[]> = {
+  1: ['version', 'components', 'connections'],
+  2: ['schemaVersion', 'units', 'components', 'connections'],
+};
+const componentKeys: Record<SchemaVersion, string[]> = {
+  1: ['id', 'kind', 'position', 'rotation', 'properties'],
+  2: ['id', 'type', 'position', 'rotation', 'scale', 'properties'],
+};
+/** Accepted deviation of a rotation quaternion's length from 1; larger values are rejected, never renormalised. */
+const UNIT_TOLERANCE = 1e-6;
 const connectionKeys = ['id', 'from', 'to'];
 const endpointKeys = ['instanceId', 'portId'];
 
@@ -93,6 +107,27 @@ function readId(value: unknown, path: string, limits: SceneLimits, errors: Error
 function readVector(value: unknown, path: string, errors: Errors): Vector3Tuple | undefined {
   if (!Array.isArray(value) || value.length !== 3 || !value.every((n) => typeof n === 'number' && Number.isFinite(n))) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected three finite numbers.' });
+    return undefined;
+  }
+  return [value[0], value[1], value[2]];
+}
+
+function readQuaternion(value: unknown, path: string, errors: Errors): QuaternionTuple | undefined {
+  if (
+    !Array.isArray(value) ||
+    value.length !== 4 ||
+    !value.every((n) => typeof n === 'number' && Number.isFinite(n)) ||
+    Math.abs(Math.hypot(...value) - 1) > UNIT_TOLERANCE
+  ) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a unit quaternion [x, y, z, w].' });
+    return undefined;
+  }
+  return [value[0], value[1], value[2], value[3]];
+}
+
+function readScale(value: unknown, path: string, errors: Errors): Vector3Tuple | undefined {
+  if (!Array.isArray(value) || value.length !== 3 || !value.every((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected three positive finite numbers.' });
     return undefined;
   }
   return [value[0], value[1], value[2]];
@@ -134,23 +169,41 @@ function readProperties(
   return valid ? properties : undefined;
 }
 
-function readComponent(value: unknown, path: string, limits: SceneLimits, errors: Errors): ComponentInstance | undefined {
+/**
+ * Reads one component in the input's own schema version and returns it in the current model.
+ * Version 1 uses `kind` and Euler XYZ radians and has no scale; it migrates to a quaternion and [1, 1, 1].
+ */
+function readComponent(
+  value: unknown,
+  path: string,
+  version: SchemaVersion,
+  limits: SceneLimits,
+  errors: Errors,
+): ComponentInstance | undefined {
   if (!isObject(value)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a component object.' });
     return undefined;
   }
   const before = errors.length;
-  checkKeys(value, componentKeys, path, errors);
+  checkKeys(value, componentKeys[version], path, errors);
   const id = readId(value.id, `${path}.id`, limits, errors);
-  const kind = value.kind;
-  if (!componentKinds.includes(kind as ComponentKind)) {
-    errors.push({ code: 'UNKNOWN_COMPONENT_KIND', path: `${path}.kind`, message: `Unknown component kind ${JSON.stringify(kind)}.` });
+  const typeField = version === 1 ? 'kind' : 'type';
+  const type = value[typeField];
+  if (!componentKinds.includes(type as ComponentKind)) {
+    errors.push({ code: 'UNKNOWN_COMPONENT_KIND', path: `${path}.${typeField}`, message: `Unknown component type ${JSON.stringify(type)}.` });
   }
   const position = readVector(value.position, `${path}.position`, errors);
-  const rotation = readVector(value.rotation, `${path}.rotation`, errors);
+  let rotation: QuaternionTuple | undefined;
+  if (version === 1) {
+    const euler = readVector(value.rotation, `${path}.rotation`, errors);
+    rotation = euler && quaternionFromEuler(euler);
+  } else {
+    rotation = readQuaternion(value.rotation, `${path}.rotation`, errors);
+  }
+  const scale = version === 1 ? ([1, 1, 1] as Vector3Tuple) : readScale(value.scale, `${path}.scale`, errors);
   const properties = readProperties(value.properties, `${path}.properties`, limits, errors);
-  if (errors.length > before || !id || !position || !rotation || !properties) return undefined;
-  return { id, kind: kind as ComponentKind, position, rotation, properties };
+  if (errors.length > before || !id || !position || !rotation || !scale || !properties) return undefined;
+  return { id, type: type as ComponentKind, position, rotation, scale, properties };
 }
 
 function readEndpoint(value: unknown, path: string, limits: SceneLimits, errors: Errors): SceneConnection['from'] | undefined {
@@ -206,6 +259,11 @@ function readList<T>(
 function checkReferences(scene: ScadaScene, options: SceneValidationOptions, errors: Errors): void {
   const componentsById = new Map<string, ComponentInstance>();
   scene.components.forEach((c, i) => {
+    // Scaling a part with ports would change its port positions and bore away from the catalog.
+    const hasPorts = (options.resolvePorts(c.type)?.length ?? 0) > 0;
+    if (hasPorts && c.scale.some((n) => n !== 1)) {
+      errors.push({ code: 'UNSUPPORTED_SCALE', path: `components[${i}].scale`, message: 'Components with ports must keep scale [1, 1, 1].' });
+    }
     if (componentsById.has(c.id)) {
       errors.push({ code: 'DUPLICATE_COMPONENT_ID', path: `components[${i}].id`, message: `Duplicate component id "${c.id}".` });
     } else {
@@ -233,9 +291,9 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
         errors.push({ code: 'UNKNOWN_INSTANCE', path: `${path}.${side}.instanceId`, message: `No component "${endpoint.instanceId}".` });
         return undefined;
       }
-      const port = options.resolvePorts(owner.kind)?.find((p) => p.id === endpoint.portId);
+      const port = options.resolvePorts(owner.type)?.find((p) => p.id === endpoint.portId);
       if (!port) {
-        errors.push({ code: 'UNKNOWN_PORT', path: `${path}.${side}.portId`, message: `A ${owner.kind} has no port "${endpoint.portId}".` });
+        errors.push({ code: 'UNKNOWN_PORT', path: `${path}.${side}.portId`, message: `A ${owner.type} has no port "${endpoint.portId}".` });
       }
       return port;
     };
@@ -273,10 +331,12 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
 }
 
 /**
- * Validates an untrusted value as a version 1 scene. Never mutates or repairs the input:
- * on success it returns a fresh copy, otherwise every error found, in input order.
- * Reference checks (ids, ports, compatibility, occupancy) run only once the structure is valid.
- * Each port accepts one connection.
+ * Validates an untrusted value as a scene and returns it in the current (version 2) model.
+ * Version 1 input (`version: 1`) is migrated deterministically and reported via `migratedFrom`.
+ * Never mutates or repairs the input: on success it returns a fresh copy, otherwise every error
+ * found, in input order, with paths in the input's own field names. Reference checks (ids, ports,
+ * compatibility, occupancy, scale policy) run only once the structure is valid. Each port accepts
+ * one connection.
  */
 export function validateScene(input: unknown, options: SceneValidationOptions): SceneValidationResult {
   const limits: SceneLimits = { ...defaultSceneLimits, ...options.limits };
@@ -284,19 +344,32 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
   if (!isObject(input)) {
     return { ok: false, errors: [{ code: 'NOT_AN_OBJECT', path: '', message: 'Expected a scene object.' }] };
   }
-  checkKeys(input, sceneKeys, '', errors);
-  if (input.version !== 1) {
-    errors.push({ code: 'UNSUPPORTED_VERSION', path: 'version', message: `Unsupported scene version ${JSON.stringify(input.version)}.` });
+  let version: SchemaVersion;
+  if ('schemaVersion' in input) {
+    version = 2;
+    if (input.schemaVersion !== 2) {
+      errors.push({ code: 'UNSUPPORTED_VERSION', path: 'schemaVersion', message: `Unsupported schemaVersion ${JSON.stringify(input.schemaVersion)}.` });
+    }
+    if (input.units !== 'm') {
+      errors.push({ code: 'INVALID_FIELD', path: 'units', message: 'Expected units "m".' });
+    }
+  } else {
+    version = 1;
+    if (input.version !== 1) {
+      errors.push({ code: 'UNSUPPORTED_VERSION', path: 'version', message: `Unsupported scene version ${JSON.stringify(input.version)}.` });
+    }
   }
+  checkKeys(input, sceneKeys[version], '', errors);
   const components = readList(input.components, 'components', limits.maxComponents, errors, (item, path) =>
-    readComponent(item, path, limits, errors),
+    readComponent(item, path, version, limits, errors),
   );
   const connections = readList(input.connections, 'connections', limits.maxConnections, errors, (item, path) =>
     readConnection(item, path, limits, errors),
   );
   if (errors.length > 0 || !components || !connections) return { ok: false, errors };
 
-  const scene: ScadaScene = { version: 1, components, connections };
+  const scene: ScadaScene = { schemaVersion: 2, units: 'm', components, connections };
   checkReferences(scene, options, errors);
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, scene };
+  if (errors.length > 0) return { ok: false, errors };
+  return version === 1 ? { ok: true, scene, migratedFrom: 1 } : { ok: true, scene };
 }
