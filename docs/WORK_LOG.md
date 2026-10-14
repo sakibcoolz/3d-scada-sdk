@@ -198,3 +198,19 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: blocking/re-snapping transforms that misalign connected ports, scale gizmo, multi-select. Position fields show raw floats (e.g. 0.634999999).
 - Status: T-011 REVIEW until PR is merged (after #19).
 - Handoff: next is T-012 (scene import/export UI and browser roundtrip), which builds on `serializeScene`/`parseScene`. T-013 also unblocked. ADR-0005 awaits an owner decision.
+
+## 2026-10-15 — T-012 scene import/export and browser roundtrip
+- Branch: `feat/T-012-import-export` (from `develop` @ `933b061`; #19 and #20 merged, T-005 and T-011 marked DONE).
+- Graphify: index NOT built. Fallback: read the editor and the core `serializeScene`/`parseScene` APIs directly.
+- Scope: `importSceneText`, `formatSceneErrors` and `MAX_SCENE_FILE_BYTES` in `packages/react/src/sceneFile.ts`. Editor: Export JSON download (canonical text), file import (size-checked before reading), pasted-text import, readable error list, success note with migration notice, import as one undo step. Scene JSON panel now shows `serializeScene` output.
+- Tests written first: `sceneFile.test.ts` failed to load and 3 new e2e tests failed before implementation. After wiring, an older undo test broke because `getByLabel('X')` also matched "Import JSON text" (substring match); fixed with `exact: true`.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (371 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (13 tests, including export → reload → import byte-identical roundtrip of a connected, gizmo-rotated scene; malformed text keeps the scene; pasted v1 migrates).
+  - Browser screenshot of the import error list over the unchanged demo scene.
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: merge/append import; reference errors appear only after structural errors are fixed.
+- Status: T-012 REVIEW until PR is merged. With T-012 merged, all M4 tasks (T-010–T-012) are done.
+- Handoff: next is M5, starting with T-013 (measured/simulated flow-state resolver). T-015 (glass/X-ray/cutaway/water/heat) is also dependency-ready. ADR-0005 awaits an owner decision.

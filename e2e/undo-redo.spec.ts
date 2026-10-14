@@ -68,7 +68,7 @@ test('removing a connected component undoes back to the exact earlier scene', as
 
 test('typing in a property field does not trigger editor undo', async ({ page }) => {
   await page.getByRole('button', { name: 'Vertical Tank +' }).click();
-  const x = page.getByLabel('X');
+  const x = page.getByLabel('X', { exact: true });
   await x.fill('3');
   await x.press('Control+z');
   expect((await sceneJson(page)).components).toHaveLength(1);
