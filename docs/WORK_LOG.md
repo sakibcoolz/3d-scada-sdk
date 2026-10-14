@@ -330,3 +330,13 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: vitest upgrade (needs approval); CSP guidance for hosts; asset (SVG/glTF) sanitisation is post-MVP (T-028).
 - Status: T-023 IN_PROGRESS (parts A and B in review; C accessibility and D performance next).
 
+## 2026-10-15 — Dev dependency upgrade: vitest 4.1.11 (security)
+- Branch: `chore/vitest-4` (from `feat/T-023b-security` @ `5d439ab`, PR #29 open; targets `develop`).
+- Owner-approved: upgrade the test runner from vitest 3.2.7 to `^4.1.11` (smallest release fixing GHSA-82fw-gwwq-j7x9, GHSA-5gmw-xhrv-c9v3, GHSA-85c8-ppgw-ccpr). Latest 5.0.4 not taken to keep the change minimal.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm audit` and `pnpm audit --prod`: no known vulnerabilities.
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (529 tests, no config changes needed).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (31 tests).
+

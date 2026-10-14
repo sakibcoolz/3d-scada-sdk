@@ -46,7 +46,7 @@ The SDK must never require a WebSocket connection, broker, network endpoint, cre
 
 ### Dependency audit (`pnpm audit`, pnpm 9.15.4)
 - Production dependencies (`pnpm audit --prod`): **no known vulnerabilities**.
-- Development dependencies: 4 advisories, all through the test runner `vitest@3.2.7` (never shipped in the SDK): GHSA-82fw-gwwq-j7x9 (moderate, vitest/@vitest/mocker path traversal, fixed in ≥ 4.1.11), GHSA-5gmw-xhrv-c9v3 and GHSA-85c8-ppgw-ccpr (critical, tinypool prototype-pollution gadgets, fixed in ≥ 2.1.2). Exposure is limited to running tests on untrusted test code or configuration. Remediation needs a vitest major upgrade, which requires owner approval (pending).
+- Development dependencies: 4 advisories, all through the test runner `vitest@3.2.7` (never shipped in the SDK): GHSA-82fw-gwwq-j7x9 (moderate, vitest/@vitest/mocker path traversal, fixed in ≥ 4.1.11), GHSA-5gmw-xhrv-c9v3 and GHSA-85c8-ppgw-ccpr (critical, tinypool prototype-pollution gadgets, fixed in ≥ 2.1.2). Exposure was limited to running tests on untrusted test code or configuration. **Resolved:** owner approved upgrading to `vitest@^4.1.11` (installed 4.1.11, the smallest release with the fix); `pnpm audit` now reports no known vulnerabilities for all dependencies.
 
 ### Licences (`pnpm licenses list --prod`, includes playground tooling)
 MIT 111, ISC 8, Apache-2.0 5 (`@mediapipe/tasks-vision`, `baseline-browser-mapping`, `draco3d`, `hls.js`, `promise-worker-transferable`, all transitive via drei), BSD-3-Clause 3, CC-BY-4.0 1 (`caniuse-lite`, build-time browser data). No copyleft licences. No third-party 3D assets are bundled (all geometry is procedural).
