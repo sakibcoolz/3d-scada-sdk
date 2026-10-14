@@ -15,8 +15,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-009 | M3 | P0 | T-008 | DONE | pipe routing, elbow and tee geometry (`routeScene`, route meshes, `?demo` network; PR #16) |
 | T-010 | M4 | P0 | T-007,T-009 | DONE | 3D canvas raycast drag/drop (ground-plane drop, snap preview, Escape cancel; PR #17) |
 | T-011 | M4 | P0 | T-005,T-010 | DONE | gizmos and atomic undo/redo (move/rotate gizmos, snapshot history with gesture merging; PR #20) |
-| T-012 | M4 | P0 | T-011 | REVIEW | scene import/export and browser roundtrip (Export JSON, file/text import, byte-identical e2e roundtrip) |
-| T-013 | M5 | P1 | T-008,T-009 | TODO | measured/simulated flow-state resolver |
+| T-012 | M4 | P0 | T-011 | DONE | scene import/export and browser roundtrip (Export JSON, file/text import, byte-identical e2e roundtrip; PR #21) |
+| T-013 | M5 | P1 | T-008,T-009 | REVIEW | measured/simulated flow-state resolver (`resolveFlow`, per-connection readings) |
 | T-014 | M5 | P1 | T-013 | TODO | animated directional flow and stale cases |
 | T-015 | M5 | P1 | T-006,T-011 | TODO | glass, X-ray, cutaway, water and heat |
 | T-016 | M6 | P1 | T-012,T-013 | TODO | read-only telemetry, tag quality/timestamps |

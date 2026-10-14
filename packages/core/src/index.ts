@@ -6,3 +6,4 @@ export * from './snapping';
 export * from './graph';
 export * from './routing';
 export * from './serialization';
+export * from './flow';
