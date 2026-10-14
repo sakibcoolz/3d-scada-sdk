@@ -2,7 +2,7 @@ import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState
 import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { connectProvider, createEmptyScene, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { connectProvider, createEmptyScene, findCollisions, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
@@ -43,10 +43,13 @@ function GizmoControls(props: React.ComponentProps<typeof TransformControls>) {
 const visuallyHidden: React.CSSProperties = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', margin: -1, padding: 0, border: 0 };
 
 const LIQUID_COLOR = '#2a9dce';
+/** Shell colour of components whose solid bodies overlap (display only). */
+const COLLISION_COLOR = '#e5484d';
+const resolveBounds = (type: ComponentKind) => componentCatalog[type].bounds;
 /** Valve ball colour when its bound open/closed tag cannot be trusted. */
 const VALVE_UNKNOWN = '#8a96a3';
 
-function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void; /** Bound properties whose live value cannot be trusted. */ unknown?:ReadonlySet<string> }) {
+function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown, colliding }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void; /** Bound properties whose live value cannot be trusted. */ unknown?:ReadonlySet<string>; /** Overlaps another solid component. */ colliding?:boolean }) {
   const definition = componentCatalog[component.type];
   const geometries = useMemo(() => createEquipmentGeometries(definition), [definition]);
   useEffect(() => () => disposeGeometries(geometries), [geometries]);
@@ -59,7 +62,7 @@ function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown
   const tag = (role: string) => ({ componentId: component.id, role });
   // Materials are keyed on view mode so switching recreates them: Three.js only recompiles the
   // opaque/transparent/clipped shader variant when a material is new or flagged needsUpdate.
-  const shellProps = {color:selected?'#63b3ed':'#7b9eb6',metalness:look.metalness,roughness:0.35,transparent:look.transparent,opacity:look.opacity,depthWrite:look.depthWrite,side:DoubleSide,clippingPlanes};
+  const shellProps = {color:colliding?COLLISION_COLOR:selected?'#63b3ed':'#7b9eb6',metalness:look.metalness,roughness:0.35,transparent:look.transparent,opacity:look.opacity,depthWrite:look.depthWrite,side:DoubleSide,clippingPlanes};
   return <group ref={objectRef} position={[component.position.x, component.position.y, component.position.z]} quaternion={[component.rotation.x, component.rotation.y, component.rotation.z, component.rotation.w]} scale={[component.scale.x, component.scale.y, component.scale.z]} onClick={e=>{e.stopPropagation();onSelect();}}>
     {definition.parts.map((part, i) => {
       const geometry = geometries[i];
@@ -203,13 +206,13 @@ function CameraBridge({ onCamera }: { onCamera: (camera: Camera) => void }) {
 }
 
 /** Ghost of the component being dropped, and a marker on the port it would (or cannot) connect to. */
-function DropPreview({ scene, plan }: { scene: ScadaScene; plan: DropPlan }) {
+function DropPreview({ scene, plan, colliding }: { scene: ScadaScene; plan: DropPlan; colliding: boolean }) {
   const candidate = plan.snap.ok ? plan.snap.candidate : plan.snap.nearest;
   const owner = candidate && scene.components.find((c) => c.id === candidate.target.instanceId);
   const port = owner && componentCatalog[owner.type].ports.find((p) => p.id === candidate.target.portId);
   const marker = owner && port ? portToWorld(owner, port).position : undefined;
   return <>
-    <Equipment component={plan.component} viewMode="glass" selected onSelect={() => {}}/>
+    <Equipment component={plan.component} viewMode="glass" selected colliding={colliding} onSelect={() => {}}/>
     {marker && <mesh position={marker}><sphereGeometry args={[0.14, 16, 16]}/><meshBasicMaterial color={plan.snap.ok ? '#48b983' : '#e76e75'} transparent opacity={0.85}/></mesh>}
   </>;
 }
@@ -226,8 +229,11 @@ export type TransformHandler = (id: string, position: Vector3Like, rotation: Qua
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,collisions=true,ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;ref?:React.Ref<ScadaHandle>}) {
   const telemetry = useTelemetryFeed(telemetryInput, ref);
+  const collision = useMemo(() => (collisions ? findCollisions(scene, { resolveBounds }) : undefined), [scene, collisions]);
+  const previewCollides = useMemo(() => !!(collisions && preview && collidingWith({ ...scene, components: [...scene.components, preview.component] }, preview.component.id).length), [scene, preview, collisions]);
+  const names = useMemo(() => componentNames(scene), [scene]);
   const routes = useMemo(() => routeScene(scene, { resolvePorts }), [scene]);
   const now = useNow(1000);
   const live = useTelemetry(scene, telemetry, now);
@@ -256,17 +262,18 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   <Canvas camera={{position:[7,6,9],fov:50}} onCreated={({gl})=>{gl.localClippingEnabled=true;}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
-    {shown.components.map(c=><Equipment key={c.id} component={c} unknown={unknownByComponent.get(c.id)} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
+    {shown.components.map(c=><Equipment key={c.id} component={c} unknown={unknownByComponent.get(c.id)} colliding={collision?.collidingIds.has(c.id)} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
     {onTransform && transformMode && selectedId && selectedObject && <GizmoControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
       onMouseDown={()=>{gesture.current++;}}
       onObjectChange={()=>{const {position:p,quaternion:q}=selectedObject;onTransform(selectedId,{x:p.x,y:p.y,z:p.z},{x:q.x,y:q.y,z:q.z,w:q.w},`transform:${selectedId}:${gesture.current}`);}}/>}
     {routes.map(route=><RoutePipe key={route.connectionId} route={route} viewMode={viewMode}/>)}
     {flowStates && routes.map(route=>{const state=stateById.get(route.connectionId);return route.status==='ok'&&state?<FlowMarkers key={`flow:${route.connectionId}`} route={route} state={state}/>:null;})}
-    {preview && <DropPreview scene={scene} plan={preview}/>}
+    {preview && <DropPreview scene={scene} plan={preview} colliding={previewCollides}/>}
     {onCamera && <CameraBridge onCamera={onCamera}/>}
     <OrbitControls makeDefault/><GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport/></GizmoHelper>
   </Canvas>
   {(flow?.source??telemetry?.source)==='SIMULATED'&&<div style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED FLOW</div>}
+  {collision&&collision.pairs.length>0&&<CollisionList pairs={collision.pairs} names={names} order={scene.components.map(c=>c.id)}/>}
   {showHeatLegend&&<div style={{position:'absolute',top:flow?.source==='SIMULATED'?44:10,right:12,padding:'4px 8px',borderRadius:4,background:'#0b1725cc',color:'#ebf2fa',fontSize:12,pointerEvents:'none'}}>
     <div style={{height:8,borderRadius:2,marginBottom:4,background:`linear-gradient(90deg, ${heatColor(HEAT_RANGE_C.min)}, ${heatColor(HEAT_RANGE_C.max)})`}}/>
     Temperature tint {HEAT_RANGE_C.min}–{HEAT_RANGE_C.max} °C (display only, not simulated)
@@ -319,14 +326,37 @@ function BindingsEditor({ component, scene, live, onSet }: {
   </div>;
 }
 
-/** Keyboard-reachable list of everything in the scene; selecting here equals clicking in the canvas. */
-function SceneList({ scene, selected, onSelect }: { scene: ScadaScene; selected?: string; onSelect: (id: string) => void }) {
+/** Display names such as "Ball Valve 2": catalog label plus a per-type counter in scene order. */
+function componentNames(scene: ScadaScene): Map<string, string> {
   const seen = new Map<ComponentKind, number>();
-  const entries = scene.components.map((c) => {
+  return new Map(scene.components.map((c) => {
     const n = (seen.get(c.type) ?? 0) + 1;
     seen.set(c.type, n);
-    return { id: c.id, name: `${componentCatalog[c.type].label} ${n}` };
+    return [c.id, `${componentCatalog[c.type].label} ${n}`];
+  }));
+}
+
+/** Ids of the components that `id` overlaps. */
+function collidingWith(scene: ScadaScene, id: string): string[] {
+  return findCollisions(scene, { resolveBounds }).pairs.flatMap((p) => (p.a === id ? [p.b] : p.b === id ? [p.a] : []));
+}
+
+/** Overlay listing overlapping pairs, named in scene order (at most five lines). */
+function CollisionList({ pairs, names, order }: { pairs: readonly { a: string; b: string }[]; names: Map<string, string>; order: string[] }) {
+  const index = new Map(order.map((id, i) => [id, i]));
+  const lines = pairs.map((p) => {
+    const [first, second] = [p.a, p.b].sort((x, y) => (index.get(x) ?? 0) - (index.get(y) ?? 0));
+    return `${names.get(first)} and ${names.get(second)} overlap`;
   });
+  const shown = lines.slice(0, 5);
+  if (lines.length > 5) shown.push(`…and ${lines.length - 5} more`);
+  return <div aria-label="Collisions" aria-live="polite" style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',padding:'4px 10px',borderRadius:4,background:'#3b0d12e6',color:'#ffd5d8',border:`1px solid ${COLLISION_COLOR}`,fontSize:12,pointerEvents:'none',whiteSpace:'pre-line'}}>{shown.join('\n')}</div>;
+}
+
+/** Keyboard-reachable list of everything in the scene; selecting here equals clicking in the canvas. */
+function SceneList({ scene, selected, onSelect }: { scene: ScadaScene; selected?: string; onSelect: (id: string) => void }) {
+  const names = componentNames(scene);
+  const entries = scene.components.map((c) => ({ id: c.id, name: names.get(c.id)! }));
   if (entries.length === 0) return null;
   return <nav aria-label="Scene components" style={{margin:'10px 0'}}>
     <small>In scene (arrows move, R turns, Delete removes)</small>
@@ -351,7 +381,7 @@ function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
-export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,collisions=true,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;ref?:React.Ref<ScadaHandle>}) {
   // The editor owns the feed; the viewer below only receives the merged observations.
   const telemetry=useTelemetryFeed(telemetryInput,ref);
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
@@ -399,6 +429,14 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
   const camera=useRef<Camera|undefined>(undefined);
   const dragKind=useRef<ComponentKind|undefined>(undefined);
   const [preview,setPreview]=useState<DropPlan>();
+  // Placement is never blocked; the status line just warns about an overlap.
+  const previewOverlap=useMemo(()=>{
+    if(!collisions||!preview) return '';
+    const withPreview={...scene,components:[...scene.components,preview.component]};
+    const names=componentNames(withPreview);
+    const hits=collidingWith(withPreview,preview.component.id).map(id=>names.get(id));
+    return hits.length?` — overlaps ${hits.join(', ')}`:'';
+  },[collisions,preview,scene]);
   // Keyboard/click add: rest on the ground in a row, never auto-connect.
   function add(type:ComponentKind) {
     const id=newId();
@@ -478,8 +516,8 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     <main onDragOver={e=>{if(!dragKind.current)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={transform} flow={flow} telemetry={telemetry}/>
-      <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene):''}</div>
+      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={transform} flow={flow} telemetry={telemetry} collisions={collisions}/>
+      <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene)+previewOverlap:''}</div>
     </main>
     <aside style={{padding:14,borderLeft:'1px solid #3c5366'}}>
       <h3>Properties</h3>
