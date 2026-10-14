@@ -1,29 +1,33 @@
 # Agent Operating Contract (mandatory)
 
-This file is the single entry point for every coding agent, including Copilot, Codex, Cursor, Claude Code and human contributors. Read it before changing code. **Instruction priority:** repository owner request > this contract > approved ADRs > other docs > code comments. In case of conflict, stop, document the conflict and ask for a decision; never silently choose.
+Single entry point for all coding agents (Copilot, Codex, Cursor, Claude Code and humans). Read before editing. Order of authority: owner's specific request > this file > accepted ADRs > canonical plans/contracts > extracted Graphify data > source comments. If unclear, stop for an owner decision.
 
-## Mandatory reading order
-1. `docs/PRODUCT_REQUIREMENTS.md` — vision, users, outcomes, exclusions
-2. `docs/ARCHITECTURE.md` — boundaries, dependencies and architecture invariants
-3. `docs/DEVELOPMENT_PLAN.md` — milestone order, dependencies, exit gates
-4. `docs/COMPONENT_STANDARD.md` and `docs/SCENE_AND_CONNECTIONS.md` — authoritative contracts
+## Required reading, in order
+1. `docs/PRODUCT_REQUIREMENTS.md`
+2. `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT_PLAN.md`
+3. `docs/TASK_BACKLOG.md` and `docs/IMPLEMENTATION_ACCEPTANCE.md`
+4. `docs/COMPONENT_STANDARD.md` and `docs/SCENE_AND_CONNECTIONS.md`
 5. `docs/ENGINEERING_STANDARDS.md`, `docs/TEST_STRATEGY.md`, `docs/SECURITY_AND_SAFETY.md`
-6. `docs/DECISION_LOG.md` + `docs/adr/` — accepted decisions
-7. `docs/AGENT_WORKFLOW.md`, `docs/WORK_LOG.md` — handoff and execution history
+6. `docs/DECISION_LOG.md` and accepted `docs/adr/`
+7. `docs/GRAPHIFY_AGENT_REFERENCE.md` — query-first code discovery when Graphify is available
+8. `docs/AGENT_WORKFLOW.md` and `docs/WORK_LOG.md`
+
+## Query-first discovery (Graphify)
+When Graphify has been installed and its index is fresh: prefer small, task-scoped `graphify query` questions **before broad repo scans**, then read the specific source files/lines referenced by the graph. Refresh after pulling or significant changes. Do not trust an inferred or stale edge without source verification. When the tool/index is unavailable, use targeted repository search; do **not** block development purely because Graphify is unavailable. Avoid full graph dumps to save context tokens. Never send private code to hosted graph services without owner authorization.
 
 ## Operating rules
-- Work on **one approved milestone/task at a time**. Do not jump to visual polish when core contract and graph correctness are pending.
-- Before work: inspect current files and git status; select task from `docs/TASK_BACKLOG.md`; record scope, assumptions, dependencies and acceptance tests. Maintain backward compatibility or provide explicit migration.
-- Prefer small, reviewable PRs. Never edit `develop` directly after bootstrap; create feature branches and open PRs.
-- Implement the smallest vertical slice that satisfies explicit acceptance criteria. No placeholder claimed as complete; no mocked PLC command presented as production-safe.
-- Validate with commands in `docs/TEST_STRATEGY.md`; record actual results and unavailable tests honestly. Do not claim compilation, simulation, certification or field validation without evidence.
-- At completion update the relevant task, `docs/WORK_LOG.md`, public API docs and tests; include reproduction and rollback instructions in PR.
-- No unapproved dependency, protocol, schema breaking change, new security boundary or ADR reversal. Propose an ADR and obtain review first.
-- Files in `docs/legacy/`, if created later, are historical and never override the canonical documents listed above.
-- On ambiguous requirements or safety-related interactions, **stop and request clarification**.
+- One dependency-ready, approved backlog task at a time; do not jump from topology to visual polish.
+- Preflight: inspect files, current branch, accepted ADRs and task dependencies; write an acceptance-oriented task brief.
+- Small PRs on feature branches; no direct changes to develop once bootstrap is merged.
+- Add failure tests and smallest production-worthy slice; don't claim simulation/controls or certification not demonstrated.
+- Run and record actual typecheck/build/tests and browser verification; unrun checks are NOT RUN, never PASS.
+- Update corresponding docs, tests, backlog and append-only WORK_LOG for each finished task.
+- No unapproved dependencies, breaking schema changes, safety changes or ADR reversals.
+- Maintain framework-independent semantic core, stable typed port graph, right-handed metres/Y-up coordinate system.
+- Physical PLC write functionality is outside SDK MVP and requires approved safety boundary design.
 
 ## Definition of done
-Code + automated tests + typecheck/build + docs + clear acceptance evidence + reviewable PR. Status must be **blocked** if a necessary check cannot run. A passing local demo alone is not done.
+Acceptance fixtures pass, clean build/typecheck, docs current, PR review and objective evidence. If required checks cannot run, status BLOCKED/REVIEW, not DONE.
 
-## Agent session handoff format
-Task ID / branch / files changed / decisions and assumptions / actual commands & results / pending checks / risks / next smallest task. Record in `docs/WORK_LOG.md`.
+## Handoff
+Task / branch / commit / Graphify queries and graph freshness (or fallback) / source confirmed / tests run with results / risks / next dependency-ready task. Keep handoffs concise.

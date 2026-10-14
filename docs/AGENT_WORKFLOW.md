@@ -1,36 +1,33 @@
 # Repeatable agent implementation protocol
 
 ## 0. Preflight
-Read `AGENTS.md`, `docs/DEVELOPMENT_PLAN.md`, `docs/TASK_BACKLOG.md`, `docs/IMPLEMENTATION_ACCEPTANCE.md` and required references. Inspect source/current branch; verify prerequisites. Do not assume planned packages or features exist.
+Read AGENTS.md and mandatory canonical docs. Inspect actual source/branch, dependency acceptance evidence and ADRs. If a fresh Graphify index is available, query relevant component relationships and impacted callers **before** broad searches; see `docs/GRAPHIFY_AGENT_REFERENCE.md`. Verify every graph assertion against source. If unavailable use scoped ripgrep/search and record fallback.
 
-## 1. Task brief (write before coding)
+## 1. Task brief
 ```md
 Task: T-XXX / M#
 Requirement IDs:
-Objective and user-visible outcome:
-In scope / explicitly out of scope:
-Files/packages likely affected:
-Dependency acceptance evidence:
-Architecture invariants / ADRs:
-Security, OT/process safety:
-Acceptance scenarios and edge-case fixtures:
-Test commands and expected assertions:
-Performance/resource budget:
-API and schema migration:
+Objective, in-scope/out-of-scope:
+Dependency evidence:
+Graphify queries / graph freshness / fallback:
+Relevant verified files and symbols:
+Architecture invariants and ADRs:
+Security / OT safety:
+Acceptance test and negative cases:
+Run commands and expected results:
+Performance constraints:
+Public API / schema migration impact:
 Unknowns requiring owner decision:
 ```
 
-## 2. Mandatory execution prompt
-> You are principal engineer of 3d-scada-sdk. Follow AGENTS.md, DEVELOPMENT_PLAN.md, TASK_BACKLOG.md, IMPLEMENTATION_ACCEPTANCE.md and accepted ADRs. Select one dependency-ready task, inspect real source, implement smallest tested vertical slice, preserve semantic core and scene/graph invariants. Distinguish measured, simulated and unknown fluid state. Do not introduce PLC command writes. Record actual command output, NOT RUN when unavailable, risk and handoff. Do not claim tasks complete without demonstrable acceptance.
+## 2. Execution prompt
+> Act as Principal Engineer of 3d-scada-sdk. Follow AGENTS.md, approved architecture, milestones, task backlog and acceptance matrix. Work on one ready task. Use fresh local Graphify graph for narrow impact-aware code discovery if available; otherwise precise code search. Treat graph as navigation, not truth; verify actual source and tests. Implement smallest tested slice, never skip schema/graph invariants, avoid PLC writes and do not label simulated values as live. Log actual verification outcomes, updated docs, risks and handoff.
 
-## 3. Loop
-Preflight → approved task brief → design contract/fixtures → failing tests → implementation → negative tests → browser verification → docs → PR → accepted evidence → update task and append WORK_LOG. Re-run validation after changes.
+## 3. Cycle
+Contract → scoped graph query → inspect actual source → tests → code → negative tests → update graph → build/browser verify → doc/task updates → PR/acceptance. Don't commit generated graph files by default.
 
-## 4. Self-review
-Check ID/port uniqueness, graph consistency, world transforms, unit correctness, undo/redo atomicity, telemetry quality, bounded resource usage, import validation, accessibility, public API stability, disposal and complete negative scenarios.
+## 4. PR report
+Task + requirement IDs, code paths identified and evidence, architecture/security review, screenshots if UI, commands/results, graph refreshed/fallback, release/rollback impact, risks and next task.
 
-## 5. Required PR report
-Task and milestone, requirements, changed packages, accepted dependencies, visual/demo steps, concrete tests and outcomes, behavior matrix, security/OT impact, ADR/migrations, known gaps and rollback. NEVER invent test results.
-
-## 6. Session handoff
-Append timestamp UTC, task, branch/commit, decisions, performed commands/results, blockers and next smallest dependency-ready task to WORK_LOG.md.
+## 5. Session handoff
+Append to WORK_LOG timestamp, branch/commit, Graphify query targets or search fallback, verified code locations, tests/results, blockers and next task. Never rewrite earlier log entries.
