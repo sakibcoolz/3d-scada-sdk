@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { componentKinds, validateScene, type ComponentKind } from '@scada3d/core';
+import { componentKinds, snapComponent, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius, type GeometryPart } from './index';
 
 const resolvePorts = (kind: ComponentKind) => componentCatalog[kind].ports;
@@ -34,6 +34,21 @@ describe('componentCatalog with validateScene', () => {
       ],
     };
     expect(validateScene(scene, { resolvePorts })).toEqual(expect.objectContaining({ ok: true }));
+  });
+});
+
+describe('componentCatalog with snapComponent', () => {
+  it('snaps an elbow onto the tee branch and the result validates', () => {
+    const tee: ComponentInstance = { id: 'tee', kind: 'tee', position: [0, 0, 0], rotation: [0, 0, 0], properties: {} };
+    // Elbow dropped near the branch with its "in" port roughly facing down.
+    const elbow: ComponentInstance = { id: 'elbow', kind: 'elbow', position: [0.25, 1.4, 0.05], rotation: [0, 0, Math.PI / 2 + 0.2], properties: {} };
+    const scene: ScadaScene = { version: 1, components: [tee], connections: [] };
+    const result = snapComponent(scene, elbow, { resolvePorts });
+    if (!result.ok) throw new Error('expected a snap');
+    expect(result.connection).toEqual({ from: { instanceId: 'elbow', portId: 'in' }, to: { instanceId: 'tee', portId: 'branch' } });
+    const snapped = { ...elbow, position: result.position, rotation: result.rotation };
+    const validated = validateScene({ ...scene, components: [tee, snapped], connections: [{ id: 'e1', ...result.connection }] }, { resolvePorts });
+    expect(validated.ok).toBe(true);
   });
 });
 

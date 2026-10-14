@@ -101,3 +101,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: configurable dimensions, drain port, motor/sensor ports, material disposal test (materials are declarative R3F children, disposed by R3F), X-ray/cutaway (T-015).
 - Status: T-006 REVIEW until PR is merged.
 - Handoff: next is T-007 (compatible snap search and transform solver), now dependency-ready after T-004 and T-006. T-005 still waits on ADR-0004.
+
+## 2026-10-15 — T-007 port snap search and transform solver
+- Branch: `feat/T-007-port-snapping` (from `develop` @ `7dcab3e`; T-006 merged and marked DONE).
+- Graphify: index NOT built. Fallback: read `scene.ts`, `transforms.ts`, `validation.ts` and the catalog directly.
+- Scope: `findSnapCandidates` and `snapComponent` in `packages/core/src/snapping.ts` (pure; internal quaternion helpers matching Three.js conventions). Kept in core instead of creating `connection-engine` for one file; split when the graph work (T-008) justifies it.
+- Tests written first: 18 new tests failed before implementation. During implementation the rotated-target test exposed a precision loss at 90° about Y (gimbal lock, `asin` error ~2e-8); fixed by converting with `atan2`, then added a 512-orientation sweep and vertical half-turn test. A catalog test snaps a real elbow onto the tee branch and validates the result.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS (first run FAIL on an untyped test fixture; fixed).
+  - `pnpm test` PASS (244 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (1 test).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: edge commit and undo (T-008/T-011), drag preview UI (T-010), spatial index, collision checks.
+- Status: T-007 REVIEW until PR is merged.
+- Handoff: next is T-008 (persistent graph, cycles, tee and occupancy), dependency-ready after T-003 and T-007.

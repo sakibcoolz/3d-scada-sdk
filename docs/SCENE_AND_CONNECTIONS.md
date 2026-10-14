@@ -51,6 +51,13 @@ This is **target schema**, not necessarily current code. The v2 shape is propose
 6. Commit explicit edge through command transaction; recompute pipe route; emit undo record.
 7. On failure preserve scene exactly and show actionable reason.
 
+## Current snapping (T-007)
+`findSnapCandidates(scene, moving, options)` and `snapComponent(scene, moving, options)` live in `@scada3d/core` (`snapping.ts`) until a `connection-engine` package is justified. Both are pure and never modify the scene.
+- Candidates are all pairs (moving port, other component's port) whose world anchors are within `maxDistance` (default 0.5 m), sorted by distance, then target instance id, target port id, moving port id. A scene component with the moving component's id is skipped (it is the one being dragged). Linear search; a spatial index is deferred until scenes need it.
+- Status per candidate, checked in this order: `incompatible` (`portsCompatible` domain/bore), `occupied` (either port already in a connection), `misaligned` (moving normal more than `maxAngle`, default π/4, from the reversed target normal), else `ok`.
+- `snapComponent` takes the first `ok` candidate and returns the moving component's new `position` and `rotation` (Euler XYZ) plus the `from`/`to` endpoints, or `NO_CANDIDATE` with the nearest rejected candidate for preview messages. The rotation is the smallest turn that makes the normals oppose, so roll about the port axis is kept; a half turn prefers the world Y axis. The target component never moves.
+- Not done here: committing the edge and undo (T-008/T-011), preview UI and Escape cancel (T-010), collision checks.
+
 ## Routing
 Distinguish logical edge from render mesh. Support straight runs and deterministic orthogonal elbows; tee is a 3-port junction node, not merely crossing meshes. Document pipe diameter, bend-radius constraints and clearance; never imply collision-free CAD-grade auto-routing without collision tests.
 
