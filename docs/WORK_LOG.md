@@ -385,4 +385,5 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - Sample: a v2 array file loads with `migratedFrom: 2` and is written back as v3 objects.
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-030 REVIEW until PR is merged (after #29–#32).
+- Update: #29–#32 were already merged when #33 opened, so T-023 is marked DONE (all four parts merged) and #33 contains only T-030.
 
