@@ -3,6 +3,7 @@ import {
   quaternionFromEuler,
   routeConnection,
   routeScene,
+  sampleRouteCenterline,
   type ComponentInstance,
   type ComponentKind,
   type ConnectionPort,
@@ -227,5 +228,43 @@ describe('routeScene', () => {
     const snapshot = structuredClone(scene);
     routeScene(scene, options);
     expect(scene).toEqual(snapshot);
+  });
+});
+
+describe('sampleRouteCenterline', () => {
+  const okRoute = (scene: ScadaScene) => {
+    const result = route(scene);
+    if (result.status !== 'ok') throw new Error('expected ok route');
+    return result;
+  };
+
+  it('is the single anchor for a direct route and the two ends for a straight one', () => {
+    expect(sampleRouteCenterline(okRoute(pair(nozzle('a', [1, 2, 3], '+x'), nozzle('b', [1, 2, 3], '-x'))))).toEqual([[1, 2, 3]]);
+    expectPoints(sampleRouteCenterline(okRoute(pair(nozzle('a', [0, 0, 0], '+x'), nozzle('b', [1.8, 0, 0], '-x')))), [
+      [0, 0, 0],
+      [1.8, 0, 0],
+    ]);
+  });
+
+  it('follows each bend on its arc instead of cutting through the corner', () => {
+    const l = okRoute(pair(nozzle('a', [0, 0, 0], '+x'), nozzle('b', [2, 2, 0], '-y')));
+    const points = sampleRouteCenterline(l, 4);
+    expect(points).toHaveLength(2 + 5);
+    expectPoints([points[0], points[points.length - 1]], [[0, 0, 0], [2, 2, 0]]);
+    // Arc from (2 - R, 0, 0) to (2, R, 0) around centre (2 - R, R, 0).
+    const arc = points.slice(1, -1);
+    expectPoints([arc[0], arc[arc.length - 1]], [[2 - R, 0, 0], [2, R, 0]]);
+    for (const p of arc) expect(Math.hypot(p[0] - (2 - R), p[1] - R, p[2])).toBeCloseTo(R, 12);
+    // Never reaches the sharp corner itself.
+    for (const p of points) expect(Math.hypot(p[0] - 2, p[1], p[2])).toBeGreaterThan(0.05);
+  });
+
+  it('keeps every sample on the route for a three-dimensional route', () => {
+    const r = okRoute(pair(nozzle('a', [0, 0, 0], '+x'), nozzle('b', [2, 1, 3], '-z')));
+    const points = sampleRouteCenterline(r, 6);
+    expect(points).toHaveLength(2 + 2 * 7);
+    for (let i = 1; i < points.length; i++) {
+      expect(Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1], points[i][2] - points[i - 1][2])).toBeGreaterThan(0);
+    }
   });
 });

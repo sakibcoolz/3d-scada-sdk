@@ -1,4 +1,5 @@
 import type { ComponentInstance, ScadaScene, Vector3Tuple } from '@scada3d/core';
+import type { FlowRow } from './FlowPanel';
 
 // MVP demo network: tank -> valve -> pipe -> tee, tee run to valve A, tee branch up to valve B.
 // Gaps between ports are filled by routed pipes; the tank stands on the grid (y = 1.535).
@@ -32,4 +33,12 @@ export const demoScene: ScadaScene = {
     { id: 'tee-a', from: { instanceId: 'tee', portId: 'right' }, to: { instanceId: 'valve-a', portId: 'in' } },
     { id: 'tee-b', from: { instanceId: 'tee', portId: 'branch' }, to: { instanceId: 'valve-b', portId: 'in' } },
   ],
+};
+
+/** Demo flow feed: everything flows forward except the tee branch, which has no reading (unknown). */
+export const demoFlowRows: Record<string, FlowRow> = {
+  'tank-valve': { rate: '2', quality: 'GOOD' },
+  'valve-pipe': { rate: '2', quality: 'GOOD' },
+  'pipe-tee': { rate: '2', quality: 'GOOD' },
+  'tee-a': { rate: '1.2', quality: 'GOOD' },
 };
