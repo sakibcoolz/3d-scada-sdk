@@ -55,3 +55,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm build` PASS as part of the preview web server. GitHub Actions CI NOT RUN locally.
 - Status: T-002 REVIEW until a PR is merged. Not DONE. Full editor E2E (connect, undo, save) remains later tasks.
 - Handoff: next dependency-ready task is T-003 after T-001 and T-002 are accepted.
+
+## 2026-10-15 — T-003 runtime scene validation
+- Branch: `feat/T-003-scene-validation` (from `develop` @ `d21383b`).
+- Graphify: index NOT built. Fallback: read all source files directly (core, components, react, playground).
+- Scope: `validateScene` in `packages/core/src/validation.ts` for the current v1 shape, with typed error codes, paths, size limits and an injected port resolver. Core types moved from `index.ts` to `scene.ts` (index is now a barrel, avoiding a circular import); `componentKinds` constant added and `ComponentKind` derived from it; rotation documented as Euler XYZ radians. No schema change, no new dependency. Proposed ADR-0004 for the v2 scene shape (not accepted). T-001 and T-002 marked DONE (PRs merged, develop CI green).
+- Tests written first: 48 new tests failed before implementation; a `__proto__` property test was added after self-review (`validateScene is not a function`).
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (55 tests: core scene, core validation, components catalog).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (1 test).
+  - GitHub Actions CI NOT RUN (branch not pushed).
+- Not done: editor and playground do not call `validateScene` yet (import UI is T-012); port orientation and world transforms are T-004.
+- Status: T-003 REVIEW until PR is merged.
+- Handoff: next dependency-ready tasks are T-004 (world-space port transforms) and T-005 (versioned roundtrip; needs ADR-0004 decision).

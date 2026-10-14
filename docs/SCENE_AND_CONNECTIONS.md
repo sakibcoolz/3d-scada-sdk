@@ -18,7 +18,15 @@ ConnectionEdge {
   to: {instanceId:string;portId:string};
 }
 ```
-This is **target schema**, not necessarily current code. M1 introduces runtime schema validation.
+This is **target schema**, not necessarily current code. The v2 shape is proposed in [ADR-0004](adr/0004-scene-document-v2.md) and is not adopted.
+
+## Current runtime validation (v1, T-003)
+`validateScene(input, { resolvePorts, limits? })` in `@scada3d/core` validates the current `ScadaScene` (`version: 1`, Euler XYZ rotation in radians, no scale). The caller supplies `resolvePorts` (e.g. from `componentCatalog`) because core does not import the catalog.
+- Returns `{ ok: true, scene }` with a fresh copy, or `{ ok: false, errors }` with typed `{ code, path, message }` errors in input order. Input is never mutated or repaired.
+- Structure first: object root, `version === 1`, required arrays, non-empty ids, three finite numbers for position/rotation, property values limited to string/boolean/finite number. Unknown fields are rejected (`UNKNOWN_FIELD`), not dropped.
+- References only after structure is valid: unique component and connection ids, known component kind, endpoints resolve to an existing instance and declared port, no self-connection, `portsCompatible` domain and bore, one connection per port (`PORT_OCCUPIED`), no repeated pair in either direction (`DUPLICATE_EDGE`). Tees and loops are valid.
+- Default limits (`defaultSceneLimits`): 10,000 components, 20,000 connections, 128-character ids, 64 properties per component, 1,024-character strings.
+- Not yet checked: port normal alignment and world-space position (T-004/T-007), per-port capacity other than one, per-kind property schemas.
 
 ## Invariants
 - Instance IDs and edge IDs unique.
