@@ -1,42 +1,231 @@
-# Architecture — boundaries and design rules
+# 3D SCADA SDK — System Architecture
 
-## Package dependency direction
+**Status:** target architecture and implementation contract; NOT a statement that all modules exist.  
+**Scope:** reusable industrial 3D scene SDK, standalone playground, embeddable React editor and viewer.  
+**Authority:** `AGENTS.md`, `rules.md`, accepted ADRs, `docs/PRODUCT_REQUIREMENTS.md`, `docs/DEVELOPMENT_PLAN.md`.  
+**Last reviewed:** 2026-10-15.
+
+## 1. Architecture goals and non-goals
+
+The SDK enables integrators to compose industrial equipment (tanks, silos, valves, pipes, elbows, tee junctions, pumps, motors and sensors) into **explicit connected 3D networks**; visualize fluid, temperature and state; author and persist scenes; and bind quality-tagged readings to models.
+
+**Guiding invariants:** (1) topology is data, not spatial overlap; (2) framework-neutral semantic core; (3) real, simulated and unknown process values are distinct; (4) editor state does not pollute persisted process scenes; (5) packages can be published and integrated without Z-Factory; (6) no direct PLC command/write path in the SDK MVP.
+
+Non-goals: certified SCADA/functional safety system, PLC runtime/emulation, unrestricted SVG-to-accurate-CAD conversion, production CFD, safety interlocks, autonomous process control.
+
+## 2. Context, domains and trust boundaries
+
+```mermaid
+flowchart TB
+  User[Engineer / operator] --> Host[Host Web App / React Integration]
+  Host --> SDK[3D SCADA SDK: Viewer + Editor]
+  SDK --> Scene[(Versioned scene JSON)]
+  SDK --> Runtime[Read-only Telemetry Adapter]
+  Runtime --> HostAPI[Authenticated Host Backend / WebSocket or MQTT WS Bridge]
+  HostAPI --> Edge[Protected Edge Gateway / OPC UA Broker]
+  Edge --> PLC[PLC / SCADA data source]
+  SDK --> Sim[Optional deterministic simulator]
+  Sim -. labeled SIMULATED values .-> SDK
 ```
-apps/playground -> packages/react -> packages/components -> packages/core
-                            |                       |
-                            +-----------------------+
-packages/telemetry (future) -> packages/core
+
+The browser is **untrusted for industrial control**. The host handles auth, tenant isolation, network authorization, credential storage, audit and data transport. PLC/OPC UA sits behind a trusted backend or edge gateway. SDK telemetry is observation-only. Future control must be separately designed, threat-modeled, reviewed and authorized.
+
+## 3. Layered architecture and dependency direction
+
+```mermaid
+flowchart TB
+  Playground[apps/playground] --> React[packages/react]
+  React --> Editor[packages/editor]
+  React --> Three[packages/renderer-three]
+  Editor --> Graph[packages/connection-engine]
+  Editor --> Router[packages/pipe-routing]
+  Graph --> Core[packages/core]
+  Router --> Core
+  Three --> Comp[packages/components]
+  Comp --> Core
+  Three --> Flow[packages/flow-animation]
+  Flow --> Core
+  Telemetry[packages/telemetry] --> Core
+  Simulation[packages/simulation] --> Core
+  Assets[packages/asset-import] --> Core
 ```
-No dependency from core to React, DOM, R3F, controls, telemetry provider or Z-Factory. The component catalog can use Three.js in a rendering adapter, but **semantic definitions and graph math must remain render-independent**.
 
-## Canonical future target packages
-- `core`: domain models, port transforms, compatibility, connection graph, scene validation and migrations.
-- `components`: standard catalog, procedural geometry and asset contracts.
-- `renderer-three` (planned): Three.js scene materialization, materials, labels, animations, disposal and picking.
-- `editor` (planned): command history, selection, transforms, snapping, interaction state, serialization.
-- `react`: React/R3F bindings, `Scada3DEditor` and `Scada3DViewer`.
-- `telemetry` (planned): adapter contracts, stale-state derivation and view-model mapping.
-- `apps/playground`: R&D examples; never imported from distributable packages.
+**This is a logical target dependency view**, not yet an enforced package graph. Avoid cycles, including through barrel imports. New adapters must depend inward on core contracts; core never imports React, Three.js, WebGL, DOM, telemetry transport or Z-Factory.
 
-Current bootstrap combines rendering/editor functionality in `packages/react`. Splitting into target packages is a deliberate roadmap task, not a claim of current state.
+### Packages and ownership
 
-## Domain flows
-**Editing:** user intent -> validated editor command -> immutable scene update -> deterministic serialization -> renderer projection.
-**Viewing:** validated scene + tag observations -> read-only view model -> render state/animation. Telemetry MUST NOT mutate authored topology.
-**Control:** not in SDK initial scope. Any future command UI must go through integrator-owned authenticated and audited safety boundary.
+| Module | Owns | Must not own |
+|---|---|---|
+| `core` | scene/instance/port types, units, schema validation, IDs, world transforms, scene migrations | React/UI, raw PLC access |
+| `components` | component definitions, metadata, param schemas, procedural geometry descriptors, asset mapping | connection graph mutation |
+| `connection-engine` | validated explicit edges, port occupancy, compatibility, snapping math, graph traversal | mesh ownership or PLC transport |
+| `pipe-routing` | centerline paths, waypoint constraints, elbows/tees, route validity diagnostics | process flow measurement |
+| `editor` | state machine, commands/history, drag-and-drop, transform gizmos, snapping interaction, selection | authoritative live telemetry |
+| `renderer-three` | materials, Three.js mesh factories, picking, labels, glass/X-ray/cutaway, GPU cleanup | scene topology authority |
+| `flow-animation` | path-based visual fluid motion, tank level/heat indicators, animation scheduling | unvalidated CFD/plant commands |
+| `telemetry` | read-only adapter interface, tag-binding validation, quality/stale/out-of-order state | PLC secrets or browser direct OPC UA |
+| `simulation` | optional deterministic engineering equations and simulated values | measured-state claims or safety decisions |
+| `asset-import` | sanitized SVG templates/extrusion and licensed glTF ingestion | inferring physically correct machinery internals from flat SVG |
+| `react` | hooks, contexts, editor/viewer React API, host callbacks | domain business rules |
+| `apps/playground` | demos, fixtures, R&D, feature acceptance examples | distributable SDK dependencies |
 
-## Core invariants
-- Stable unique instance IDs; stable port IDs per definition; no dangling edges.
-- Connections reference **instanceId + portId**, never mesh UUID or screen pixel location.
-- World port transforms apply instance scale/rotation/translation.
-- Typed compatibility includes connection kind, size/tolerance, orientation, capacity and direction constraints.
-- All scene edits are commands and support undo/redo once editor history is implemented.
-- Units and coordinate conventions are explicit: right-handed XYZ, Y-up, metres, radians.
-- Rendering state (selection, camera, glass mode) is not authoritative process data.
-- All remote observations have timestamps and quality state; reject stale/out-of-order updates per adapter policy.
+**Current scaffold:** only `core`, `components`, `react`, and `apps/playground` have been introduced. The React package temporarily includes combined renderer/editor code. The other modules are future milestones; split by tested vertical slice, never by empty directory creation. Current pipe flow is a basic indicator, not routed particle flow.
 
-## Extension contracts
-New components provide definition, port metadata, validation, geometry factory/asset, property schema, animation mapper, cleanup and examples. No direct editor modification needed for a new component family.
+## 4. Authoritative data models
 
-## Data boundary
-Store topology + authored properties in `SceneDocument`; store live telemetry separately keyed by tag binding; store temporary UI state separately. Authoritative scene documents are versioned, validated and migratable before rendering.
+Four intentionally separate state domains:
+
+1. **Authored SceneDocument** — schemaVersion, coordinate units, component instances, transforms, property defaults, typed explicit connection edges, optional tag binding metadata; JSON serializable, versioned, validated.
+2. **Process Observations** — keyed by tag ID, typed value/unit, quality (GOOD/BAD/UNCERTAIN/STALE), timestamps, source, optional sequence; never mutates scene topology.
+3. **Simulation State** — optional computed value with SIMULATED origin and model/version, separate from measured observations.
+4. **Ephemeral UI/Render State** — viewport, camera, selection, hovering, gizmos, transparency preference, active tool and transient animations; not automatically serialized as plant state.
+
+Illustrative **target** model (M1 will freeze actual contracts):
+
+```ts
+type ConnectionEndpoint = { instanceId: string; portId: string };
+type ConnectionEdge = { id: string; from: ConnectionEndpoint; to: ConnectionEndpoint };
+
+interface SceneDocument {
+  schemaVersion: number;
+  units: 'm';
+  components: Array<{
+    id: string;
+    type: string;
+    position: [number, number, number]; // metres
+    rotation: [number, number, number, number]; // quaternion x,y,z,w
+    scale: [number, number, number];
+    properties: Record<string, unknown>;
+  }>;
+  connections: ConnectionEdge[];
+}
+
+type Observation = {
+  tagId: string;
+  value: boolean | number | string;
+  unit?: string;
+  quality: 'GOOD' | 'BAD' | 'UNCERTAIN' | 'STALE';
+  sourceTimestamp: string;
+  source: 'MEASURED' | 'SIMULATED';
+};
+```
+
+The bootstrap uses a simpler `ScadaScene` and Euler rotation tuple. **Do not silently migrate it to this draft schema**: M1 requires an ADR/version and round-trip migration tests.
+
+Geometry coordinates: right-handed, **Y up**, metres; angles in radians. Ports use local-space coordinates and **outward normals**. Nonuniform scaling of connected parts requires an explicit documented restriction or transform policy. Flow/volume units must be converted explicitly (litres vs cubic metres, pressure and temperature) at typed boundaries.
+
+## 5. Component contract / library
+
+Every component definition must provide: stable type ID/version; category/name; validated editable properties and defaults; dimensions/bounds; geometry/asset factory; material variants; typed ports, local positions and outward normals; nominal bore, port limits and compatibility rules; optional telemetry bindings and animations; cleanup; fixtures; preview/demo.
+
+Examples:
+- Tank: inlet/outlet/drain, shell and interior liquid surface, level and temperature.
+- Ball valve: fluid inlet/outlet; stem/handle visual, open/closed state distinct from confirmed rate.
+- Tee: three fluid connection ports with real junction geometry, not crossed independent pipe meshes.
+- Pump/motor: process and mechanical semantics distinct; animated rotor does not prove actual operation.
+
+Procedural Three.js geometry and GLB/glTF assets are primary 3D paths. SVGs may be used for reference, selected path extrusion or template-assisted revolution, subject to sanitization and licensing. An SVG alone cannot automatically reveal internal geometry or mechanical connectivity.
+
+## 6. Connection graph and world-space snapping
+
+A **logical connection** always connects `instanceId + portId` to another compatible endpoint, independent of displayed pipes.
+
+```mermaid
+flowchart LR
+  Tank[Tank outlet] --> Valve[Valve inlet / outlet]
+  Valve --> Tee[Tee junction: 3 ports]
+  Tee --> A[Discharge A]
+  Tee --> B[Discharge B]
+```
+
+### Validation invariants
+- Unique instance/edge IDs; every endpoint resolves to an existing declared port.
+- Compatible domain, nominal diameter, occupancy/capacity, alignment and opposed normals.
+- Preserve separate electrical, fluid, signal and mechanical domains.
+- Graph traversal supports tees, splits, loops and disconnected groups; never infinite traversal.
+- Delete/disconnect is transactional and leaves no dangling edges.
+- Graph edges survive move/rotate, serialization and undo/redo; geometry is derived from topology + transforms.
+
+### Snap transaction
+1. Raycast pointer to work plane/surface; project dragged component's candidate port into world space.
+2. Filter nearby ports by domain, bore, availability and orientation; deterministic ordering.
+3. Display valid/invalid preview and reason; allow explicit cancel.
+4. Solve dragged transform to coincide anchors while outward normals oppose.
+5. Validate all affected edges, commit one editor command, re-route affected pipes and record history.
+6. On invalid state, roll back atomically.
+
+Routing starts with deterministic straight/orthogonal centerlines, bend-radius and bore constraints; fitting geometry derived after route solving. Report collisions or unsatisfiable geometry explicitly. Obstacle avoidance and CAD-grade clearance verification require separate research/performance work.
+
+## 7. Editor architecture and persistence
+
+User event -> tool state machine -> validated command -> immutable scene update -> derived route/mesh -> render. Commands: `AddComponent`, `DeleteComponent`, `TransformComponent`, `SetProperty`, `ConnectPorts`, `DisconnectPorts`, `ImportScene`.
+
+Undo/redo stores semantic operations or immutable snapshots with bounded history; pointer dragging is coalesced to **one** history step. Gizmos use Three TransformControls (or equivalent adapter), with orbit disabled during manipulation and snap thresholds tested. Scene import is schema-validated and size-limited; supported migrations are explicit; failed imports do not mutate the current scene. Save/load is deterministic, and no live observation is accidentally persisted as authored topology.
+
+Public React API (proposed, subject to M7 contract review): `Scada3DEditor`, `Scada3DViewer`, `ComponentPalette`, `useTelemetry`, `onSceneChange`, `onSelectionChange`, `onValidationError`. Headless consumers use core/scene/graph APIs without React.
+
+## 8. Process visualization, flow and simulation
+
+**Flow mode:** Graph + per-edge signed rate/direction/quality -> flow resolver -> path sampling -> GPU-efficient shader motion/instanced particles. A rate of zero pauses motion, a negative rate reverses; missing/stale/bad data shows unknown/unavailable, not arbitrary flowing animation. Tee split values require measurements or clearly labeled simulation.
+
+**Tank mode:** level drives a bounded liquid volume mesh (0–100%), including normal/glass/X-ray visibility; temperature can color-code heat with legend and units. Heating visuals are metaphors unless simulation provides validated physical state.
+
+**Display modes:** opaque, glass and X-ray material modes plus optional clipping/cutaway; resource reuse/disposal and transparency ordering are tested. A glass toggle affects display state, never live plant properties.
+
+**Optional engineering simulator:** fixed-time-step tank mass-balance, bounded volume and documented pressure/valve/pump models, input assumptions, fixtures and validation tolerances. Always label results **SIMULATED**. Real CFD/particle fluid physics is not included in initial release; separate ADR and specialized solver evaluation required.
+
+## 9. Telemetry and data adapters
+
+```mermaid
+sequenceDiagram
+  participant PLC as PLC/OT data source
+  participant Edge as Secure Edge/Host backend
+  participant Adapter as SDK telemetry adapter
+  participant VM as View model
+  participant R as Three.js Renderer
+  PLC->>Edge: OPC UA / device-native reads
+  Edge->>Adapter: Authenticated WebSocket observations
+  Adapter->>VM: normalized values + quality + timestamp
+  VM->>R: render projection and state changes
+  Note over Adapter,R: Read-only browser SDK; no direct PLC writes
+```
+
+Initial reference transport is host-provided WebSocket; MQTT-over-WebSocket when permitted by host infrastructure. OPC UA must terminate on a protected backend/edge bridge. Adapters expose connect/disconnect, subscribe/unsubscribe, lifecycle cleanup, authentication supplied by host, bounded buffers, backpressure and reconnect behavior. Reject out-of-order samples and flag stale/disconnected readings with explicit timestamps.
+
+## 10. Performance, security and reliability
+
+- Profile on named benchmark scenes; evaluate draw calls, frame time, geometry memory, GPU buffers and heap leak after repeated editor mounts.
+- Use geometry/material pooling or instancing where appropriate, LOD for distant effects, adaptive particle budgets and update coalescing.
+- Strict TypeScript; public typed exports; pure unit-testable core; no uncontrolled global state; deterministic algorithm tests.
+- Validate scene JSON limits (object count, nesting, sizes), URLs and SVG imports; reject active scripts/external references, untrusted glTF resources and oversized assets.
+- No credentials/PLC IPs bundled into browser. No unsafe remote command transport. No claim of IEC 62443 certification.
+- Errors are typed/observable and recoverable; render failures do not modify persistent scene; reconnection restores observations without mutating topology.
+- Tests: schema/property/transform math, graph edge cases, routing, animation quality, simulated conservation, browser editor scenarios, security fuzz fixtures, resource disposal and consumer-app integration.
+
+## 11. Agent development knowledge graph (Graphify)
+
+Agents start with `AGENTS.md` and `rules.md`. When a **fresh local Graphify index** is available, use narrow source-linked graph queries for symbol owners, dependency impact and callers before reading targeted files. Verify inferred edges against actual source; never use a graph as authority over ADRs or runtime evidence. After change, refresh graph, re-query affected paths and record queries/freshness in `docs/WORK_LOG.md`. Private source code is not uploaded to hosted indexes without explicit owner approval. When Graphify isn't installed, fall back to targeted repository search; development is not blocked.
+
+Detailed setup and query discipline: `docs/GRAPHIFY_AGENT_REFERENCE.md`. Tooling readiness tracked as T-027. **Token savings are a hypothesis until measured.**
+
+## 12. Delivery alignment and quality gates
+
+| Phase | Architectural gate |
+|---|---|
+| M0 | clean install/build/typecheck/CI |
+| M1 | validated and migratable scene schema, world-port transforms |
+| M2 | accurate and resource-safe geometry |
+| M3 | deterministic snapping, graph, routing, tee/loop tests |
+| M4 | editor operations, gizmos, undo, JSON roundtrip browser tests |
+| M5 | flow quality and direction, level, material-mode rendering tests |
+| M6 | read-only telemetry lifecycle, stale/reconnect/out-of-order tests |
+| M7 | SVG/glTF pipeline, bounded optional simulation, hardening |
+| M8 | standalone consumer package integration and release validation |
+
+Use `docs/DEVELOPMENT_PLAN.md`, `docs/TASK_BACKLOG.md`, `docs/IMPLEMENTATION_ACCEPTANCE.md`, `docs/AGENT_WORKFLOW.md`, and `docs/WORK_LOG.md` for actionable tasks and evidence. Architecture or schema reversals require a proposed and accepted ADR.
+
+## 13. Current implementation vs target
+
+**Implemented in bootstrap (not yet build-verified):** core TypeScript types and scene factory; basic catalog; React Three Fiber tank, valve, pipe, tee, pump/motor/sensor placeholders; drag-to-add; simple level slider; basic glass toggle; manually toggled pipe flow indicator; playground.
+
+**Not implemented / not verified:** port snapping; validated connection graph edit UI; physical pipe routing; directional particle-based water animations; robust imported scene schema and migrations; command history; rotation gizmos; authentic X-ray/cutaway; engineering physics; SVG import; telemetry adapters; published package and CI acceptance. Treat each as a planned milestone until tests and PR evidence prove otherwise.
