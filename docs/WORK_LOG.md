@@ -340,3 +340,17 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm build` PASS.
   - `pnpm test:e2e` PASS (31 tests).
 
+## 2026-10-15 — T-023 part C: accessibility
+- Branch: `feat/T-023c-accessibility` (from `chore/vitest-4` @ `9d61afc`, PRs #29 and #30 open; targets `develop`).
+- Graphify: index NOT built. Fallback: read the editor/viewer directly.
+- Scope: `keyboard.ts` (`nudge`: arrows/PageUp/PageDown/R with Shift for coarse steps, float-noise-free positions, world-Y quarter turns via Three.js quaternions); editor keyboard handling (move, turn, Delete, Escape, per-key undo merging); "In scene" component list (`nav` "Scene components", `aria-pressed`); viewer wrapped in a `region` "3D scene view" with a visually hidden count description; focus returns to the editor after removing a component.
+- Tests written first: `keyboard.test.ts` (10) failed to load and 3 accessibility e2e tests failed before implementation. Two test expectations were wrong and fixed (per-key undo order; 0.2 + 0.1 float compare). A real defect surfaced: after deleting via the keyboard, focus fell to `<body>` and Ctrl+Z stopped working; fixed by focusing the editor after removal.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (539 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (34 tests).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: contrast audit, real screen-reader testing, reduced-motion option for flow markers.
+- Status: T-023 IN_PROGRESS (A done; B, C in review; D performance next).
+

@@ -26,7 +26,7 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-020 | M7 (post-MVP) | P2 | T-019 | TODO | glTF importer, provenance and disposal |
 | T-021 | M7 | P2 | T-013,T-016 | TODO | mass-balance simulation and fixtures |
 | T-022 | M7 | P2 | T-021 | TODO | optional pressure model, verified assumptions |
-| T-023 | M7 (MVP gate) | P0 | T-002,T-015,T-017 | IN_PROGRESS | MVP perf baseline, security, accessibility and public API hardening for the shipped SDK (core, components, react); parts: A API surface (REVIEW, PR #28), B security (REVIEW), C accessibility, D performance |
+| T-023 | M7 (MVP gate) | P0 | T-002,T-015,T-017 | IN_PROGRESS | MVP perf baseline, security, accessibility and public API hardening for the shipped SDK (core, components, react); parts: A API surface (DONE, PR #28), B security (REVIEW, PR #29), C accessibility (REVIEW), D performance |
 | T-024 | M8 | P0 | T-023 | TODO | independent consumer release verification |
 | T-025 | Research | P2 | T-021 | TODO | CFD research ADR; not MVP |
 | T-026 | Research | P2 | T-011 | TODO | optional rigid-body ADR; not core |

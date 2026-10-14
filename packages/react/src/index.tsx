@@ -1,4 +1,4 @@
-import React, { useEffect, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
@@ -10,6 +10,7 @@ import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type Dr
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
 import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile';
 import { describeProperty, summarizeTelemetry } from './telemetryView';
+import { nudge } from './keyboard';
 import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance';
 import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances, pathLengths, pointAt, summarizeFlow } from './flowVisual';
 
@@ -17,6 +18,9 @@ import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances
 // Editor internals (drop planning, history, visual helpers) stay private. See docs/API.md.
 export { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES, type SceneImport } from './sceneFile';
 export { viewModes, type ViewMode } from './appearance';
+
+/** Readable by assistive technology, not shown on screen. */
+const visuallyHidden: React.CSSProperties = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', margin: -1, padding: 0, border: 0 };
 
 const LIQUID_COLOR = '#2a9dce';
 /** Valve ball colour when its bound open/closed tag cannot be trusted. */
@@ -225,7 +229,10 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   const showHeatLegend = shown.components.some((c) => heatColor(c.properties.temperature) !== undefined);
   const [selectedObject, setSelectedObject] = useState<Object3D | null>(null);
   const gesture = useRef(0);
-  return <div style={{position:'relative',width:'100%',height:'100%'}}>
+  const descriptionId = useId();
+  const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+  return <div role="region" aria-label="3D scene view" aria-describedby={descriptionId} style={{position:'relative',width:'100%',height:'100%'}}>
+  <p id={descriptionId} style={visuallyHidden}>{count(scene.components.length, 'component')}, {count(scene.connections.length, 'connection')}.</p>
   <Canvas camera={{position:[7,6,9],fov:50}} onCreated={({gl})=>{gl.localClippingEnabled=true;}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
@@ -292,6 +299,24 @@ function BindingsEditor({ component, scene, live, onSet }: {
   </div>;
 }
 
+/** Keyboard-reachable list of everything in the scene; selecting here equals clicking in the canvas. */
+function SceneList({ scene, selected, onSelect }: { scene: ScadaScene; selected?: string; onSelect: (id: string) => void }) {
+  const seen = new Map<ComponentKind, number>();
+  const entries = scene.components.map((c) => {
+    const n = (seen.get(c.type) ?? 0) + 1;
+    seen.set(c.type, n);
+    return { id: c.id, name: `${componentCatalog[c.type].label} ${n}` };
+  });
+  if (entries.length === 0) return null;
+  return <nav aria-label="Scene components" style={{margin:'10px 0'}}>
+    <small>In scene (arrows move, R turns, Delete removes)</small>
+    <div style={{maxHeight:160,overflowY:'auto'}}>
+      {entries.map(e => <button key={e.id} aria-pressed={selected === e.id} onClick={() => onSelect(e.id)}
+        style={{display:'block',width:'100%',textAlign:'left',marginTop:3,fontWeight:selected===e.id?700:400}}>{e.name}</button>)}
+    </div>
+  </nav>;
+}
+
 const viewLabels: Record<ViewMode, string> = { normal: 'Normal', glass: 'Glass', xray: 'X-ray', cutaway: 'Cutaway' };
 
 /** Explains a level that cannot be drawn as entered (policy in `liquidFill`). */
@@ -325,10 +350,31 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     if(selected&&!next.present.components.some(c=>c.id===selected)) setSelected(undefined);
   }
   function onKeyDown(e:React.KeyboardEvent){
-    if(isTextEntry(e.target)||!(e.ctrlKey||e.metaKey)) return;
-    const key=e.key.toLowerCase();
-    if(key==='z'&&!e.shiftKey){e.preventDefault();travel(undo);}
-    else if((key==='z'&&e.shiftKey)||key==='y'){e.preventDefault();travel(redo);}
+    if(isTextEntry(e.target)) return;
+    if(e.ctrlKey||e.metaKey){
+      const key=e.key.toLowerCase();
+      if(key==='z'&&!e.shiftKey){e.preventDefault();travel(undo);}
+      else if((key==='z'&&e.shiftKey)||key==='y'){e.preventDefault();travel(redo);}
+      return;
+    }
+    // Keyboard alternative to the canvas for the selected component.
+    const target=scene.components.find(c=>c.id===selected);
+    if(!target||e.altKey) return;
+    if(e.key==='Escape'){e.preventDefault();setSelected(undefined);return;}
+    if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();removeSelected(target.id);return;}
+    const moved=nudge(target,e);
+    if(!moved) return;
+    e.preventDefault();
+    // Repeated presses of the same key fold into one undo step.
+    update({...scene,components:scene.components.map(c=>c.id===target.id?{...c,...moved}:c)},`nudge:${target.id}:${e.key.toLowerCase()}`);
+  }
+  const root=useRef<HTMLDivElement>(null);
+  /** Removes a component (with its edges and bindings); focus moves to the editor so keyboard shortcuts keep working. */
+  function removeSelected(id:string){
+    const result=removeComponent(scene,id);
+    if(result.ok)update(result.scene);
+    setSelected(undefined);
+    root.current?.focus();
   }
   const camera=useRef<Camera|undefined>(undefined);
   const dragKind=useRef<ComponentKind|undefined>(undefined);
@@ -398,7 +444,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     update(tagBindings.length?{...rest,tagBindings}:rest);
   }
   const toolButton=(mode:TransformMode,label:string)=><button aria-pressed={transformMode===mode} onClick={()=>setTransformMode(mode)} style={{fontWeight:transformMode===mode?700:400}}>{label}</button>;
-  return <div tabIndex={-1} onKeyDown={onKeyDown} style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
+  return <div ref={root} tabIndex={-1} onKeyDown={onKeyDown} style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
     <aside style={{padding:14,borderRight:'1px solid #3c5366'}}>
       <div style={{display:'flex',gap:6,marginBottom:8}}>
         <button onClick={()=>travel(undo)} disabled={!canUndo(history)} title="Undo (Ctrl+Z)">Undo</button>
@@ -406,6 +452,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
       </div>
       <div role="group" aria-label="Transform tool" style={{display:'flex',gap:6}}>{toolButton('translate','Move')}{toolButton('rotate','Rotate')}</div>
       <h3>Components</h3>{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)} style={{display:'block',width:'100%',marginBottom:8,padding:9,cursor:'grab'}}>{componentCatalog[k].label} +</button>)}
+      <SceneList scene={scene} selected={selected} onSelect={setSelected}/>
       <label style={{display:'block'}}>View <select aria-label="View mode" value={viewMode} onChange={e=>setViewMode(e.target.value as ViewMode)}>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
     </aside>
     <main onDragOver={e=>{if(!dragKind.current)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
@@ -428,7 +475,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
         {component.type==='valve'&&<label><input type="checkbox" checked={component.properties.open!==false} onChange={e=>patch({properties:{...component.properties,open:e.target.checked}})}/> Valve open</label>}
         <BindingsEditor component={component} scene={scene} live={live?.properties} onSet={setBinding}/>
         <label style={{display:'block',marginTop:8}}>Component view <select aria-label="Component view" value={viewOverrides[component.id]??''} onChange={e=>{const value=e.target.value as ViewMode|'';setViewOverrides(({[component.id]:_,...rest})=>value?{...rest,[component.id]:value}:rest);}}><option value="">Use global</option>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
-        <p><button onClick={()=>{const result=removeComponent(scene,component.id);if(result.ok)update(result.scene);setSelected(undefined);}}>Remove</button></p>
+        <p><button onClick={()=>removeSelected(component.id)}>Remove</button></p>
       </>:<p>Select equipment in the canvas.</p>}
       <hr/><small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={serialized} style={{width:'100%',height:170,boxSizing:'border-box'}}/>
       <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:6}}>
