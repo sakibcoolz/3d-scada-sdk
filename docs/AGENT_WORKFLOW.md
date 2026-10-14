@@ -1,41 +1,36 @@
 # Repeatable agent implementation protocol
 
 ## 0. Preflight
-Read `AGENTS.md` and its required references, inspect existing code/current git branch, and verify task dependencies and accepted ADRs. Never assume previous AI statements imply files or tests exist.
+Read `AGENTS.md`, `docs/DEVELOPMENT_PLAN.md`, `docs/TASK_BACKLOG.md`, `docs/IMPLEMENTATION_ACCEPTANCE.md` and required references. Inspect source/current branch; verify prerequisites. Do not assume planned packages or features exist.
 
 ## 1. Task brief (write before coding)
 ```md
 Task: T-XXX / M#
-Objective:
-User-visible outcome:
-In scope:
-Explicitly out of scope:
+Requirement IDs:
+Objective and user-visible outcome:
+In scope / explicitly out of scope:
 Files/packages likely affected:
-Dependencies:
-Architecture invariants:
-Security/process safety:
-Acceptance scenarios:
-Test plan:
-Potential compatibility / migration:
+Dependency acceptance evidence:
+Architecture invariants / ADRs:
+Security, OT/process safety:
+Acceptance scenarios and edge-case fixtures:
+Test commands and expected assertions:
+Performance/resource budget:
+API and schema migration:
 Unknowns requiring owner decision:
 ```
 
-## 2. Agent execution prompt
-> You are principal engineer of industrial-3d-sdk. Follow AGENTS.md, the canonical docs and all accepted ADRs. Work only on TASK_ID. Inspect the repository rather than guessing. Write tests for acceptance cases before or alongside implementation. Preserve the typed port graph, scene schema, units, rendering independence and read-only control boundary. If blocked by a missing decision, report it rather than improvising. Deliver minimal reviewed changes, docs and a proof table of commands/results; do not claim unexecuted tests pass.
+## 2. Mandatory execution prompt
+> You are principal engineer of 3d-scada-sdk. Follow AGENTS.md, DEVELOPMENT_PLAN.md, TASK_BACKLOG.md, IMPLEMENTATION_ACCEPTANCE.md and accepted ADRs. Select one dependency-ready task, inspect real source, implement smallest tested vertical slice, preserve semantic core and scene/graph invariants. Distinguish measured, simulated and unknown fluid state. Do not introduce PLC command writes. Record actual command output, NOT RUN when unavailable, risk and handoff. Do not claim tasks complete without demonstrable acceptance.
 
-## 3. Implementation loop
-Plan → contract/fixtures → tests → implementation → verify → review diff → update docs → PR. Re-run verification after final edits. Avoid giant PRs, hidden shortcuts, magic values and fake production PLC data.
+## 3. Loop
+Preflight → approved task brief → design contract/fixtures → failing tests → implementation → negative tests → browser verification → docs → PR → accepted evidence → update task and append WORK_LOG. Re-run validation after changes.
 
 ## 4. Self-review
-- Correctness: IDs, typed ports, transforms, flow state, independent components.
-- Boundaries: no React in core; no PLC commands in scene/viewer.
-- Operability: install, build, tests, cleanup, errors and logging.
-- Compatibility: schema, public API, documented changes.
-- UX: keyboard access, zoom and selection, loading/empty/failure states.
-- Security: no secrets, untrusted scene validation and no uncontrolled remote execution.
+Check ID/port uniqueness, graph consistency, world transforms, unit correctness, undo/redo atomicity, telemetry quality, bounded resource usage, import validation, accessibility, public API stability, disposal and complete negative scenarios.
 
 ## 5. Required PR report
-Scope; task IDs; screenshots/demo instructions (when UI); commands + outcomes; behavior-tested scenarios; open risks; affected docs; rollback; next task. **If tooling unavailable, list tests as NOT RUN with reason.**
+Task and milestone, requirements, changed packages, accepted dependencies, visual/demo steps, concrete tests and outcomes, behavior matrix, security/OT impact, ADR/migrations, known gaps and rollback. NEVER invent test results.
 
 ## 6. Session handoff
-Add an entry to WORK_LOG with timestamp UTC, branch, commit, task, outcome, failures and next action. Never rewrite history of completed sessions.
+Append timestamp UTC, task, branch/commit, decisions, performed commands/results, blockers and next smallest dependency-ready task to WORK_LOG.md.
