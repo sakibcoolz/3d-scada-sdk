@@ -40,7 +40,9 @@ export function createObservationStore(options: { maxTags?: number } = {}): Obse
     set(observations) {
       let accepted = 0;
       for (const o of observations) {
-        const key = JSON.stringify([o.source ?? 'MEASURED', o.tagId]);
+        // Host data is untrusted: only string tag ids are stored (other values cannot be bound anyway).
+        if (typeof o?.tagId !== 'string') continue;
+        const key = JSON.stringify([o.source === 'SIMULATED' ? 'SIMULATED' : 'MEASURED', o.tagId]);
         const current = latest.get(key);
         if (!current && latest.size >= maxTags) continue;
         if (current && !isNewer(o, current)) continue;

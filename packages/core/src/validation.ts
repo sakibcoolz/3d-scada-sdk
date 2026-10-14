@@ -99,6 +99,13 @@ const bindingKeys = {
 };
 const endpointKeys = ['instanceId', 'portId'];
 
+/** Describes any input value for an error message without throwing (JSON.stringify throws on BigInt). */
+function describe(value: unknown): string {
+  if (typeof value === 'string') return JSON.stringify(value.length > 64 ? `${value.slice(0, 64)}…` : value);
+  if (typeof value === 'number' || typeof value === 'boolean' || value === null || value === undefined) return String(value);
+  return `a ${Array.isArray(value) ? 'array' : typeof value}`;
+}
+
 function isObject(value: unknown): value is Json {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -123,29 +130,41 @@ function readId(value: unknown, path: string, limits: SceneLimits, errors: Error
   return value;
 }
 
+/**
+ * True for a dense array of exactly `length` finite numbers. Checks every index: `every` would
+ * skip holes in sparse arrays such as `[0, , 0]`.
+ */
+function isFiniteTuple(value: unknown, length: number): value is number[] {
+  if (!Array.isArray(value) || value.length !== length) return false;
+  for (let i = 0; i < length; i++) {
+    const n: unknown = value[i];
+    if (typeof n !== 'number' || !Number.isFinite(n)) return false;
+  }
+  return true;
+}
+
+/** -0 and 0 are the same physical value, but JSON writes both as 0; normalise so accepted scenes round-trip exactly. */
+const plusZero = (n: number) => (n === 0 ? 0 : n);
+
 function readVector(value: unknown, path: string, errors: Errors): Vector3Tuple | undefined {
-  if (!Array.isArray(value) || value.length !== 3 || !value.every((n) => typeof n === 'number' && Number.isFinite(n))) {
+  if (!isFiniteTuple(value, 3)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected three finite numbers.' });
     return undefined;
   }
-  return [value[0], value[1], value[2]];
+  return [plusZero(value[0]), plusZero(value[1]), plusZero(value[2])];
 }
 
 function readQuaternion(value: unknown, path: string, errors: Errors): QuaternionTuple | undefined {
-  if (
-    !Array.isArray(value) ||
-    value.length !== 4 ||
-    !value.every((n) => typeof n === 'number' && Number.isFinite(n)) ||
-    Math.abs(Math.hypot(...value) - 1) > UNIT_TOLERANCE
-  ) {
+  // Written as "not within tolerance" so a NaN length can never pass.
+  if (!isFiniteTuple(value, 4) || !(Math.abs(Math.hypot(...value) - 1) <= UNIT_TOLERANCE)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a unit quaternion [x, y, z, w].' });
     return undefined;
   }
-  return [value[0], value[1], value[2], value[3]];
+  return [plusZero(value[0]), plusZero(value[1]), plusZero(value[2]), plusZero(value[3])];
 }
 
 function readScale(value: unknown, path: string, errors: Errors): Vector3Tuple | undefined {
-  if (!Array.isArray(value) || value.length !== 3 || !value.every((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)) {
+  if (!isFiniteTuple(value, 3) || !value.every((n) => n > 0)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected three positive finite numbers.' });
     return undefined;
   }
@@ -183,7 +202,7 @@ function readProperties(
       continue;
     }
     // defineProperty keeps keys such as "__proto__" as plain data instead of touching the prototype.
-    Object.defineProperty(properties, key, { value: v, enumerable: true, writable: true, configurable: true });
+    Object.defineProperty(properties, key, { value: typeof v === 'number' ? plusZero(v) : v, enumerable: true, writable: true, configurable: true });
   }
   return valid ? properties : undefined;
 }
@@ -209,7 +228,7 @@ function readComponent(
   const typeField = version === 1 ? 'kind' : 'type';
   const type = value[typeField];
   if (!componentKinds.includes(type as ComponentKind)) {
-    errors.push({ code: 'UNKNOWN_COMPONENT_KIND', path: `${path}.${typeField}`, message: `Unknown component type ${JSON.stringify(type)}.` });
+    errors.push({ code: 'UNKNOWN_COMPONENT_KIND', path: `${path}.${typeField}`, message: `Unknown component type ${describe(type)}.` });
   }
   const position = readVector(value.position, `${path}.position`, errors);
   let rotation: QuaternionTuple | undefined;
@@ -444,7 +463,7 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
   if ('schemaVersion' in input) {
     version = 2;
     if (input.schemaVersion !== 2) {
-      errors.push({ code: 'UNSUPPORTED_VERSION', path: 'schemaVersion', message: `Unsupported schemaVersion ${JSON.stringify(input.schemaVersion)}.` });
+      errors.push({ code: 'UNSUPPORTED_VERSION', path: 'schemaVersion', message: `Unsupported schemaVersion ${describe(input.schemaVersion)}.` });
     }
     if (input.units !== 'm') {
       errors.push({ code: 'INVALID_FIELD', path: 'units', message: 'Expected units "m".' });
@@ -452,7 +471,7 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
   } else {
     version = 1;
     if (input.version !== 1) {
-      errors.push({ code: 'UNSUPPORTED_VERSION', path: 'version', message: `Unsupported scene version ${JSON.stringify(input.version)}.` });
+      errors.push({ code: 'UNSUPPORTED_VERSION', path: 'version', message: `Unsupported scene version ${describe(input.version)}.` });
     }
   }
   checkKeys(input, sceneKeys[version], '', errors);

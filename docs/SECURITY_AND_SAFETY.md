@@ -25,3 +25,28 @@ If requirements imply real actuator commands, emergency switching, disabling ala
 
 ## Transport-independent SDK rule
 The SDK must never require a WebSocket connection, broker, network endpoint, credentials or OPC UA service to initialize, edit or render a scene. Host applications own acquisition and network connections, while the SDK accepts optional validated read-only observations through a snapshot, push call or host-supplied provider. Test offline operation and prevent socket creation from SDK core/render/editor modules.
+
+## MVP security record (T-023 part B, 2026-10-15)
+
+### Untrusted input tests (`packages/core/src/security.test.ts`, `e2e/untrusted-text.spec.ts`)
+- Seeded fuzzing: 3,000 mutated scene documents (hostile values and keys such as `__proto__`, `constructor`, BigInt, Symbol, functions, null-prototype objects, sparse arrays) and 2,000 corrupted scene texts. `validateScene`/`parseScene` must never throw, must return typed errors, and anything accepted must round-trip through `serializeScene` unchanged. 1,000 batches of malformed observations/readings through `resolveTelemetry` and `resolveFlow` must not throw.
+- Prototype pollution checked at the document root, components, properties, endpoints and bindings.
+- Limits: over-limit documents are rejected in under 200 ms; 100,000-deep nested JSON does not overflow the stack; the observation store stays bounded under a 50,000-tag flood.
+- Browser: markup in imported ids, property strings and tag ids is rendered as text (no element injection, no script execution, no dialog).
+
+### Defects found by fuzzing and fixed
+| Defect | Impact | Fix |
+|---|---|---|
+| Sparse arrays (`[0, , 0, 1]`) passed tuple checks because `Array.prototype.every` skips holes; a NaN quaternion length passed the `> tolerance` test | invalid scene accepted, then failed to reload | index-by-index finite check; NaN-safe `!(… <= tolerance)` |
+| `-0` accepted but written as `0` | accepted scene not byte-identical after reload | `-0` normalised to `0` on validation |
+| Error messages used `JSON.stringify(value)` | `validateScene` threw on BigInt | non-throwing value describer |
+| Unit lookup used `unit in table` | resolvers threw on null-prototype objects; inherited names could match | own string keys only (`Object.hasOwn`) |
+| `Date.parse` on host timestamps | resolvers threw on a Symbol timestamp | non-strings are invalid timestamps |
+| Store key built with `JSON.stringify` | store threw on a BigInt tag id | only string tag ids are stored |
+
+### Dependency audit (`pnpm audit`, pnpm 9.15.4)
+- Production dependencies (`pnpm audit --prod`): **no known vulnerabilities**.
+- Development dependencies: 4 advisories, all through the test runner `vitest@3.2.7` (never shipped in the SDK): GHSA-82fw-gwwq-j7x9 (moderate, vitest/@vitest/mocker path traversal, fixed in ≥ 4.1.11), GHSA-5gmw-xhrv-c9v3 and GHSA-85c8-ppgw-ccpr (critical, tinypool prototype-pollution gadgets, fixed in ≥ 2.1.2). Exposure is limited to running tests on untrusted test code or configuration. Remediation needs a vitest major upgrade, which requires owner approval (pending).
+
+### Licences (`pnpm licenses list --prod`, includes playground tooling)
+MIT 111, ISC 8, Apache-2.0 5 (`@mediapipe/tasks-vision`, `baseline-browser-mapping`, `draco3d`, `hls.js`, `promise-worker-transferable`, all transitive via drei), BSD-3-Clause 3, CC-BY-4.0 1 (`caniuse-lite`, build-time browser data). No copyleft licences. No third-party 3D assets are bundled (all geometry is procedural).

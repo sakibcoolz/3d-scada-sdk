@@ -15,12 +15,13 @@ const conversions: Record<Quantity, Record<string, Conversion>> = {
 
 /** True when `unit` (or no unit, meaning canonical) is accepted for `quantity`. */
 export function isKnownUnit(quantity: Quantity, unit: string | undefined): boolean {
-  return unit === undefined || unit in conversions[quantity];
+  // Own string keys only: host data is untrusted, and `in` on a non-string key can throw or match inherited names.
+  return unit === undefined || (typeof unit === 'string' && Object.hasOwn(conversions[quantity], unit));
 }
 
 /** Converts a value in `unit` (default canonical) to the canonical unit, or undefined if the unit is not accepted. */
 export function toCanonical(quantity: Quantity, value: number, unit?: string): number | undefined {
   if (unit === undefined) return value;
-  const convert = conversions[quantity][unit];
-  return convert ? convert(value) : undefined;
+  if (!isKnownUnit(quantity, unit)) return undefined;
+  return conversions[quantity][unit](value);
 }
