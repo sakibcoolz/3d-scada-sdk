@@ -34,6 +34,7 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-028 | M7 (post-MVP) | P2 | T-018,T-020,T-023 | TODO | hardening for post-MVP surfaces: transport examples, SVG/glTF import (asset sanitisation, provenance, resource limits) |
 | T-029 | M7 (post-MVP) | P1 | T-023 | TODO | rendering scale: shared geometry per catalog type, equipment instancing, LOD, allocation-free flow markers; measure against docs/PERFORMANCE.md on a hardware GPU |
 | T-030 | M7 (MVP) | P0 | T-005,T-023 | REVIEW | scene schema version 3: named `{x,y,z}`/`{x,y,z,w}` vectors in files and the model, v1/v2 migration (ADR-0007, owner request) |
+| T-031 | M7 (MVP) | P0 | T-006,T-011 | REVIEW | solid-body collision highlight, on by default: OBB overlap per catalog bounds, red shells, overlay, drop warning; non-blocking (owner request) |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.

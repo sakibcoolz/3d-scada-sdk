@@ -39,6 +39,10 @@ export type { GraphError, GraphErrorCode, GraphOptions, GraphResult } from './gr
 export { routeConnection, routeScene, sampleRouteCenterline } from './routing';
 export type { PipeRoute, RouteBend, RouteFailure, RouteKind, RoutingOptions } from './routing';
 
+// Solid-body overlap (display only)
+export { findCollisions } from './collision';
+export type { CollisionOptions, CollisionPair, CollisionResult } from './collision';
+
 // Read-only observations: flow, telemetry, host data input
 export { resolveFlow } from './flow';
 export type { FlowDirection, FlowOptions, FlowReading, FlowResolution, FlowState, FlowUnknownReason, Quality, ValueSource } from './flow';

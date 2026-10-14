@@ -10,6 +10,8 @@ const params = new URLSearchParams(location.search);
 // `?generate=N` loads the named benchmark scene "chain-N" with a live flow feed (see docs/PERFORMANCE.md).
 const generated = params.has('generate') ? generatedScene(Math.max(2, Math.min(5000, Number(params.get('generate')) || 200))) : undefined;
 const demo = params.has('demo') || generated !== undefined;
+// `?collisions=off` shows the host switch for the default-on collision highlight.
+const collisions = params.get('collisions') !== 'off';
 
 // `?demo` opens the MVP demo network, validated like any imported scene, with a demo tag feed.
 function initialScene(): ScadaScene | undefined {
@@ -50,6 +52,7 @@ function App() {
             initialScene={scene}
             onChange={setScene}
             telemetry={demo ? telemetry : undefined}
+            collisions={collisions}
           />
         )}
       </div>

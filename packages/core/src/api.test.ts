@@ -16,6 +16,7 @@ const publicApi = [
   'defaultSceneLimits',
   'disconnect',
   'displayScene',
+  'findCollisions',
   'findSnapCandidates',
   'identityQuaternion',
   'isKnownUnit',

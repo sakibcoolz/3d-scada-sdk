@@ -387,3 +387,19 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Status: T-030 REVIEW until PR is merged (after #29–#32).
 - Update: #29–#32 were already merged when #33 opened, so T-023 is marked DONE (all four parts merged) and #33 contains only T-030.
 
+## 2026-10-15 — T-031 solid-body collision highlight (default on)
+- Branch: `feat/T-031-collisions` (from `feat/T-030-structured-vectors` @ `ff9d0e1`, PR #33 open; targets `develop`).
+- Owner request: components are metal and must not overlap; show overlapping ones in red, on by default. Owner decisions: highlight only (never block), components only (not routed pipes).
+- Graphify: index NOT built. Fallback: read the catalog bounds, viewer and editor directly.
+- Scope: `findCollisions` (core; oriented boxes from catalog bounds, 15-axis separating-axis test with 1 mm touching tolerance, X sweep broad phase, sorted pairs). Viewer/editor `collisions` prop (default true): red shells, "Collisions" overlay named in scene order, red drop ghost and "— overlaps …" status suffix; playground `?collisions=off`. API snapshot and docs updated.
+- Tests written first: `collision.test.ts` (10) failed before implementation, including a rotated-box case where world boxes overlap but oriented boxes do not, touching-port faces, tolerance boundaries, scale, and a seeded 150-component brute-force comparison. 3 of 4 e2e tests failed before wiring (the "switched off" test passes trivially until then); a fourth guards that the demo and generated scenes are collision-free.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (579 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (40 tests).
+  - Browser screenshot: tank with a valve moved inside it shown red with the overlay; a clear tank stays normal.
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: routed-pipe collisions, exact cylinder/curved shapes, blocking mode, a collision benchmark at 1,000 components.
+- Status: T-031 REVIEW until PR is merged (after #33).
+
