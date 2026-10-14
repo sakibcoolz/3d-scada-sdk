@@ -9,9 +9,14 @@
   "scripts": {
     "dev": "pnpm --filter @scada3d/playground dev",
     "build": "pnpm -r --if-present build",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "typecheck": "pnpm -r --if-present typecheck && tsc --noEmit -p tsconfig.tests.json",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
-    "typescript": "^5.7.3"
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^22.15.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.4"
   }
 }
