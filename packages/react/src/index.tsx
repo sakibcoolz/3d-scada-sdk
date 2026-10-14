@@ -1,15 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DoubleSide, type Camera } from 'three';
+import { DoubleSide, type Camera, type Object3D } from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, Line } from '@react-three/drei';
-import { createEmptyScene, portToWorld, removeComponent, routeScene, type ComponentInstance, type ComponentKind, type PipeRoute, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
+import { createEmptyScene, portToWorld, removeComponent, routeScene, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
 
-export { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
+import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
 
-function Equipment({ component, glass, selected, onSelect }: { component:ComponentInstance; glass:boolean; selected:boolean; onSelect:()=>void }) {
+export { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
+export { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
+
+function Equipment({ component, glass, selected, onSelect, objectRef }: { component:ComponentInstance; glass:boolean; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void }) {
   const definition = componentCatalog[component.type];
   const geometries = useMemo(() => createEquipmentGeometries(definition), [definition]);
   useEffect(() => () => disposeGeometries(geometries), [geometries]);
@@ -19,7 +22,7 @@ function Equipment({ component, glass, selected, onSelect }: { component:Compone
   // Materials are keyed on glass mode so toggling recreates them: Three.js only recompiles the
   // opaque/transparent shader variant when a material is new or flagged needsUpdate.
   const shellProps = {color:selected?'#63b3ed':'#7b9eb6',metalness:glass?0:0.65,roughness:0.35,transparent:glass,opacity:glass?0.21:1,depthWrite:!glass,side:DoubleSide};
-  return <group position={component.position} quaternion={component.rotation} scale={component.scale} onClick={e=>{e.stopPropagation();onSelect();}}>
+  return <group ref={objectRef} position={component.position} quaternion={component.rotation} scale={component.scale} onClick={e=>{e.stopPropagation();onSelect();}}>
     {definition.parts.map((part, i) => {
       const geometry = geometries[i];
       if (part.role === 'liquid' && part.shape === 'cylinder') {
@@ -70,12 +73,29 @@ function DropPreview({ scene, plan }: { scene: ScadaScene; plan: DropPlan }) {
   </>;
 }
 
-export function Scada3DViewer({scene,glass=false,onSelect,selectedId,preview,onCamera}: {scene:ScadaScene;glass?:boolean;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void}) {
+export type TransformMode = 'translate' | 'rotate';
+
+/**
+ * Called on every gizmo change. `gesture` is the same for all changes of one drag, so the editor
+ * can merge a whole drag into one undo step.
+ */
+export type TransformHandler = (id: string, position: Vector3Tuple, rotation: QuaternionTuple, gesture: string) => void;
+
+/** Rotation snaps to quarter turns so ports stay on world axes for orthogonal routing. */
+const ROTATION_SNAP = Math.PI / 2;
+const TRANSLATION_SNAP = 0.05;
+
+export function Scada3DViewer({scene,glass=false,onSelect,selectedId,preview,onCamera,transformMode,onTransform}: {scene:ScadaScene;glass?:boolean;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler}) {
   const routes = useMemo(() => routeScene(scene, { resolvePorts }), [scene]);
+  const [selectedObject, setSelectedObject] = useState<Object3D | null>(null);
+  const gesture = useRef(0);
   return <Canvas camera={{position:[7,6,9],fov:50}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
-    {scene.components.map(c=><Equipment key={c.id} component={c} glass={glass} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)}/>)}
+    {scene.components.map(c=><Equipment key={c.id} component={c} glass={glass} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
+    {onTransform && transformMode && selectedId && selectedObject && <TransformControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
+      onMouseDown={()=>{gesture.current++;}}
+      onObjectChange={()=>onTransform(selectedId, selectedObject.position.toArray() as Vector3Tuple, selectedObject.quaternion.toArray() as QuaternionTuple, `transform:${selectedId}:${gesture.current}`)}/>}
     {routes.map(route=><RoutePipe key={route.connectionId} route={route} glass={glass}/>)}
     {preview && <DropPreview scene={scene} plan={preview}/>}
     {onCamera && <CameraBridge onCamera={onCamera}/>}
@@ -86,11 +106,30 @@ export function Scada3DViewer({scene,glass=false,onSelect,selectedId,preview,onC
 const defaultProperties = { level: 45, open: true, flowing: false };
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+function isTextEntry(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+}
+
 export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void}) {
-  const [scene,setScene]=useState<ScadaScene>(initialScene??createEmptyScene());
+  const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
+  const scene=history.present;
   const [selected,setSelected]=useState<string>();
   const [glass,setGlass]=useState(false);
-  function update(next:ScadaScene){setScene(next);onChange?.(next);}
+  const [transformMode,setTransformMode]=useState<TransformMode>('translate');
+  /** Every scene change goes through history; pass a mergeKey to fold a gesture into one undo step. */
+  function update(next:ScadaScene, mergeKey?:string){setHistory(h=>commit(h,next,mergeKey));onChange?.(next);}
+  function travel(step:(h:History)=>History){
+    const next=step(history);
+    if(next===history) return;
+    setHistory(next);onChange?.(next.present);
+    if(selected&&!next.present.components.some(c=>c.id===selected)) setSelected(undefined);
+  }
+  function onKeyDown(e:React.KeyboardEvent){
+    if(isTextEntry(e.target)||!(e.ctrlKey||e.metaKey)) return;
+    const key=e.key.toLowerCase();
+    if(key==='z'&&!e.shiftKey){e.preventDefault();travel(undo);}
+    else if((key==='z'&&e.shiftKey)||key==='y'){e.preventDefault();travel(redo);}
+  }
   const camera=useRef<Camera|undefined>(undefined);
   const dragKind=useRef<ComponentKind|undefined>(undefined);
   const [preview,setPreview]=useState<DropPlan>();
@@ -112,22 +151,32 @@ export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;
     const plan=planAt(e,newId());
     endDrag();
     if(!plan) return;
+    // Component and its snapped connection land as one undo step.
     const result=applyDrop(scene,plan,newId);
     if(result.ok){update(result.scene);setSelected(plan.component.id);}
   }
   const component=scene.components.find(c=>c.id===selected);
-  function patch(changes:Partial<ComponentInstance>) {
-    update({...scene,components:scene.components.map(c=>c.id===selected?{...c,...changes}:c)});
+  function patch(changes:Partial<ComponentInstance>, mergeKey?:string) {
+    update({...scene,components:scene.components.map(c=>c.id===selected?{...c,...changes}:c)},mergeKey);
   }
-  return <div style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui'}}>
+  // A whole gizmo drag shares one gesture key, so it merges into a single undo step.
+  const transform:TransformHandler=(id,position,rotation,gesture)=>
+    update({...scene,components:scene.components.map(c=>c.id===id?{...c,position,rotation}:c)},gesture);
+  const toolButton=(mode:TransformMode,label:string)=><button aria-pressed={transformMode===mode} onClick={()=>setTransformMode(mode)} style={{fontWeight:transformMode===mode?700:400}}>{label}</button>;
+  return <div tabIndex={-1} onKeyDown={onKeyDown} style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
     <aside style={{padding:14,borderRight:'1px solid #3c5366'}}>
+      <div style={{display:'flex',gap:6,marginBottom:8}}>
+        <button onClick={()=>travel(undo)} disabled={!canUndo(history)} title="Undo (Ctrl+Z)">Undo</button>
+        <button onClick={()=>travel(redo)} disabled={!canRedo(history)} title="Redo (Ctrl+Shift+Z / Ctrl+Y)">Redo</button>
+      </div>
+      <div role="group" aria-label="Transform tool" style={{display:'flex',gap:6}}>{toolButton('translate','Move')}{toolButton('rotate','Rotate')}</div>
       <h3>Components</h3>{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)} style={{display:'block',width:'100%',marginBottom:8,padding:9,cursor:'grab'}}>{componentCatalog[k].label} +</button>)}
       <button onClick={()=>setGlass(!glass)}>{glass?'Normal view':'Glass / X-ray view'}</button>
     </aside>
     <main onDragOver={e=>{if(!dragKind.current)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} glass={glass} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}}/>
+      <Scada3DViewer scene={scene} glass={glass} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={transform}/>
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene):''}</div>
     </main>
     <aside style={{padding:14,borderLeft:'1px solid #3c5366'}}>
@@ -135,8 +184,8 @@ export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;
       {component ? <>
         <p>{componentCatalog[component.type].label}</p>
         <small>Position (metres)</small>
-        {(['X','Y','Z'] as const).map((axis,i)=><label key={axis} style={{display:'block',marginTop:8}}>{axis} <input type="number" step=".1" style={{width:100}} value={component.position[i]} onChange={e=>{const pos=[...component.position] as Vector3Tuple;pos[i]=Number(e.target.value);patch({position:pos});}}/></label>)}
-        {component.type==='tank'&&<label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Number(component.properties.level??45)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}})}/></label>}
+        {(['X','Y','Z'] as const).map((axis,i)=><label key={axis} style={{display:'block',marginTop:8}}>{axis} <input type="number" step=".1" style={{width:100}} value={component.position[i]} onChange={e=>{const pos=[...component.position] as Vector3Tuple;pos[i]=Number(e.target.value);patch({position:pos},`position:${component.id}:${axis}`);}}/></label>)}
+        {component.type==='tank'&&<label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Number(component.properties.level??45)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>}
         {component.type==='valve'&&<label><input type="checkbox" checked={component.properties.open!==false} onChange={e=>patch({properties:{...component.properties,open:e.target.checked}})}/> Valve open</label>}
         {(component.type==='pipe'||component.type==='tee')&&<label><input type="checkbox" checked={component.properties.flowing===true} onChange={e=>patch({properties:{...component.properties,flowing:e.target.checked}})}/> Flow indicator</label>}
         <p><button onClick={()=>{const result=removeComponent(scene,component.id);if(result.ok)update(result.scene);setSelected(undefined);}}>Remove</button></p>
