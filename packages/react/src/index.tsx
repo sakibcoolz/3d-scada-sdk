@@ -11,6 +11,7 @@ import { canRedo, canUndo, commit, createHistory, redo, undo, type History } fro
 import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile';
 import { describeProperty, summarizeTelemetry } from './telemetryView';
 import { nudge } from './keyboard';
+import { degreesFromRotation, rotationFromDegrees, turnAboutWorldAxis } from './rotationForm';
 import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance';
 import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances, pathLengths, pointAt, summarizeFlow } from './flowVisual';
 
@@ -367,6 +368,33 @@ function SceneList({ scene, selected, onSelect }: { scene: ScadaScene; selected?
   </nav>;
 }
 
+/** A number field that keeps what is typed (e.g. a lone "-") and reports only finite values. */
+function DegreeField({ label, value, onValue }: { label: string; value: number; onValue: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | undefined>(undefined);
+  return <input aria-label={label} type="number" step="15" style={{width:62}} value={draft ?? String(value)}
+    onFocus={()=>setDraft(String(value))} onBlur={()=>setDraft(undefined)}
+    onChange={e=>{setDraft(e.target.value);const n=Number(e.target.value);if(e.target.value.trim()!==''&&Number.isFinite(n))onValue(n);}}/>;
+}
+
+/**
+ * Rotation as Euler XYZ degrees (applied X, then Y, then Z, like Three.js), with quick ±90° turns
+ * about world axes and a reset. Typing in one field is one undo step (merge key per axis).
+ */
+function RotationFields({ rotation, onChange }: { rotation: QuaternionLike; onChange: (rotation: QuaternionLike, mergeKey?: string) => void }) {
+  const degrees = degreesFromRotation(rotation);
+  const axes = ['x', 'y', 'z'] as const;
+  return <fieldset style={{border:'none',padding:0,margin:'10px 0 0'}}>
+    <legend style={{fontSize:13}}>Rotation (degrees)</legend>
+    {axes.map(axis => <div key={axis} style={{display:'flex',alignItems:'center',gap:4,marginTop:4}}>
+      <span style={{width:14}}>{axis.toUpperCase()}</span>
+      <DegreeField label={`Rotation ${axis.toUpperCase()} (degrees)`} value={degrees[axis]} onValue={n=>onChange(rotationFromDegrees({...degrees,[axis]:n}),axis)}/>
+      <button aria-label={`Turn −90° about ${axis.toUpperCase()}`} onClick={()=>onChange(turnAboutWorldAxis(rotation,axis,-90))}>−90</button>
+      <button aria-label={`Turn +90° about ${axis.toUpperCase()}`} onClick={()=>onChange(turnAboutWorldAxis(rotation,axis,90))}>+90</button>
+    </div>)}
+    <button style={{marginTop:6}} onClick={()=>onChange({x:0,y:0,z:0,w:1})}>Reset rotation</button>
+  </fieldset>;
+}
+
 const viewLabels: Record<ViewMode, string> = { normal: 'Normal', glass: 'Glass', xray: 'X-ray', cutaway: 'Cutaway' };
 
 /** Explains a level that cannot be drawn as entered (policy in `liquidFill`). */
@@ -525,6 +553,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
         <p>{componentCatalog[component.type].label}</p>
         <small>Position (metres)</small>
         {(['x','y','z'] as const).map(axis=><label key={axis} style={{display:'block',marginTop:8}}>{axis.toUpperCase()} <input type="number" step=".1" style={{width:100}} value={component.position[axis]} onChange={e=>patch({position:{...component.position,[axis]:Number(e.target.value)}},`position:${component.id}:${axis}`)}/></label>)}
+        <RotationFields rotation={component.rotation} onChange={(rotation,mergeKey)=>patch({rotation},mergeKey&&`rotation:${component.id}:${mergeKey}`)}/>
         {component.type==='tank'&&<>
           <label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Math.round((liquidFill(component.properties.level).fraction??0)*100)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>
           <LevelNote level={component.properties.level}/>

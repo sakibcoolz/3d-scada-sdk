@@ -403,3 +403,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: routed-pipe collisions, exact cylinder/curved shapes, blocking mode, a collision benchmark at 1,000 components.
 - Status: T-031 REVIEW until PR is merged (after #33).
 
+## 2026-10-15 — T-032 rotation form for every component
+- Branch: `feat/T-032-rotation-form` (from `feat/T-031-collisions` @ `92e0f06`, PR #34 open; targets `develop`).
+- Owner request: rotate every component from form inputs. Display decisions taken as defaults: Euler XYZ degrees (Three.js order) shown to 0.01°, −90/+90 world-axis buttons, reset, any angle allowed (non-blocking, consistent with collisions).
+- Graphify: index NOT built. Fallback: read the editor properties panel directly.
+- Scope: `rotationForm.ts` (`degreesFromRotation`, `rotationFromDegrees`, `turnAboutWorldAxis`), `RotationFields`/`DegreeField` in the editor (keeps typed text such as a lone "-", applies finite values; per-axis undo merge key), docs.
+- Tests written first: `rotationForm.test.ts` (9) failed to load and 3 e2e tests failed before implementation. Covers round-trips, 0.01° rounding without −0, world-axis turn direction, undo by opposite turn, unit length; e2e covers fields on all 8 component types, typing 90 + undo, quick turns and reset.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (588 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (43 tests).
+  - Browser screenshot: pump with Y = 45 and +90 about X shows X 90 / Y 45 / Z 0.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-032 REVIEW until PR is merged (after #34).
+
