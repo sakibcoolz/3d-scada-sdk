@@ -21,14 +21,14 @@ flowchart TB
   Host --> SDK[3D SCADA SDK: Viewer + Editor]
   SDK --> Scene[(Versioned scene JSON)]
   SDK --> Runtime[Read-only Telemetry Adapter]
-  Runtime --> HostAPI[Authenticated Host Backend / WebSocket or MQTT WS Bridge]
+  Runtime --> HostAPI[Host Application Data Provider - optional transport]
   HostAPI --> Edge[Protected Edge Gateway / OPC UA Broker]
   Edge --> PLC[PLC / SCADA data source]
   SDK --> Sim[Optional deterministic simulator]
   Sim -. labeled SIMULATED values .-> SDK
 ```
 
-The browser is **untrusted for industrial control**. The host handles auth, tenant isolation, network authorization, credential storage, audit and data transport. PLC/OPC UA sits behind a trusted backend or edge gateway. SDK telemetry is observation-only. Future control must be separately designed, threat-modeled, reviewed and authorized.
+The browser is **untrusted for industrial control**. The host handles auth, tenant isolation, network authorization, credential storage, audit and data transport. PLC/OPC UA sits behind a trusted backend or edge gateway. SDK data input is observation-only and transport-independent. Future control must be separately designed, threat-modeled, reviewed and authorized.
 
 ## 3. Layered architecture and dependency direction
 
@@ -63,7 +63,7 @@ flowchart TB
 | `editor` | state machine, commands/history, drag-and-drop, transform gizmos, snapping interaction, selection | authoritative live telemetry |
 | `renderer-three` | materials, Three.js mesh factories, picking, labels, glass/X-ray/cutaway, GPU cleanup | scene topology authority |
 | `flow-animation` | path-based visual fluid motion, tank level/heat indicators, animation scheduling | unvalidated CFD/plant commands |
-| `telemetry` | read-only adapter interface, tag-binding validation, quality/stale/out-of-order state | PLC secrets or browser direct OPC UA |
+| `telemetry` | optional host-driven observation inputs, tag-binding validation, quality/stale/out-of-order state | network protocols, socket lifecycle, PLC secrets or browser direct OPC UA |
 | `simulation` | optional deterministic engineering equations and simulated values | measured-state claims or safety decisions |
 | `asset-import` | sanitized SVG templates/extrusion and licensed glTF ingestion | inferring physically correct machinery internals from flat SVG |
 | `react` | hooks, contexts, editor/viewer React API, host callbacks | domain business rules |
@@ -184,13 +184,24 @@ sequenceDiagram
   participant VM as View model
   participant R as Three.js Renderer
   PLC->>Edge: OPC UA / device-native reads
-  Edge->>Adapter: Authenticated WebSocket observations
+  Edge->>Adapter: Observations via host-selected integration
   Adapter->>VM: normalized values + quality + timestamp
   VM->>R: render projection and state changes
   Note over Adapter,R: Read-only browser SDK; no direct PLC writes
 ```
 
-Initial reference transport is host-provided WebSocket; MQTT-over-WebSocket when permitted by host infrastructure. OPC UA must terminate on a protected backend/edge bridge. Adapters expose connect/disconnect, subscribe/unsubscribe, lifecycle cleanup, authentication supplied by host, bounded buffers, backpressure and reconnect behavior. Reject out-of-order samples and flag stale/disconnected readings with explicit timestamps.
+**Transport is not an SDK prerequisite.** SDK exposes a host-driven data-input contract; applications can pass an initial snapshot, call `setTagValues(observations)`, or implement an optional `DataProvider` subscription. No SDK-managed WebSocket, MQTT client, broker, cloud endpoint or OPC UA connection is required for rendering, editing, persistence or simulation. Data can originate from REST polling, application stores, IPC, files, simulator, WebSocket, MQTT or backend OPC UA bridge **outside the SDK**. The host owns connection, authentication, reconnection and network error handling. SDK owns observation validation, tag-to-component mapping, freshness/quality indications and update/disposal behavior.
+
+Proposed interface (API name not finalized):
+```ts
+type Quality = 'GOOD' | 'BAD' | 'UNCERTAIN' | 'STALE';
+type Observation = { tagId:string; value:number | boolean | string; sourceTimestamp:string; quality:Quality; unit?:string; source?:'MEASURED' | 'SIMULATED' };
+interface DataProvider {
+  getSnapshot?(): Observation[] | Promise<Observation[]>;
+  subscribe?(onData:(observations:Observation[])=>void): () => void;
+}
+```
+An app may instead invoke an imperative `setTagValues` API. Tests must prove editor/viewer work without any provider and accept host-supplied updates without opening sockets. If observation timestamps stop advancing, SDK marks values stale by documented policy without requiring knowledge of transport connectivity.
 
 ## 10. Performance, security and reliability
 
@@ -218,7 +229,7 @@ Detailed setup and query discipline: `docs/GRAPHIFY_AGENT_REFERENCE.md`. Tooling
 | M3 | deterministic snapping, graph, routing, tee/loop tests |
 | M4 | editor operations, gizmos, undo, JSON roundtrip browser tests |
 | M5 | flow quality and direction, level, material-mode rendering tests |
-| M6 | read-only telemetry lifecycle, stale/reconnect/out-of-order tests |
+| M6 | no-network viewer tests, host-driven data-input lifecycle, stale/out-of-order tests |
 | M7 | SVG/glTF pipeline, bounded optional simulation, hardening |
 | M8 | standalone consumer package integration and release validation |
 
