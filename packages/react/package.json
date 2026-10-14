@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
   "dependencies": {
     "@scada3d/core": "workspace:*",
     "@scada3d/components": "workspace:*",
@@ -15,7 +18,11 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/three": "^0.175.0"
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.175.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "exports": {
     ".": "./src/index.tsx"
