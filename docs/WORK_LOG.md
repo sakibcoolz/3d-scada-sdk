@@ -214,3 +214,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: merge/append import; reference errors appear only after structural errors are fixed.
 - Status: T-012 REVIEW until PR is merged. With T-012 merged, all M4 tasks (T-010–T-012) are done.
 - Handoff: next is M5, starting with T-013 (measured/simulated flow-state resolver). T-015 (glass/X-ray/cutaway/water/heat) is also dependency-ready. ADR-0005 awaits an owner decision.
+
+## 2026-10-15 — T-013 measured/simulated flow-state resolver
+- Branch: `feat/T-013-flow-resolver` (from `develop` @ `04f8ca4`; #21 merged, T-012 marked DONE, M4 complete).
+- Graphify: index NOT built. Fallback: read ARCHITECTURE §8/§9 (flow and observation contracts) and the scene model directly.
+- Scope: `resolveFlow` in `packages/core/src/flow.ts` (pure; `now` passed in). Readings keyed by connection id with signed m³/s rate, quality, source and ISO timestamp. Directions forward/reverse/stopped/unknown with typed unknown reasons, uncertain flag, newest-wins ordering, single-source mode (no measured/simulated mixing), unmatched-id diagnostics. No valve or topology inference.
+- Tests written first: 25 new tests failed before implementation (rate +5/0/−5, threshold, uncertain, bad/stale/old/unparseable/future/NaN/unknown quality, stale-limit and skew boundaries, out-of-order, newer bad overrides older good, equal-timestamp tie, source modes, tee branches stay unknown, unmatched ids, no mutation).
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS (first run FAIL: tests read `state.reason` on the `FlowState` union; added `reason?: undefined` to the known-flow variant).
+  - `pnpm test` PASS (396 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (13 tests; no UI change in this task).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: rendering flow (T-014), tag-to-connection bindings (T-016), unit conversion for non-m³/s inputs, valve/flow conflict hints.
+- Status: T-013 REVIEW until PR is merged.
+- Handoff: next is T-014 (animated directional flow and stale cases), which renders these states along route centrelines. ADR-0005 awaits an owner decision.
