@@ -24,7 +24,8 @@ Target modules (not current implementation claims): `packages/core`, `packages/c
 | M5 Visual process runtime | measured or simulated fill, valve state, flow direction, heat indication, glass/X-ray/cutaway | M3,M4 | flow respects data quality, direction and valve scenario; rendering assertions pass |
 | M6 Host-driven observations | optional DataProvider contract and setTagValues; host-only integration examples | M5 | editor/viewer work without sockets; snapshot, subscription cleanup, stale/out-of-order tests pass |
 | M7 Assets, advanced simulation and hardening | SVG authoring converter, glTF ingestion, optional engineering network simulation, perf/security/API hardening | M0–M6 | golden asset fixtures; simulation checked against known balance equations; published consumer example builds |
-| M8 Packaging and external adoption | versioned SDK, declarations, exports, sample host apps, migration docs | M7 | independent React app uses package, scenes migrate, clean release checks pass |
+| M7 MVP gate (T-023) | MVP perf baseline, security, accessibility, public API hardening | M0–M6 MVP-critical tasks (T-002, T-015, T-017) | named benchmark scenes measured; security and a11y checks pass; public exports reviewed |
+| M8 Packaging and external adoption | versioned SDK, declarations, exports, sample host apps, migration docs | M7 MVP gate (T-023); asset import and simulation are not required | independent React app uses package, scenes migrate, clean release checks pass |
 
 M7 physics scope is **simplified fluid network / mass-balance simulation** (optional, bounded) and **optional rigid-body interactions**. Real water-fluid dynamics / CFD is a distinct future research program requiring validated solvers, material properties, boundary conditions, engineering review and performance budgets; do not promise it in M8.
 

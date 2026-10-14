@@ -52,7 +52,7 @@ A user opens a 3D workspace, drags industrial components, snaps ports into a con
 | 4. Editor | raycast placement, gizmos, history/import | T-010–T-012 | end-to-end editor scenario |
 | 5. Visualization | direction/level/material visualization | T-013–T-015 | forward/reverse/stale + glass evidence |
 | 6. Optional host data | transport-neutral observation API | T-016, T-017 | offline input and cleanup tests |
-| 7. Packaging | perf/security/a11y and consumer application | **split T-023/T-024 into MVP release gates** | independent install, compatibility verification |
+| 7. Packaging | perf/security/a11y and consumer application | T-023 (MVP gate, depends on T-002, T-015, T-017) → T-024; post-MVP hardening split into T-028 | independent install, compatibility verification |
 
 T-018 host-specific transport examples are **optional** and must never introduce SDK network requirements. Graphify T-027 is developer tooling only and not an SDK runtime prerequisite.
 
