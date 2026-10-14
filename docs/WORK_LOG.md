@@ -44,3 +44,14 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - `uv tool install graphifyy`: already installed. `graphify --version` → 0.9.53.
 - `graphify install --platform cursor` wrote `.cursor/rules/graphify.mdc`.
 - Index NOT built. `graphify-out/` does not exist. T-027 remains TODO. No hosted indexing.
+
+## 2026-10-14T19:57:02Z — T-002 CI, unit tests, and browser smoke
+- Branch: `feat/T-002-ci-smoke` (includes T-001 commits). Commit `5fcac58` added the runners. The following commit switches the smoke test to the production preview and records this evidence.
+- Graphify: index NOT built (`graphify-out/graph.json` absent). Fallback: read package scripts and the playground entry.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (5 tests in `packages/core/src/scene.test.ts`).
+  - `pnpm test:e2e` FAIL against the Vite dev server because its reload socket is local HMR, then PASS after switching the smoke test to `vite preview` (1 test, no WebSocket).
+  - `pnpm build` PASS as part of the preview web server. GitHub Actions CI NOT RUN locally.
+- Status: T-002 REVIEW until a PR is merged. Not DONE. Full editor E2E (connect, undo, save) remains later tasks.
+- Handoff: next dependency-ready task is T-003 after T-001 and T-002 are accepted.

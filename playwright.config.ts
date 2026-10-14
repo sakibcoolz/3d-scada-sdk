@@ -10,9 +10,10 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'pnpm --filter @scada3d/playground exec vite --host 127.0.0.1 --port 4173 --strictPort',
+    command: 'pnpm --filter @scada3d/playground build && pnpm --filter @scada3d/playground exec vite preview --host 127.0.0.1 --port 4173 --strictPort',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 });
