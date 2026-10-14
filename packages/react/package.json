@@ -1,0 +1,23 @@
+{
+  "name": "@scada3d/react",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@scada3d/core": "workspace:*",
+    "@scada3d/components": "workspace:*",
+    "@react-three/fiber": "^9.1.2",
+    "@react-three/drei": "^10.0.6",
+    "three": "^0.175.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.175.0"
+  },
+  "exports": {
+    ".": "./src/index.tsx"
+  }
+}
