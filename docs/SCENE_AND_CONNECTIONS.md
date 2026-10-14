@@ -78,6 +78,14 @@ Distinguish logical edge from render mesh. Support straight runs and determinist
 - The React viewer renders routes with `createRouteGeometries` (trimmed straights plus quarter-torus bends) and disposes them when the centreline changes or unmounts. `/?demo` in the playground loads a validated tank → valve → pipe → tee network with two branches.
 - Not done: obstacle avoidance, collision checks, custom waypoints, non-axis-aligned orthogonal routing.
 
+## Editor palette drop (T-010)
+`packages/react/src/drop.ts`, wired into `Scada3DEditor`.
+- `screenToPlane` casts a ray from the R3F camera through the pointer onto the plane y = 0 (configurable in the function, fixed at 0 in the editor). `dropPosition` rests the component's catalog bounds on that plane.
+- While dragging a palette item over the canvas, `planDrop` runs `snapComponent` (0.5 m reach, 45° tolerance) and the viewer shows a ghost at the planned transform plus a green marker on the target port, or a red marker on the nearest rejected port. A status line (`role="status"`) shows `describeDrop`: what will connect, why it cannot, or where it lands.
+- On drop, `applyDrop` adds the component and, if it snapped, its connection via `connect`, validated as one change. Escape (native drag cancel) or leaving the canvas clears the preview without changing the scene.
+- Click-to-add from the palette is kept for keyboard use: it rests the component on the ground in a row and never auto-connects.
+- Not done: moving existing components by drag (T-011 gizmos), undo (T-011), drop onto surfaces other than the ground plane.
+
 ## Serialization
 Save authored scene only. Validate on load, reject/diagnose corrupt references, migrate supported versions, round-trip deterministically, avoid using React/Three objects or telemetry stream values in JSON.
 
