@@ -15,9 +15,9 @@ test('markup in imported ids, properties and tags is displayed as text, never ex
 
   // An invalid reference puts the hostile id into the error list.
   const broken = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     units: 'm',
-    components: [{ id: payload, type: 'tank', position: [0, 1.535, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: { label: '<script>window.__xss=2</script>' } }],
+    components: [{ id: payload, type: 'tank', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { label: '<script>window.__xss=2</script>' } }],
     connections: [{ id: 'e', from: { instanceId: payload, portId: 'outlet' }, to: { instanceId: '<b>ghost</b>', portId: 'in' } }],
   };
   await page.getByLabel('Import JSON text').fill(JSON.stringify(broken));

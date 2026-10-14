@@ -2,13 +2,13 @@
 
 **Status:** current public surface of the three SDK packages, enforced by `api.test.ts` in each package (runtime exports) and the explicit `index` export lists (types). Anything not listed is internal and may change without notice. Packages are not published yet (T-024).
 
-All geometry is right-handed, Y-up, metres; rotations are unit quaternions `[x, y, z, w]`. The SDK is read-only: it never writes tags or opens network connections (ADR-0003).
+All geometry is right-handed, Y-up, metres. Scene components use named vectors (ADR-0007): `position`/`scale` are `Vector3Like` `{ x, y, z }` and `rotation` is a unit `QuaternionLike` `{ x, y, z, w }`; `THREE.Vector3`/`THREE.Quaternion` satisfy these types. Derived geometry (catalog ports, world ports, routes) uses tuples `[x, y, z]`. The SDK is read-only: it never writes tags or opens network connections (ADR-0003).
 
 ## @scada3d/core (framework-neutral)
 
 | Area | Runtime exports | Main types |
 |---|---|---|
-| Scene model | `SCENE_SCHEMA_VERSION`, `componentKinds`, `createEmptyScene`, `portsCompatible` | `ScadaScene`, `ComponentInstance`, `ComponentKind`, `ComponentDefinition`, `ConnectionPort`, `PortKind`, `SceneConnection`, `TagBinding`, `Quantity`, `Vector3Tuple`, `QuaternionTuple` |
+| Scene model | `SCENE_SCHEMA_VERSION`, `componentKinds`, `createEmptyScene`, `portsCompatible` | `ScadaScene`, `ComponentInstance`, `ComponentKind`, `ComponentDefinition`, `ConnectionPort`, `PortKind`, `SceneConnection`, `TagBinding`, `Quantity`, `Vector3Like`, `QuaternionLike`, `Vector3Tuple`, `QuaternionTuple` |
 | Units | `canonicalUnits`, `isKnownUnit`, `toCanonical` | |
 | Validation and persistence | `validateScene`, `defaultSceneLimits`, `serializeScene`, `parseScene` | `SceneValidationOptions`, `SceneValidationResult`, `SceneValidationError`, `SceneValidationErrorCode`, `SceneLimits`, `ParseSceneOptions` |
 | Transforms | `portToWorld`, `rotateVector`, `quaternionFromEuler`, `quaternionToEuler`, `identityQuaternion` | `WorldPort`, `ComponentTransform` |

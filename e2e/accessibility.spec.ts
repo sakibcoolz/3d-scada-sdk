@@ -41,17 +41,21 @@ test('a component can be added, selected, moved, turned, undone and removed with
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('PageUp');
   let valve = (await sceneJson(page)).components[0];
-  [start.position[0] + 0.2, start.position[1] + 0.1, start.position[2]].forEach((n, i) => expect(valve.position[i]).toBeCloseTo(n, 9));
+  expect(valve.position.x).toBeCloseTo(start.position.x + 0.2, 9);
+  expect(valve.position.y).toBeCloseTo(start.position.y + 0.1, 9);
+  expect(valve.position.z).toBeCloseTo(start.position.z, 9);
 
   await page.keyboard.press('r');
   valve = (await sceneJson(page)).components[0];
-  expect(valve.rotation[1]).toBeCloseTo(Math.SQRT1_2, 12);
+  expect(valve.rotation.y).toBeCloseTo(Math.SQRT1_2, 12);
 
   // Repeated presses of one key are one undo step: undo the turn, then PageUp; both arrow presses remain.
   await page.keyboard.press('Control+z');
   await page.keyboard.press('Control+z');
   const afterUndo = (await sceneJson(page)).components[0].position;
-  [start.position[0] + 0.2, start.position[1], start.position[2]].forEach((n, i) => expect(afterUndo[i]).toBeCloseTo(n, 9));
+  expect(afterUndo.x).toBeCloseTo(start.position.x + 0.2, 9);
+  expect(afterUndo.y).toBeCloseTo(start.position.y, 9);
+  expect(afterUndo.z).toBeCloseTo(start.position.z, 9);
 
   await page.keyboard.press('Escape');
   await expect(entry).toHaveAttribute('aria-pressed', 'false');

@@ -36,18 +36,20 @@ const facing = {
   '-z': [0, PI / 2, 0],
 } satisfies Record<string, Vector3Tuple>;
 
-const nozzle = (id: string, position: Vector3Tuple, face: keyof typeof facing | Vector3Tuple): ComponentInstance => ({
+const euler = ([x, y, z]: readonly number[]) => quaternionFromEuler({ x, y, z });
+
+const nozzle = (id: string, [px, py, pz]: Vector3Tuple, face: keyof typeof facing | Vector3Tuple): ComponentInstance => ({
   id,
   type: 'sensor',
-  position,
-  rotation: quaternionFromEuler(typeof face === 'string' ? facing[face] : face),
-  scale: [1, 1, 1],
+  position: { x: px, y: py, z: pz },
+  rotation: euler(typeof face === 'string' ? facing[face] : face),
+  scale: { x: 1, y: 1, z: 1 },
   properties: {},
 });
 
 function pair(a: ComponentInstance, b: ComponentInstance): ScadaScene {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     units: 'm',
     components: [a, b],
     connections: [{ id: 'e1', from: { instanceId: a.id, portId: 'p' }, to: { instanceId: b.id, portId: 'p' } }],
@@ -190,11 +192,11 @@ describe('routeConnection', () => {
 
 describe('routeScene', () => {
   const network = (): ScadaScene => ({
-    schemaVersion: 2,
+    schemaVersion: 3,
     units: 'm',
     components: [
       nozzle('src', [-3, 0, 0], '+x'),
-      { id: 'tee', type: 'tee', position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: {} },
+      { id: 'tee', type: 'tee', position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} },
       nozzle('a', [3, 0, 0], '-x'),
       nozzle('b', [2, 3, 0], '-x'),
     ],
@@ -217,7 +219,7 @@ describe('routeScene', () => {
   it('is deterministic and re-routes when a component moves', () => {
     const scene = network();
     expect(routeScene(scene, options)).toEqual(routeScene(structuredClone(scene), options));
-    const moved = { ...scene, components: scene.components.map((c) => (c.id === 'b' ? { ...c, position: [2, 4, 1] as Vector3Tuple } : c)) };
+    const moved = { ...scene, components: scene.components.map((c) => (c.id === 'b' ? { ...c, position: { x: 2, y: 4, z: 1 } } : c)) };
     const [before, after] = [routeScene(scene, options)[2], routeScene(moved, options)[2]];
     expect(after).not.toEqual(before);
     expectWellFormed(after, [0, 1, 0], [0, 1, 0], [2, 4, 1], [1, 0, 0]);

@@ -110,7 +110,7 @@ type Observation = {
 };
 ```
 
-**Implemented (T-005, ADR-0004 accepted):** `ScadaScene` is this version 2 document (`schemaVersion: 2`, `units: 'm'`, `type`, quaternion `rotation`, `scale`). Version 1 files (`version: 1`, `kind`, Euler XYZ) are migrated on load; saves always write version 2. `tagBindings` is not part of the schema yet.
+**Implemented (T-005 → T-030):** `ScadaScene` is now version 3 (ADR-0007): `schemaVersion: 3`, `units: 'm'`, components with `type`, `position: { x, y, z }`, `rotation: { x, y, z, w }` (unit quaternion), `scale: { x, y, z }`, plus optional `tagBindings` (ADR-0006). Version 2 files (array vectors) and version 1 files (`version: 1`, `kind`, Euler XYZ) migrate on load; saves always write version 3.
 
 Geometry coordinates: right-handed, **Y up**, metres; angles in radians. Ports use local-space coordinates and **outward normals**. Nonuniform scaling of connected parts requires an explicit documented restriction or transform policy. Flow/volume units must be converted explicitly (litres vs cubic metres, pressure and temperature) at typed boundaries.
 

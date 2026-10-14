@@ -2,7 +2,7 @@ import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState
 import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { connectProvider, createEmptyScene, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { connectProvider, createEmptyScene, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
@@ -55,12 +55,12 @@ function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown
   const open = component.properties.open !== false;
   const look = shellLook(viewMode);
   // Cutaway removes the front (+Z) half of the shell in world space, through the component origin.
-  const clippingPlanes = useMemo(() => (look.clip ? [new Plane(new Vector3(0, 0, -1), component.position[2])] : null), [look.clip, component.position[2]]);
+  const clippingPlanes = useMemo(() => (look.clip ? [new Plane(new Vector3(0, 0, -1), component.position.z)] : null), [look.clip, component.position.z]);
   const tag = (role: string) => ({ componentId: component.id, role });
   // Materials are keyed on view mode so switching recreates them: Three.js only recompiles the
   // opaque/transparent/clipped shader variant when a material is new or flagged needsUpdate.
   const shellProps = {color:selected?'#63b3ed':'#7b9eb6',metalness:look.metalness,roughness:0.35,transparent:look.transparent,opacity:look.opacity,depthWrite:look.depthWrite,side:DoubleSide,clippingPlanes};
-  return <group ref={objectRef} position={component.position} quaternion={component.rotation} scale={component.scale} onClick={e=>{e.stopPropagation();onSelect();}}>
+  return <group ref={objectRef} position={[component.position.x, component.position.y, component.position.z]} quaternion={[component.rotation.x, component.rotation.y, component.rotation.z, component.rotation.w]} scale={[component.scale.x, component.scale.y, component.scale.z]} onClick={e=>{e.stopPropagation();onSelect();}}>
     {definition.parts.map((part, i) => {
       const geometry = geometries[i];
       if (part.role === 'liquid' && part.shape === 'cylinder') {
@@ -220,7 +220,7 @@ export type TransformMode = 'translate' | 'rotate';
  * Called on every gizmo change. `gesture` is the same for all changes of one drag, so the editor
  * can merge a whole drag into one undo step.
  */
-export type TransformHandler = (id: string, position: Vector3Tuple, rotation: QuaternionTuple, gesture: string) => void;
+export type TransformHandler = (id: string, position: Vector3Like, rotation: QuaternionLike, gesture: string) => void;
 
 /** Rotation snaps to quarter turns so ports stay on world axes for orthogonal routing. */
 const ROTATION_SNAP = Math.PI / 2;
@@ -259,7 +259,7 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     {shown.components.map(c=><Equipment key={c.id} component={c} unknown={unknownByComponent.get(c.id)} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
     {onTransform && transformMode && selectedId && selectedObject && <GizmoControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
       onMouseDown={()=>{gesture.current++;}}
-      onObjectChange={()=>onTransform(selectedId, selectedObject.position.toArray() as Vector3Tuple, selectedObject.quaternion.toArray() as QuaternionTuple, `transform:${selectedId}:${gesture.current}`)}/>}
+      onObjectChange={()=>{const {position:p,quaternion:q}=selectedObject;onTransform(selectedId,{x:p.x,y:p.y,z:p.z},{x:q.x,y:q.y,z:q.z,w:q.w},`transform:${selectedId}:${gesture.current}`);}}/>}
     {routes.map(route=><RoutePipe key={route.connectionId} route={route} viewMode={viewMode}/>)}
     {flowStates && routes.map(route=>{const state=stateById.get(route.connectionId);return route.status==='ok'&&state?<FlowMarkers key={`flow:${route.connectionId}`} route={route} state={state}/>:null;})}
     {preview && <DropPreview scene={scene} plan={preview}/>}
@@ -403,7 +403,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
   function add(type:ComponentKind) {
     const id=newId();
     const position=dropPosition(componentCatalog[type],[scene.components.length*2.4,0,0]);
-    update({...scene,components:[...scene.components,{id,type,position,rotation:[0,0,0,1],scale:[1,1,1],properties:{...defaultProperties}}]});setSelected(id);
+    update({...scene,components:[...scene.components,{id,type,position,rotation:{x:0,y:0,z:0,w:1},scale:{x:1,y:1,z:1},properties:{...defaultProperties}}]});setSelected(id);
   }
   function planAt(e:React.DragEvent<HTMLElement>, id:string):DropPlan|undefined {
     const kind=dragKind.current, canvas=e.currentTarget.querySelector('canvas');
@@ -486,7 +486,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
       {component ? <>
         <p>{componentCatalog[component.type].label}</p>
         <small>Position (metres)</small>
-        {(['X','Y','Z'] as const).map((axis,i)=><label key={axis} style={{display:'block',marginTop:8}}>{axis} <input type="number" step=".1" style={{width:100}} value={component.position[i]} onChange={e=>{const pos=[...component.position] as Vector3Tuple;pos[i]=Number(e.target.value);patch({position:pos},`position:${component.id}:${axis}`);}}/></label>)}
+        {(['x','y','z'] as const).map(axis=><label key={axis} style={{display:'block',marginTop:8}}>{axis.toUpperCase()} <input type="number" step=".1" style={{width:100}} value={component.position[axis]} onChange={e=>patch({position:{...component.position,[axis]:Number(e.target.value)}},`position:${component.id}:${axis}`)}/></label>)}
         {component.type==='tank'&&<>
           <label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Math.round((liquidFill(component.properties.level).fraction??0)*100)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>
           <LevelNote level={component.properties.level}/>

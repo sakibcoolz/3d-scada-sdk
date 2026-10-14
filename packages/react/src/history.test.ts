@@ -9,9 +9,9 @@ function scene(n: number): ScadaScene {
     components: Array.from({ length: n }, (_, i) => ({
       id: `c${i}`,
       type: 'valve',
-      position: [i, 0, 0],
-      rotation: [0, 0, 0, 1],
-      scale: [1, 1, 1],
+      position: { x: i, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+      scale: { x: 1, y: 1, z: 1 },
       properties: {},
     })),
   };

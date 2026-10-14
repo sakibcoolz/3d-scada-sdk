@@ -9,14 +9,14 @@ const line = base - 0.9; // tank outlet height
 const at = (id: string, type: ComponentInstance['type'], position: Vector3Tuple): ComponentInstance => ({
   id,
   type,
-  position,
-  rotation: [0, 0, 0, 1],
-  scale: [1, 1, 1],
+  position: { x: position[0], y: position[1], z: position[2] },
+  rotation: { x: 0, y: 0, z: 0, w: 1 },
+  scale: { x: 1, y: 1, z: 1 },
   properties: type === 'tank' ? { level: 60 } : type === 'valve' ? { open: true } : {},
 });
 
 export const demoScene: ScadaScene = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   units: 'm',
   components: [
     at('tank', 'tank', [0, base, 0]),
@@ -64,5 +64,5 @@ export function generatedScene(n: number): { scene: ScadaScene; rows: Record<str
   const connections = components.slice(1).map((c, i) => ({ id: `e${i + 1}`, from: { instanceId: components[i].id, portId: 'out' }, to: { instanceId: c.id, portId: 'in' } }));
   const tagBindings = connections.map((c) => ({ id: `b-${c.id}`, tagId: `FT-${c.id}`, kind: 'flow' as const, connectionId: c.id }));
   const rows = Object.fromEntries(tagBindings.map((b) => [b.tagId, { value: '1', quality: 'GOOD' as const }]));
-  return { scene: { schemaVersion: 2, units: 'm', components, connections, tagBindings }, rows };
+  return { scene: { schemaVersion: 3, units: 'm', components, connections, tagBindings }, rows };
 }

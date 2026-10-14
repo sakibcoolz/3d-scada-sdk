@@ -26,7 +26,7 @@ const NOW = Date.parse('2026-10-15T12:00:00Z');
 function chain(n: number): ScadaScene {
   const scene = createEmptyScene();
   for (let i = 0; i < n; i++) {
-    scene.components.push({ id: `v${i}`, type: 'valve', position: [i * 3, 0.2 + (i % 2) * 1.5, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: { open: true } });
+    scene.components.push({ id: `v${i}`, type: 'valve', position: { x: i * 3, y: 0.2 + (i % 2) * 1.5, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { open: true } });
     if (i > 0) scene.connections.push({ id: `e${i}`, from: { instanceId: `v${i - 1}`, portId: 'out' }, to: { instanceId: `v${i}`, portId: 'in' } });
   }
   scene.tagBindings = [
@@ -43,7 +43,7 @@ for (const n of [100, 1000]) {
   const observations: Observation[] = (scene.tagBindings ?? []).map((b) => ({ tagId: b.tagId, value: b.kind === 'flow' ? 1 : true, quality: 'GOOD', sourceTimestamp: new Date(NOW - 500).toISOString() }));
   // A valve dropped next to the last outlet, as the editor does on every dragover.
   const last = scene.components[n - 1].position;
-  const dragged = { id: 'new', type: 'valve' as const, position: [last[0] + 1.3, last[1], 0] as [number, number, number], rotation: [0, 0, 0, 1] as [number, number, number, number], scale: [1, 1, 1] as [number, number, number], properties: {} };
+  const dragged = { id: 'new', type: 'valve' as const, position: { x: last.x + 1.3, y: last.y, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} };
 
   describe(`chain-${n} (${n} components, ${n - 1} connections, ${scene.tagBindings!.length} bindings)`, () => {
     bench('validateScene', () => void validateScene(scene, options));
@@ -54,7 +54,7 @@ for (const n of [100, 1000]) {
     bench('resolveTelemetry', () => void resolveTelemetry(scene, observations, { now: NOW, resolveBindable: options.resolveBindable }));
     bench('snapComponent (one dragover)', () => void snapComponent(scene, dragged, options));
     bench('connect (one new edge, revalidates)', () => {
-      const added = { ...scene, components: [...scene.components, { ...dragged, position: [last[0] + 1.2, last[1], 0] as [number, number, number] }] };
+      const added = { ...scene, components: [...scene.components, { ...dragged, position: { x: last.x + 1.2, y: last.y, z: 0 } }] };
       void connect(added, { id: 'enew', from: { instanceId: `v${n - 1}`, portId: 'out' }, to: { instanceId: 'new', portId: 'in' } }, options);
     });
   });

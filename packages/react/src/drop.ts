@@ -9,6 +9,7 @@ import {
   type ScadaScene,
   type SnapResult,
   type SnapStatus,
+  type Vector3Like,
   type Vector3Tuple,
 } from '@scada3d/core';
 import { componentCatalog, type IndustrialComponentDefinition } from '@scada3d/components';
@@ -41,8 +42,8 @@ export function screenToPlane(
 }
 
 /** Component position that rests its bounds on the plane at the hit point (no rotation). */
-export function dropPosition(definition: IndustrialComponentDefinition, hit: Vector3Tuple): Vector3Tuple {
-  return [hit[0], hit[1] - definition.bounds.min[1], hit[2]];
+export function dropPosition(definition: IndustrialComponentDefinition, hit: Vector3Tuple): Vector3Like {
+  return { x: hit[0], y: hit[1] - definition.bounds.min[1], z: hit[2] };
 }
 
 export interface DropPlan {
@@ -62,8 +63,8 @@ export function planDrop(scene: ScadaScene, type: ComponentKind, hit: Vector3Tup
     id: options.createId(),
     type,
     position: dropPosition(componentCatalog[type], hit),
-    rotation: [0, 0, 0, 1],
-    scale: [1, 1, 1],
+    rotation: { x: 0, y: 0, z: 0, w: 1 },
+    scale: { x: 1, y: 1, z: 1 },
     properties: { ...options.properties },
   };
   const snap = snapComponent(scene, placed, { resolvePorts });
@@ -100,6 +101,6 @@ export function describeDrop(plan: DropPlan, scene: ScadaScene): string {
   if (nearest && nearest.status !== 'ok') {
     return `Cannot connect "${nearest.movingPortId}" to ${targetLabel(nearest.target.instanceId)} "${nearest.target.portId}": ${rejection[nearest.status]}`;
   }
-  const [x, , z] = plan.component.position;
+  const { x, z } = plan.component.position;
   return `Place ${label} at (${x.toFixed(2)}, ${z.toFixed(2)})`;
 }

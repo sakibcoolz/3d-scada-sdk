@@ -370,3 +370,20 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Status: T-023 REVIEW once parts B–D merge (A merged).
 - Handoff: next is T-024 (independent consumer release verification: built packages with declarations and exports maps, installed into a separate React app without workspace aliases).
 
+## 2026-10-15 — T-030 scene schema version 3: structured vectors
+- Branch: `feat/T-030-structured-vectors` (from `feat/T-023d-performance` @ `ba8c82a`, PRs #29–#32 open; targets `develop`).
+- Owner request and decisions (ADR-0007, accepted): named `{ x, y, z }` / `{ x, y, z, w }` vectors in both files and the in-memory model; new `schemaVersion: 3` with v1/v2 migration; rotation stays a quaternion.
+- Graphify: index NOT built. Fallback: typecheck errors and grep for tuple usage across packages, apps and e2e.
+- Scope: `Vector3Like`/`QuaternionLike` types; `ComponentInstance.position/rotation/scale` as objects; validator reads v1/v2/v3 (`migratedFrom: 1 | 2`, strict object checks with axis paths, `-0` normalised); canonical serializer writes v3 objects in `x, y, z(, w)` order; public rotation helpers (`rotation.ts`) and `SnapResult` use objects, tuple maths kept internal (`quaternion.ts`, `vectors.ts`); `portToWorld` takes object transforms and still returns tuples; derived geometry (ports, routes) stays tuples. React renderer, gizmo handler, drop planning, keyboard nudge, position fields and playground demo/generated scenes converted. Docs: ADR-0007, decision log, ARCHITECTURE, SCENE_AND_CONNECTIONS (v3 file example), API.md.
+- Tests written first: `schema-v3.test.ts` (16) failed before implementation. Existing fixtures were migrated by two delegated agents (core tests; react/components/e2e tests) with instructions not to edit production code or weaken assertions; their reports listed every semantically changed expectation (unsupported-version lists now include 4 instead of 3, v2 identity now expects `migratedFrom: 2`, a stricter negative-zero regex, one import error message now the v3 shape error). One agent ran `git stash`/`pop` during parallel work; the tree was verified afterwards (no leftover stash, all edits present) and the full suite run on the combined result.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (569 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (36 tests, including the export → reload → import roundtrip on v3).
+  - `pnpm bench` runs.
+  - Sample: a v2 array file loads with `migratedFrom: 2` and is written back as v3 objects.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-030 REVIEW until PR is merged (after #29–#32).
+- Update: #29–#32 were already merged when #33 opened, so T-023 is marked DONE (all four parts merged) and #33 contains only T-030.
+

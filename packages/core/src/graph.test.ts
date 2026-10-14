@@ -35,9 +35,9 @@ const options: GraphOptions = { resolvePorts: (type) => ports[type] };
 const component = (id: string, type: ComponentKind): ComponentInstance => ({
   id,
   type,
-  position: [0, 0, 0],
-  rotation: [0, 0, 0, 1],
-  scale: [1, 1, 1],
+  position: { x: 0, y: 0, z: 0 },
+  rotation: { x: 0, y: 0, z: 0, w: 1 },
+  scale: { x: 1, y: 1, z: 1 },
   properties: {},
 });
 
@@ -50,7 +50,7 @@ const edge = (id: string, from: [string, string], to: [string, string]): SceneCo
 /** tank -> valve -> tee, tee branches to valve-a and valve-b; valve-x stands alone. */
 function teeNetwork(): ScadaScene {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
       units: 'm',
     components: [
       component('tank', 'tank'),
@@ -114,7 +114,7 @@ describe('connect', () => {
 
   it('allows closing a loop', () => {
     const scene: ScadaScene = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       units: 'm',
       components: [component('a', 'valve'), component('b', 'valve')],
       connections: [edge('e1', ['a', 'out'], ['b', 'in'])],
@@ -180,7 +180,7 @@ describe('reachableComponents', () => {
 
   it('terminates on a cycle', () => {
     const loop: ScadaScene = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       units: 'm',
       components: [component('a', 'valve'), component('b', 'valve'), component('t', 'tee')],
       connections: [
@@ -201,7 +201,7 @@ describe('reachableComponents', () => {
     const count = 5000;
     const components = Array.from({ length: count }, (_, i) => component(`v${i}`, 'valve'));
     const connections = Array.from({ length: count - 1 }, (_, i) => edge(`e${i}`, [`v${i}`, 'out'], [`v${i + 1}`, 'in']));
-    expect(reachableComponents({ schemaVersion: 2,
+    expect(reachableComponents({ schemaVersion: 3,
       units: 'm', components, connections }, 'v0')).toHaveLength(count);
   });
 });
@@ -212,7 +212,7 @@ describe('connectedGroups', () => {
   });
 
   it('returns no groups for an empty scene', () => {
-    expect(connectedGroups({ schemaVersion: 2,
+    expect(connectedGroups({ schemaVersion: 3,
       units: 'm', components: [], connections: [] })).toEqual([]);
   });
 });

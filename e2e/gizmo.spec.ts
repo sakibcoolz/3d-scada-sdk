@@ -18,11 +18,11 @@ test('move gizmo drags a component along X and undoes as one step', async ({ pag
   const start = (await sceneJson(page)).components[0].position;
   await page.waitForTimeout(300);
   // The X arrow points along +X from the selected component's origin.
-  await dragWorld(page, [start[0] + 1.5, start[1], start[2]], [start[0] + 3.5, start[1], start[2]]);
+  await dragWorld(page, [start.x + 1.5, start.y, start.z], [start.x + 3.5, start.y, start.z]);
   const moved = (await sceneJson(page)).components[0].position;
-  expect(moved[0]).toBeGreaterThan(start[0] + 1);
-  expect(moved[1]).toBeCloseTo(start[1], 9);
-  expect(moved[2]).toBeCloseTo(start[2], 9);
+  expect(moved.x).toBeGreaterThan(start.x + 1);
+  expect(moved.y).toBeCloseTo(start.y, 9);
+  expect(moved.z).toBeCloseTo(start.z, 9);
 
   await page.getByRole('button', { name: 'Undo' }).click();
   expect((await sceneJson(page)).components[0].position).toEqual(start);
@@ -36,16 +36,16 @@ test('rotate gizmo turns a component in quarter turns about Y', async ({ page })
   await page.getByRole('button', { name: 'Ball Valve +' }).click();
   await page.getByRole('button', { name: 'Rotate' }).click();
   await expect(page.getByRole('button', { name: 'Rotate' })).toHaveAttribute('aria-pressed', 'true');
-  const [x, y, z] = (await sceneJson(page)).components[0].position;
+  const { x, y, z } = (await sceneJson(page)).components[0].position;
   await page.waitForTimeout(300);
   // A point at 45° on the Y ring (horizontal), which the X and Z rings do not pass through.
   await dragWorld(page, [x + 1, y, z + 1], [x + 1.4, y, z - 0.6]);
-  const [qx, qy, qz, qw] = (await sceneJson(page)).components[0].rotation;
+  const { x: qx, y: qy, z: qz, w: qw } = (await sceneJson(page)).components[0].rotation;
   expect(qx).toBeCloseTo(0, 9);
   expect(qz).toBeCloseTo(0, 9);
   // A whole number of quarter turns about Y, and not the identity.
   const angle = 2 * Math.atan2(qy, qw);
   expect(Math.abs(angle)).toBeGreaterThan(0.1);
   expect(Math.abs(angle / (Math.PI / 2) - Math.round(angle / (Math.PI / 2)))).toBeLessThan(1e-6);
-  expect((await sceneJson(page)).components[0].position).toEqual([x, y, z]);
+  expect((await sceneJson(page)).components[0].position).toEqual({ x, y, z });
 });

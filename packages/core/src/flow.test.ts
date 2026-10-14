@@ -15,9 +15,9 @@ const at = (msAgo: number) => new Date(NOW - msAgo).toISOString();
 const component = (id: string, type: ComponentKind, properties: ComponentInstance['properties'] = {}): ComponentInstance => ({
   id,
   type,
-  position: [0, 0, 0],
-  rotation: [0, 0, 0, 1],
-  scale: [1, 1, 1],
+  position: { x: 0, y: 0, z: 0 },
+  rotation: { x: 0, y: 0, z: 0, w: 1 },
+  scale: { x: 1, y: 1, z: 1 },
   properties,
 });
 const edge = (id: string, from: [string, string], to: [string, string]): SceneConnection => ({
