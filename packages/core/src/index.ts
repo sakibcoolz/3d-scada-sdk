@@ -1,4 +1,5 @@
 export * from './scene';
+export * from './units';
 export * from './quaternion';
 export * from './validation';
 export * from './transforms';
@@ -7,3 +8,5 @@ export * from './graph';
 export * from './routing';
 export * from './serialization';
 export * from './flow';
+export * from './observation';
+export * from './telemetry';

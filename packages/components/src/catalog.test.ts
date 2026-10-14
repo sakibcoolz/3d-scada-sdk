@@ -141,4 +141,10 @@ describe('componentCatalog definitions', () => {
     expect(roles).toContain('valve-ball');
     expect(roles).toContain('valve-handle');
   });
+
+  it('declares the bindable tank and valve properties with their quantities', () => {
+    expect(componentCatalog.tank.bindable).toEqual({ level: 'percent', temperature: 'temperature' });
+    expect(componentCatalog.valve.bindable).toEqual({ open: 'boolean' });
+    expect(componentCatalog.pipe.bindable).toBeUndefined();
+  });
 });

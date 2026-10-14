@@ -18,7 +18,7 @@ ConnectionEdge {
   to: {instanceId:string;portId:string};
 }
 ```
-The version 2 shape is implemented ([ADR-0004](adr/0004-scene-document-v2.md), accepted); `tagBindings` is not part of the schema yet.
+The version 2 shape is implemented ([ADR-0004](adr/0004-scene-document-v2.md), accepted), including optional `tagBindings` ([ADR-0006](adr/0006-tag-bindings-in-scene.md), accepted): `{ id, tagId, kind: 'property', instanceId, property, unit? }` or `{ id, tagId, kind: 'flow', connectionId, unit? }`. Validation checks unique ids, existing targets, bindable property per catalog type (`resolveBindable`), accepted units, and one binding per target (`UNKNOWN_CONNECTION`, `UNBINDABLE_PROPERTY`, `INVALID_UNIT`, `DUPLICATE_BINDING_ID`, `DUPLICATE_BINDING_TARGET`). `removeComponent` and `disconnect` drop bindings to removed targets; serialization omits the field when absent.
 
 ## Current runtime validation (T-003, version 2 since T-005)
 `validateScene(input, { resolvePorts, limits? })` in `@scada3d/core` validates a version 2 `ScadaScene` (`schemaVersion: 2`, `units: 'm'`, components with `type`, `position`, unit-quaternion `rotation`, `scale`, `properties`). Version 1 input (`version: 1`, `kind`, Euler XYZ radians, no scale) is migrated: Euler XYZ → quaternion, `kind` → `type`, scale `[1, 1, 1]`, and the result carries `migratedFrom: 1`. Errors use the input's own field names. The caller supplies `resolvePorts` (e.g. from `componentCatalog`) because core does not import the catalog.

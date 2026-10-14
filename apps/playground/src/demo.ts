@@ -1,5 +1,5 @@
 import type { ComponentInstance, ScadaScene, Vector3Tuple } from '@scada3d/core';
-import type { FlowRow } from './FlowPanel';
+import type { TagRow } from './DemoFeed';
 
 // MVP demo network: tank -> valve -> pipe -> tee, tee run to valve A, tee branch up to valve B.
 // Gaps between ports are filled by routed pipes; the tank stands on the grid (y = 1.535).
@@ -33,12 +33,24 @@ export const demoScene: ScadaScene = {
     { id: 'tee-a', from: { instanceId: 'tee', portId: 'right' }, to: { instanceId: 'valve-a', portId: 'in' } },
     { id: 'tee-b', from: { instanceId: 'tee', portId: 'branch' }, to: { instanceId: 'valve-b', portId: 'in' } },
   ],
+  tagBindings: [
+    { id: 'b-level', tagId: 'LT-101', kind: 'property', instanceId: 'tank', property: 'level' },
+    { id: 'b-temp', tagId: 'TT-101', kind: 'property', instanceId: 'tank', property: 'temperature' },
+    { id: 'b-xv', tagId: 'XV-101', kind: 'property', instanceId: 'valve', property: 'open' },
+    { id: 'b-ft1', tagId: 'FT-101', kind: 'flow', connectionId: 'tank-valve' },
+    { id: 'b-ft2', tagId: 'FT-102', kind: 'flow', connectionId: 'valve-pipe' },
+    { id: 'b-ft3', tagId: 'FT-103', kind: 'flow', connectionId: 'pipe-tee' },
+    { id: 'b-ft4', tagId: 'FT-104', kind: 'flow', connectionId: 'tee-a' },
+  ],
 };
 
-/** Demo flow feed: everything flows forward except the tee branch, which has no reading (unknown). */
-export const demoFlowRows: Record<string, FlowRow> = {
-  'tank-valve': { rate: '2', quality: 'GOOD' },
-  'valve-pipe': { rate: '2', quality: 'GOOD' },
-  'pipe-tee': { rate: '2', quality: 'GOOD' },
-  'tee-a': { rate: '1.2', quality: 'GOOD' },
+/** Demo tag feed: flow tags in m³/s, level in %, temperature in °C, valve open as true/false. FT for the tee branch is not bound, so it stays unknown. */
+export const demoTagRows: Record<string, TagRow> = {
+  'FT-101': { value: '2', quality: 'GOOD' },
+  'FT-102': { value: '2', quality: 'GOOD' },
+  'FT-103': { value: '2', quality: 'GOOD' },
+  'FT-104': { value: '1.2', quality: 'GOOD' },
+  'LT-101': { value: '60', quality: 'GOOD' },
+  'TT-101': { value: '25', quality: 'GOOD' },
+  'XV-101': { value: 'true', quality: 'GOOD' },
 };

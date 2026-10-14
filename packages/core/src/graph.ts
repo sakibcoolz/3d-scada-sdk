@@ -10,7 +10,7 @@ export interface GraphError {
 
 export type GraphResult = { ok: true; scene: ScadaScene } | { ok: false; error: GraphError };
 
-export type GraphOptions = Pick<SceneValidationOptions, 'resolvePorts' | 'limits'>;
+export type GraphOptions = Pick<SceneValidationOptions, 'resolvePorts' | 'resolveBindable' | 'limits'>;
 
 /**
  * Adds one edge. The candidate scene goes through `validateScene`, so the same rules apply as on
@@ -29,7 +29,8 @@ export function disconnect(scene: ScadaScene, connectionId: string): GraphResult
   if (!scene.connections.some((c) => c.id === connectionId)) {
     return { ok: false, error: { code: 'UNKNOWN_CONNECTION', message: `No connection "${connectionId}".` } };
   }
-  return { ok: true, scene: { ...scene, connections: scene.connections.filter((c) => c.id !== connectionId) } };
+  const next = { ...scene, connections: scene.connections.filter((c) => c.id !== connectionId) };
+  return { ok: true, scene: withoutDanglingBindings(next) };
 }
 
 /** Removes a component together with every edge that touches it, so no edge is left dangling. */
@@ -37,14 +38,21 @@ export function removeComponent(scene: ScadaScene, instanceId: string): GraphRes
   if (!scene.components.some((c) => c.id === instanceId)) {
     return { ok: false, error: { code: 'UNKNOWN_INSTANCE', message: `No component "${instanceId}".` } };
   }
-  return {
-    ok: true,
-    scene: {
-      ...scene,
-      components: scene.components.filter((c) => c.id !== instanceId),
-      connections: scene.connections.filter((c) => c.from.instanceId !== instanceId && c.to.instanceId !== instanceId),
-    },
+  const next = {
+    ...scene,
+    components: scene.components.filter((c) => c.id !== instanceId),
+    connections: scene.connections.filter((c) => c.from.instanceId !== instanceId && c.to.instanceId !== instanceId),
   };
+  return { ok: true, scene: withoutDanglingBindings(next) };
+}
+
+/** Drops tag bindings whose component or connection no longer exists. Absent bindings stay absent. */
+function withoutDanglingBindings(scene: ScadaScene): ScadaScene {
+  if (!scene.tagBindings) return scene;
+  const components = new Set(scene.components.map((c) => c.id));
+  const connections = new Set(scene.connections.map((c) => c.id));
+  const tagBindings = scene.tagBindings.filter((b) => (b.kind === 'property' ? components.has(b.instanceId) : connections.has(b.connectionId)));
+  return { ...scene, tagBindings };
 }
 
 export function connectionsOf(scene: ScadaScene, instanceId: string): SceneConnection[] {

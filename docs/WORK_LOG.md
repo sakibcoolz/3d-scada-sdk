@@ -261,3 +261,20 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: camera-facing cutaway plane (fixed +Z for now), heat from live observations (T-016), transparency sorting tests with many overlapping glass parts, material disposal leak test.
 - Status: T-015 REVIEW until PR is merged. With T-015 merged, all M5 tasks (T-013–T-015) are done.
 - Handoff: next is M6, starting with T-016 (read-only telemetry: tag bindings, quality and timestamps). ADR-0005 awaits an owner decision.
+
+## 2026-10-15 — T-016 read-only telemetry with tag bindings
+- Branch: `feat/T-016-telemetry` (from `feat/T-015-view-modes` @ `f126d37`, PR #24 open; PR targets `develop` directly).
+- Owner decision: tag bindings as an optional field in scene version 2 (ADR-0006, accepted).
+- Graphify: index NOT built. Fallback: read validator, serialization, graph, flow resolver and viewer directly.
+- Scope: (A) `TagBinding` and `Quantity` types, catalog `bindable` (tank level/temperature, valve open), `units.ts` canonical units and conversions, validation rules and error codes, canonical serialization, binding cascades on remove/disconnect, `resolveBindable` in validation/graph options and on import/drop. (B) `observation.ts` shared quality/timestamp rules (flow refactored onto it), `resolveTelemetry` and `displayScene`, `telemetryView.ts` (`describeProperty`, `summarizeTelemetry`), viewer/editor `telemetry` prop, grey valve for untrusted open state, tag-binding editor with live values, demo tag feed (`DemoFeed.tsx`, replacing the per-connection flow panel) and demo bindings.
+- Tests written first: 32 binding tests, 21 telemetry tests, 5 telemetry-view tests and 3 telemetry e2e tests failed before implementation. A fixture bug (passing `undefined` triggered the default bindings) was fixed with a `null` sentinel. Tag fields commit on Enter/blur so type-then-clear are two undo steps; flow e2e labels moved from per-connection rates to tags.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (497 tests).
+  - `pnpm build` PASS (via e2e web server).
+  - `pnpm test:e2e` PASS (25 tests).
+  - Browser screenshot: demo tank selected in glass mode with live values, stale valve tag shown grey.
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: authored property controls do not yet say they are overridden by a live tag; INVALID_UNIT on flow tags surfaces as INVALID_VALUE; DataProvider/subscription API and no-network/cleanup tests (T-017).
+- Status: T-016 REVIEW until PR is merged (after #24).
+- Handoff: next is T-017 (optional DataProvider snapshot/subscribe or setTagValues API; no-network test and cleanup). ADR-0005 awaits an owner decision.

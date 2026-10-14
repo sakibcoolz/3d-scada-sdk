@@ -16,6 +16,8 @@ export interface ComponentDefinition {
   label: string;
   ports: ConnectionPort[];
   defaultSize: Vector3Tuple;
+  /** Properties a host tag may drive, with the physical quantity of each. */
+  bindable?: Readonly<Record<string, Quantity>>;
 }
 export interface ComponentInstance {
   id: string;
@@ -33,12 +35,25 @@ export interface SceneConnection {
   from: { instanceId: string; portId: string };
   to: { instanceId: string; portId: string };
 }
+/** Physical quantity of a bindable value; fixes its canonical unit (see `canonicalUnits`). */
+export type Quantity = 'percent' | 'temperature' | 'boolean' | 'flow';
+
+/**
+ * Authored link from a host tag to what it drives (ADR-0006). `unit` is the unit the tag's values
+ * arrive in when an observation does not say; values are converted to the canonical unit.
+ */
+export type TagBinding =
+  | { id: string; tagId: string; kind: 'property'; instanceId: string; property: string; unit?: string }
+  | { id: string; tagId: string; kind: 'flow'; connectionId: string; unit?: string };
+
 export const SCENE_SCHEMA_VERSION = 2;
 export interface ScadaScene {
   schemaVersion: 2;
   units: 'm';
   components: ComponentInstance[];
   connections: SceneConnection[];
+  /** Optional; absent when the scene has no bindings. */
+  tagBindings?: TagBinding[];
 }
 export function createEmptyScene(): ScadaScene {
   return { schemaVersion: 2, units: 'm', components: [], connections: [] };

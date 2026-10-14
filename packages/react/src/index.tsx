@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { createEmptyScene, portToWorld, removeComponent, resolveFlow, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { createEmptyScene, displayScene, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
 
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
 import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile';
+import { describeProperty, summarizeTelemetry } from './telemetryView';
 import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance';
 import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances, pathLengths, pointAt, summarizeFlow } from './flowVisual';
 
@@ -16,11 +17,14 @@ export { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type Dr
 export { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
 export { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES, type SceneImport } from './sceneFile';
 export { flowAppearance, summarizeFlow, type FlowAppearance } from './flowVisual';
+export { describeProperty, summarizeTelemetry } from './telemetryView';
 export { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type LiquidFill, type ShellLook, type ViewMode } from './appearance';
 
 const LIQUID_COLOR = '#2a9dce';
+/** Valve ball colour when its bound open/closed tag cannot be trusted. */
+const VALVE_UNKNOWN = '#8a96a3';
 
-function Equipment({ component, viewMode, selected, onSelect, objectRef }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void }) {
+function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void; /** Bound properties whose live value cannot be trusted. */ unknown?:ReadonlySet<string> }) {
   const definition = componentCatalog[component.type];
   const geometries = useMemo(() => createEquipmentGeometries(definition), [definition]);
   useEffect(() => () => disposeGeometries(geometries), [geometries]);
@@ -43,7 +47,7 @@ function Equipment({ component, viewMode, selected, onSelect, objectRef }: { com
         const bottom = part.center[1] - part.length / 2;
         return <mesh key={i} geometry={geometry} userData={tag('liquid')} visible={(fill.fraction ?? 0) > 0} scale={[1, height, 1]} position={[0, bottom * (1 - height), 0]}><meshStandardMaterial color={liquidColor} transparent opacity={0.65} depthWrite={false}/></mesh>;
       }
-      if (part.role === 'valve-ball') return <mesh key={i} geometry={geometry} userData={tag('valve-ball')}><meshStandardMaterial color={open?'#48b983':'#e76e75'}/></mesh>;
+      if (part.role === 'valve-ball') return <mesh key={i} geometry={geometry} userData={tag('valve-ball')}><meshStandardMaterial color={unknown?.has('open')?VALVE_UNKNOWN:open?'#48b983':'#e76e75'}/></mesh>;
       if (part.role === 'valve-handle') return <mesh key={i} geometry={geometry} userData={tag('valve-handle')} rotation={[0, open ? 0 : Math.PI / 2, 0]}><meshStandardMaterial color="#e3d5a5"/></mesh>;
       return <mesh key={i} geometry={geometry} userData={tag('shell')}>
         <meshStandardMaterial key={viewMode} {...shellProps}/>
@@ -125,6 +129,24 @@ export interface FlowInput {
   staleAfterMs?: number;
 }
 
+/** Host-supplied tag observations for the scene's tag bindings. Omit it to show authored values. */
+export interface TelemetryInput {
+  observations: readonly Observation[];
+  /** Which observations to use; measured and simulated are never mixed. Default MEASURED. */
+  source?: ValueSource;
+  staleAfterMs?: number;
+}
+
+const resolveBindable = (type: ComponentKind) => componentCatalog[type].bindable;
+
+/** Resolves telemetry against a clock refreshed every second, so values age into STALE. */
+function useTelemetry(scene: ScadaScene, telemetry: TelemetryInput | undefined, now: number) {
+  return useMemo(
+    () => (telemetry ? resolveTelemetry(scene, telemetry.observations, { now, source: telemetry.source, staleAfterMs: telemetry.staleAfterMs, resolveBindable }) : undefined),
+    [scene, telemetry, now],
+  );
+}
+
 /** Hands the active R3F camera to code outside the canvas (used for pointer-to-plane raycasts). */
 function CameraBridge({ onCamera }: { onCamera: (camera: Camera) => void }) {
   const camera = useThree((state) => state.camera);
@@ -156,22 +178,33 @@ export type TransformHandler = (id: string, position: Vector3Tuple, rotation: Qu
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput}) {
+export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput}) {
   const routes = useMemo(() => routeScene(scene, { resolvePorts }), [scene]);
   const now = useNow(1000);
-  const flowStates = useMemo(
-    () => (flow ? resolveFlow(scene, flow.readings, { now, source: flow.source, staleAfterMs: flow.staleAfterMs }).states : undefined),
-    [scene, flow, now],
-  );
+  const live = useTelemetry(scene, telemetry, now);
+  // What is drawn: live values over authored ones; never saved.
+  const shown = useMemo(() => (live ? displayScene(scene, live.properties) : scene), [scene, live]);
+  const unknownByComponent = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const p of live?.properties ?? []) if (p.status === 'unknown') map.set(p.instanceId, new Set([...(map.get(p.instanceId) ?? []), p.property]));
+    return map;
+  }, [live]);
+  const hasFlowBindings = scene.tagBindings?.some((b) => b.kind === 'flow') ?? false;
+  const flowStates = useMemo(() => {
+    if (!flow && !(live && hasFlowBindings)) return undefined;
+    // One source per view: explicit readings and tag-derived readings use the same source filter.
+    const readings = [...(flow?.readings ?? []), ...(live?.flowReadings ?? [])];
+    return resolveFlow(scene, readings, { now, source: flow?.source ?? telemetry?.source, staleAfterMs: flow?.staleAfterMs ?? telemetry?.staleAfterMs }).states;
+  }, [scene, flow, live, hasFlowBindings, now, telemetry]);
   const stateById = useMemo(() => new Map(flowStates?.map((s) => [s.connectionId, s])), [flowStates]);
-  const showHeatLegend = scene.components.some((c) => heatColor(c.properties.temperature) !== undefined);
+  const showHeatLegend = shown.components.some((c) => heatColor(c.properties.temperature) !== undefined);
   const [selectedObject, setSelectedObject] = useState<Object3D | null>(null);
   const gesture = useRef(0);
   return <div style={{position:'relative',width:'100%',height:'100%'}}>
   <Canvas camera={{position:[7,6,9],fov:50}} onCreated={({gl})=>{gl.localClippingEnabled=true;}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
-    {scene.components.map(c=><Equipment key={c.id} component={c} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
+    {shown.components.map(c=><Equipment key={c.id} component={c} unknown={unknownByComponent.get(c.id)} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
     {onTransform && transformMode && selectedId && selectedObject && <TransformControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
       onMouseDown={()=>{gesture.current++;}}
       onObjectChange={()=>onTransform(selectedId, selectedObject.position.toArray() as Vector3Tuple, selectedObject.quaternion.toArray() as QuaternionTuple, `transform:${selectedId}:${gesture.current}`)}/>}
@@ -181,17 +214,58 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     {onCamera && <CameraBridge onCamera={onCamera}/>}
     <OrbitControls makeDefault/><GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport/></GizmoHelper>
   </Canvas>
-  {flow?.source==='SIMULATED'&&<div style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED FLOW</div>}
+  {(flow?.source??telemetry?.source)==='SIMULATED'&&<div style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED FLOW</div>}
   {showHeatLegend&&<div style={{position:'absolute',top:flow?.source==='SIMULATED'?44:10,right:12,padding:'4px 8px',borderRadius:4,background:'#0b1725cc',color:'#ebf2fa',fontSize:12,pointerEvents:'none'}}>
     <div style={{height:8,borderRadius:2,marginBottom:4,background:`linear-gradient(90deg, ${heatColor(HEAT_RANGE_C.min)}, ${heatColor(HEAT_RANGE_C.max)})`}}/>
     Temperature tint {HEAT_RANGE_C.min}–{HEAT_RANGE_C.max} °C (display only, not simulated)
   </div>}
+  {live&&live.properties.length>0&&<div aria-label="Telemetry summary" aria-live="polite" style={{position:'absolute',bottom:flowStates?36:10,left:12,padding:'4px 8px',borderRadius:4,background:'#0b1725cc',color:'#ebf2fa',fontSize:12,pointerEvents:'none'}}>{summarizeTelemetry(live.properties)}</div>}
   {flowStates&&<div aria-label="Flow summary" aria-live="polite" style={{position:'absolute',bottom:10,left:12,padding:'4px 8px',borderRadius:4,background:'#0b1725cc',color:'#ebf2fa',fontSize:12,pointerEvents:'none'}}>{summarizeFlow(flowStates)}</div>}
   </div>;
 }
 
 const defaultProperties = { level: 45, open: true };
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+/** A text field that commits on Enter or blur, so typing a tag is one undo step. */
+function CommitField({ label, value, onCommit }: { label: string; value: string; onCommit: (value: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  return <label style={{display:'block',marginTop:4,fontSize:12}}>{label} <input aria-label={label} value={draft} placeholder="tag id" style={{width:96}}
+    onChange={e=>setDraft(e.target.value)} onBlur={()=>onCommit(draft)} onKeyDown={e=>{if(e.key==='Enter')onCommit(draft);}}/></label>;
+}
+
+/** Tag bindings for the selected component's bindable properties and its connections, plus live values. */
+function BindingsEditor({ component, scene, live, onSet }: {
+  component: ComponentInstance; scene: ScadaScene; live?: readonly PropertyState[];
+  onSet: (match: (b: TagBinding) => boolean, make: (tagId: string) => TagBinding, tagId: string) => void;
+}) {
+  const bindable = componentCatalog[component.type].bindable ?? {};
+  const connections = scene.connections.filter(c => c.from.instanceId === component.id || c.to.instanceId === component.id);
+  const neighbourLabel = (c: typeof connections[number]) => {
+    const otherId = c.from.instanceId === component.id ? c.to.instanceId : c.from.instanceId;
+    const other = scene.components.find(x => x.id === otherId);
+    return other ? componentCatalog[other.type].label : otherId;
+  };
+  const states = live?.filter(p => p.instanceId === component.id) ?? [];
+  if (Object.keys(bindable).length === 0 && connections.length === 0) return null;
+  return <div style={{marginTop:10}}>
+    <small>Tag bindings</small>
+    {Object.keys(bindable).map(property => {
+      const match = (b: TagBinding) => b.kind === 'property' && b.instanceId === component.id && b.property === property;
+      return <CommitField key={property} label={`Tag for ${property}`} value={scene.tagBindings?.find(match)?.tagId ?? ''}
+        onCommit={tag => onSet(match, tagId => ({ id: newId(), tagId, kind: 'property', instanceId: component.id, property }), tag)}/>;
+    })}
+    {connections.map(c => {
+      const match = (b: TagBinding) => b.kind === 'flow' && b.connectionId === c.id;
+      return <CommitField key={c.id} label={`Flow tag for connection to ${neighbourLabel(c)}`} value={scene.tagBindings?.find(match)?.tagId ?? ''}
+        onCommit={tag => onSet(match, tagId => ({ id: newId(), tagId, kind: 'flow', connectionId: c.id }), tag)}/>;
+    })}
+    {states.length > 0 && <ul aria-label="Live values" style={{fontSize:12,paddingLeft:16,margin:'6px 0'}}>
+      {states.map(p => <li key={p.bindingId}>{describeProperty(p, bindable[p.property])}</li>)}
+    </ul>}
+  </div>;
+}
 
 const viewLabels: Record<ViewMode, string> = { normal: 'Normal', glass: 'Glass', xray: 'X-ray', cutaway: 'Cutaway' };
 
@@ -207,7 +281,7 @@ function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
-export function Scada3DEditor({initialScene,onChange,flow}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput}) {
+export function Scada3DEditor({initialScene,onChange,flow,telemetry}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput}) {
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
   const scene=history.present;
   const [selected,setSelected]=useState<string>();
@@ -284,6 +358,18 @@ export function Scada3DEditor({initialScene,onChange,flow}:{initialScene?:ScadaS
     setTimeout(()=>URL.revokeObjectURL(url),0);
   }
   const serialized=useMemo(()=>serializeScene(scene),[scene]);
+  const now=useNow(1000);
+  const live=useTelemetry(scene,telemetry,now);
+  /** Sets or clears the tag for one target; each committed edit is its own undo step. */
+  function setBinding(match:(b:TagBinding)=>boolean, make:(tagId:string)=>TagBinding, tagId:string){
+    const others=(scene.tagBindings??[]).filter(b=>!match(b));
+    const tag=tagId.trim();
+    const existing=scene.tagBindings?.find(match);
+    if((existing?.tagId??'')===tag) return;
+    const tagBindings=tag?[...others,existing?{...existing,tagId:tag}:make(tag)]:others;
+    const {tagBindings:_,...rest}=scene;
+    update(tagBindings.length?{...rest,tagBindings}:rest);
+  }
   const toolButton=(mode:TransformMode,label:string)=><button aria-pressed={transformMode===mode} onClick={()=>setTransformMode(mode)} style={{fontWeight:transformMode===mode?700:400}}>{label}</button>;
   return <div tabIndex={-1} onKeyDown={onKeyDown} style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
     <aside style={{padding:14,borderRight:'1px solid #3c5366'}}>
@@ -298,7 +384,7 @@ export function Scada3DEditor({initialScene,onChange,flow}:{initialScene?:ScadaS
     <main onDragOver={e=>{if(!dragKind.current)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={transform} flow={flow}/>
+      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={transform} flow={flow} telemetry={telemetry}/>
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene):''}</div>
     </main>
     <aside style={{padding:14,borderLeft:'1px solid #3c5366'}}>
@@ -313,6 +399,7 @@ export function Scada3DEditor({initialScene,onChange,flow}:{initialScene?:ScadaS
           <label style={{display:'block',marginTop:8}}>Temperature °C <input type="number" step="1" style={{width:70}} value={typeof component.properties.temperature==='number'?component.properties.temperature:''} onChange={e=>{const {temperature:_,...rest}=component.properties;patch({properties:e.target.value===''?rest:{...rest,temperature:Number(e.target.value)}},`temperature:${component.id}`);}}/></label>
         </>}
         {component.type==='valve'&&<label><input type="checkbox" checked={component.properties.open!==false} onChange={e=>patch({properties:{...component.properties,open:e.target.checked}})}/> Valve open</label>}
+        <BindingsEditor component={component} scene={scene} live={live?.properties} onSet={setBinding}/>
         <label style={{display:'block',marginTop:8}}>Component view <select aria-label="Component view" value={viewOverrides[component.id]??''} onChange={e=>{const value=e.target.value as ViewMode|'';setViewOverrides(({[component.id]:_,...rest})=>value?{...rest,[component.id]:value}:rest);}}><option value="">Use global</option>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
         <p><button onClick={()=>{const result=removeComponent(scene,component.id);if(result.ok)update(result.scene);setSelected(undefined);}}>Remove</button></p>
       </>:<p>Select equipment in the canvas.</p>}
