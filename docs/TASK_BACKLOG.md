@@ -1,24 +1,38 @@
-# Authoritative task backlog
+# Authoritative Implementation Backlog
 
-Allowed status: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. Agents may update status only with linked evidence. Owner reprioritization requires plan update.
+Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR, tests and objective evidence. Dependency order and scope are specified in DEVELOPMENT_PLAN.md.
 
-| ID | Milestone | Priority | Status | Smallest deliverable & acceptance |
-|---|---|---|---|---|
-| T-001 | M0 | P0 | TODO | pnpm clean install, typecheck and build succeed with actual logs |
-| T-002 | M0 | P0 | TODO | CI install/typecheck/build and minimal browser smoke |
-| T-003 | M1 | P0 | TODO | zod/json schema validates scenes and rejects dangling edges |
-| T-004 | M1 | P0 | TODO | world-port position/direction transforms tested with rotations |
-| T-005 | M1 | P0 | TODO | versioned save/load and round-trip fixture/migration |
-| T-006 | M2 | P1 | TODO | accurate configurable tank, valve, pipe, elbow, tee geometry |
-| T-007 | M3 | P0 | TODO | snap compatible ports, disallow invalid connections |
-| T-008 | M3 | P0 | TODO | graph connect/disconnect and branch/cycle fixtures |
-| T-009 | M3 | P1 | TODO | visual pipe routing with bends and tee branching |
-| T-010 | M4 | P1 | TODO | real canvas raycast drag-and-drop on plane |
-| T-011 | M4 | P1 | TODO | transform gizmo, property panel, undo/redo |
-| T-012 | M5 | P1 | TODO | visibly directional fluid motion tied to graph flow state |
-| T-013 | M5 | P1 | TODO | glass/X-ray/section modes and tank interior |
-| T-014 | M6 | P1 | TODO | adapter mapping and stale/quality indicators |
-| T-015 | M7 | P1 | TODO | packaging/exports/semver, API extraction and consumer demo |
-| T-016 | M7 | P1 | TODO | a11y, disposal, load tests and perf measurements |
+| ID | Gate | Priority | Depends on | Status | Deliverable and proof |
+|---|---|---|---|---|---|
+| T-001 | M0 | P0 | — | TODO | fresh clone pnpm install/typecheck/build passes |
+| T-002 | M0 | P0 | T-001 | TODO | CI, unit/E2E runner and browser smoke |
+| T-003 | M1 | P0 | T-002 | TODO | runtime scene schema and referential validation |
+| T-004 | M1 | P0 | T-003 | TODO | world-space port transforms and unit fixtures |
+| T-005 | M1 | P0 | T-003 | TODO | versioned deterministic scene roundtrip |
+| T-006 | M2 | P0 | T-004 | TODO | aligned industrial geometry, ports, disposal |
+| T-007 | M3 | P0 | T-004,T-006 | TODO | compatible snap search and transform solver |
+| T-008 | M3 | P0 | T-003,T-007 | TODO | persistent graph, cycles, tee and occupancy |
+| T-009 | M3 | P0 | T-008 | TODO | pipe routing, elbow and tee geometry |
+| T-010 | M4 | P0 | T-007,T-009 | TODO | 3D canvas raycast drag/drop |
+| T-011 | M4 | P0 | T-005,T-010 | TODO | gizmos and atomic undo/redo |
+| T-012 | M4 | P0 | T-011 | TODO | scene import/export and browser roundtrip |
+| T-013 | M5 | P1 | T-008,T-009 | TODO | measured/simulated flow-state resolver |
+| T-014 | M5 | P1 | T-013 | TODO | animated directional flow and stale cases |
+| T-015 | M5 | P1 | T-006,T-011 | TODO | glass, X-ray, cutaway, water and heat |
+| T-016 | M6 | P1 | T-012,T-013 | TODO | read-only telemetry, tag quality/timestamps |
+| T-017 | M6 | P1 | T-016 | TODO | WebSocket adapter lifecycle |
+| T-018 | M6 | P1 | T-017 | TODO | MQTT-over-WebSocket and edge OPC UA example |
+| T-019 | M7 | P1 | T-006 | TODO | sanitized SVG extrusion/reference mapping |
+| T-020 | M7 | P1 | T-019 | TODO | glTF importer, provenance and disposal |
+| T-021 | M7 | P2 | T-013,T-016 | TODO | mass-balance simulation and fixtures |
+| T-022 | M7 | P2 | T-021 | TODO | optional pressure model, verified assumptions |
+| T-023 | M7 | P1 | T-002,T-015,T-018,T-020 | TODO | perf/security/a11y and API hardening |
+| T-024 | M8 | P0 | T-023 | TODO | independent consumer release verification |
+| T-025 | Research | P2 | T-021 | TODO | CFD research ADR; not MVP |
+| T-026 | Research | P2 | T-011 | TODO | optional rigid-body ADR; not core |
+| T-027 | Tooling | P1 | T-001 | TODO | local Graphify index, source-linked query/freshness, agent integration, token benchmark |
 
-**Agent start here:** pick the earliest unblocked P0 task with dependencies accepted. Before marking DONE add PR, test evidence and doc links.
+## Execution rules
+- Pick earliest unblocked P0 unless owner changes priority; T-027 may proceed alongside M1 after T-001.
+- Graphify guides navigation but doesn't replace code inspection, tests or accepted requirements.
+- Mark DONE only with PR and evidence. Block uncertain safety/security requirements rather than improvising.

@@ -3,3 +3,5 @@ dist/
 .vite/
 *.tsbuildinfo
 .DS_Store
+# Generated Graphify indexes and reports (local private code metadata)
+graphify-out/
