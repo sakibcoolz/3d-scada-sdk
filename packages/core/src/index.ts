@@ -10,3 +10,4 @@ export * from './serialization';
 export * from './flow';
 export * from './observation';
 export * from './telemetry';
+export * from './dataInput';

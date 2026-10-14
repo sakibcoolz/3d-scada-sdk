@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { createEmptyScene, displayScene, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { connectProvider, createEmptyScene, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
@@ -131,10 +131,36 @@ export interface FlowInput {
 
 /** Host-supplied tag observations for the scene's tag bindings. Omit it to show authored values. */
 export interface TelemetryInput {
-  observations: readonly Observation[];
+  /** Observations passed directly, e.g. from the host's own state. */
+  observations?: readonly Observation[];
+  /** Optional host data provider; subscribed on mount and unsubscribed on unmount. The SDK opens no connection itself. */
+  provider?: DataProvider;
   /** Which observations to use; measured and simulated are never mixed. Default MEASURED. */
   source?: ValueSource;
   staleAfterMs?: number;
+}
+
+/** Imperative handle of `Scada3DViewer` and `Scada3DEditor`. */
+export interface ScadaHandle {
+  /** Pushes observations, e.g. from a host callback; newest per tag wins and older ones are ignored. */
+  setTagValues(observations: readonly Observation[]): void;
+}
+
+/**
+ * Combines directly passed observations, a provider subscription and values pushed through the
+ * handle into one telemetry input. Telemetry is active when the prop is given or values were pushed.
+ */
+function useTelemetryFeed(telemetry: TelemetryInput | undefined, ref: React.Ref<ScadaHandle> | undefined): TelemetryInput | undefined {
+  const [store] = useState(() => createObservationStore());
+  const provider = telemetry?.provider;
+  useEffect(() => (provider ? connectProvider(store, provider) : undefined), [store, provider]);
+  useImperativeHandle(ref, () => ({ setTagValues: (observations) => void store.set(observations) }), [store]);
+  const fed = useSyncExternalStore(store.subscribe, store.get, store.get);
+  return useMemo(() => {
+    if (!telemetry && fed.length === 0) return undefined;
+    const { provider: _, ...rest } = telemetry ?? {};
+    return { ...rest, observations: [...(telemetry?.observations ?? []), ...fed] };
+  }, [telemetry, fed]);
 }
 
 const resolveBindable = (type: ComponentKind) => componentCatalog[type].bindable;
@@ -142,7 +168,7 @@ const resolveBindable = (type: ComponentKind) => componentCatalog[type].bindable
 /** Resolves telemetry against a clock refreshed every second, so values age into STALE. */
 function useTelemetry(scene: ScadaScene, telemetry: TelemetryInput | undefined, now: number) {
   return useMemo(
-    () => (telemetry ? resolveTelemetry(scene, telemetry.observations, { now, source: telemetry.source, staleAfterMs: telemetry.staleAfterMs, resolveBindable }) : undefined),
+    () => (telemetry ? resolveTelemetry(scene, telemetry.observations ?? [], { now, source: telemetry.source, staleAfterMs: telemetry.staleAfterMs, resolveBindable }) : undefined),
     [scene, telemetry, now],
   );
 }
@@ -178,7 +204,8 @@ export type TransformHandler = (id: string, position: Vector3Tuple, rotation: Qu
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput}) {
+export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;ref?:React.Ref<ScadaHandle>}) {
+  const telemetry = useTelemetryFeed(telemetryInput, ref);
   const routes = useMemo(() => routeScene(scene, { resolvePorts }), [scene]);
   const now = useNow(1000);
   const live = useTelemetry(scene, telemetry, now);
@@ -281,7 +308,9 @@ function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
-export function Scada3DEditor({initialScene,onChange,flow,telemetry}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput}) {
+export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;ref?:React.Ref<ScadaHandle>}) {
+  // The editor owns the feed; the viewer below only receives the merged observations.
+  const telemetry=useTelemetryFeed(telemetryInput,ref);
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
   const scene=history.present;
   const [selected,setSelected]=useState<string>();
