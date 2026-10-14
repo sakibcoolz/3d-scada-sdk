@@ -26,7 +26,7 @@ This is **target schema**, not necessarily current code. The v2 shape is propose
 - Structure first: object root, `version === 1`, required arrays, non-empty ids, three finite numbers for position/rotation, property values limited to string/boolean/finite number. Unknown fields are rejected (`UNKNOWN_FIELD`), not dropped.
 - References only after structure is valid: unique component and connection ids, known component kind, endpoints resolve to an existing instance and declared port, no self-connection, `portsCompatible` domain and bore, one connection per port (`PORT_OCCUPIED`), no repeated pair in either direction (`DUPLICATE_EDGE`). Tees and loops are valid.
 - Default limits (`defaultSceneLimits`): 10,000 components, 20,000 connections, 128-character ids, 64 properties per component, 1,024-character strings.
-- Not yet checked: port normal alignment and world-space position (T-004/T-007), per-port capacity other than one, per-kind property schemas.
+- Not yet checked: port normal alignment and world-space proximity (T-007), per-port capacity other than one, per-kind property schemas.
 
 ## Invariants
 - Instance IDs and edge IDs unique.
@@ -38,6 +38,9 @@ This is **target schema**, not necessarily current code. The v2 shape is propose
 - World endpoint positions derived by composing local port transforms with component transforms.
 - Geometry and adjacency stay synchronized under move/rotate/undo/redo.
 - Invalid input yields typed validation error; never silently mutate graph.
+
+## World-space ports (T-004)
+`portToWorld(component, port)` in `@scada3d/core` returns `{ id, position, direction }` in world space. The local port position is rotated about the component origin and then translated by `component.position`; the direction is normalized and only rotated. `rotateVector(v, rotation)` uses intrinsic Euler XYZ (matrix Rx · Ry · Rz, Z applied first), identical to Three.js `Euler(x, y, z, 'XYZ')` used by the renderer; a test in `packages/react` checks every catalog port against Three.js. v1 has no scale or nested transforms. A zero-length port direction throws.
 
 ## Snap algorithm target
 1. Raycast dragged component/port into scene.

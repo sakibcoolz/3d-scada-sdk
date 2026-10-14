@@ -70,3 +70,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: editor and playground do not call `validateScene` yet (import UI is T-012); port orientation and world transforms are T-004.
 - Status: T-003 REVIEW until PR is merged.
 - Handoff: next dependency-ready tasks are T-004 (world-space port transforms) and T-005 (versioned roundtrip; needs ADR-0004 decision).
+
+## 2026-10-15 — T-004 world-space port transforms
+- Branch: `feat/T-004-world-ports` (stacked on `feat/T-003-scene-validation` @ `f4b45c2`, PR #10 not yet merged).
+- Graphify: index NOT built. Fallback: read `packages/core/src/scene.ts`, the catalog and the renderer's `<group position rotation>` usage.
+- Scope: `rotateVector` and `portToWorld` in `packages/core/src/transforms.ts` (pure, no dependencies). Euler XYZ intrinsic order matching Three.js; v1 has no scale.
+- Tests written first: 62 new tests failed before implementation (`portToWorld is not a function`). Core fixtures cover identity, ±90°/180°/360° about each axis, order dependence, length preservation, translation vs direction, unit normals and zero-length rejection. `packages/react/src/ports.test.ts` cross-checks all 10 catalog ports under 5 transforms against Three.js `Object3D`.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (117 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (1 test).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: nested transforms, scale (ADR-0004), snapping and normal-opposition checks (T-007). Renderer still draws port markers itself rather than through `portToWorld`.
+- Status: T-004 REVIEW until PR is merged.
+- Handoff: T-005 (versioned roundtrip) needs the ADR-0004 decision; T-006 (industrial geometry) is now dependency-ready after T-004.
