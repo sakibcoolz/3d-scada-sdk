@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   findSnapCandidates,
+  quaternionFromEuler,
   portToWorld,
   snapComponent,
   validateScene,
@@ -29,21 +30,23 @@ const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = {
   sensor: [{ id: 'signal', kind: 'signal', position: [-0.15, 0, 0], direction: [-1, 0, 0] }],
 };
 
-const options: SnapOptions = { resolvePorts: (kind) => ports[kind] };
+const options: SnapOptions = { resolvePorts: (type) => ports[type] };
 
-const instance = (id: string, kind: ComponentKind, position: Vector3Tuple, rotation: Vector3Tuple = [0, 0, 0]): ComponentInstance => ({
+/** Fixture rotations are written as Euler XYZ radians for readability. */
+const instance = (id: string, type: ComponentKind, position: Vector3Tuple, rotation: Vector3Tuple = [0, 0, 0]): ComponentInstance => ({
   id,
-  kind,
+  type,
   position,
-  rotation,
+  rotation: quaternionFromEuler(rotation),
+  scale: [1, 1, 1],
   properties: {},
 });
 
 const tank = instance('tank-1', 'tank', [0, 0, 0]);
 // Tank outlet is at world (1.2, -0.9, 0) facing +X.
-const sceneWith = (...components: ComponentInstance[]): ScadaScene => ({ version: 1, components, connections: [] });
+const sceneWith = (...components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 2, units: 'm', components, connections: [] });
 
-function expectClose(actual: Vector3Tuple, expected: Vector3Tuple, digits = 9): void {
+function expectClose(actual: readonly number[], expected: readonly number[], digits = 9): void {
   actual.forEach((value, i) => expect(value).toBeCloseTo(expected[i], digits));
 }
 
@@ -131,7 +134,7 @@ describe('findSnapCandidates', () => {
     expect(reverse).toEqual(forward);
   });
 
-  it('ignores components whose kind has no ports', () => {
+  it('ignores components whose type has no ports', () => {
     const pipe = instance('pipe-1', 'pipe', [2.3, -0.9, 0]);
     expect(findSnapCandidates(sceneWith(instance('m', 'motor', [1.3, -0.9, 0])), pipe, options)).toEqual([]);
   });
@@ -172,7 +175,7 @@ describe('snapComponent', () => {
     expect(result).toEqual(expect.objectContaining({ ok: true }));
     if (!result.ok) return;
     expectClose(result.position, [2.2, -0.9, 0]);
-    expectClose(result.rotation, [0, 0, 0]);
+    expectClose(result.rotation, [0, 0, 0, 1]);
   });
 
   it('produces a connection that the scene validator accepts', () => {
@@ -180,7 +183,8 @@ describe('snapComponent', () => {
     const result = snapComponent(sceneWith(tank), pipe, options);
     if (!result.ok) throw new Error('expected a snap');
     const scene = {
-      version: 1,
+      schemaVersion: 2,
+      units: 'm',
       components: [tank, { ...pipe, position: result.position, rotation: result.rotation }],
       connections: [{ id: 'e1', ...result.connection }],
     };

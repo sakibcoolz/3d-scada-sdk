@@ -30,13 +30,14 @@ const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = {
   tee: [fluid('left'), fluid('right'), fluid('branch')],
 };
 
-const options: GraphOptions = { resolvePorts: (kind) => ports[kind] };
+const options: GraphOptions = { resolvePorts: (type) => ports[type] };
 
-const component = (id: string, kind: ComponentKind): ComponentInstance => ({
+const component = (id: string, type: ComponentKind): ComponentInstance => ({
   id,
-  kind,
+  type,
   position: [0, 0, 0],
-  rotation: [0, 0, 0],
+  rotation: [0, 0, 0, 1],
+  scale: [1, 1, 1],
   properties: {},
 });
 
@@ -49,7 +50,8 @@ const edge = (id: string, from: [string, string], to: [string, string]): SceneCo
 /** tank -> valve -> tee, tee branches to valve-a and valve-b; valve-x stands alone. */
 function teeNetwork(): ScadaScene {
   return {
-    version: 1,
+    schemaVersion: 2,
+      units: 'm',
     components: [
       component('tank', 'tank'),
       component('valve', 'valve'),
@@ -112,7 +114,8 @@ describe('connect', () => {
 
   it('allows closing a loop', () => {
     const scene: ScadaScene = {
-      version: 1,
+      schemaVersion: 2,
+      units: 'm',
       components: [component('a', 'valve'), component('b', 'valve')],
       connections: [edge('e1', ['a', 'out'], ['b', 'in'])],
     };
@@ -177,7 +180,8 @@ describe('reachableComponents', () => {
 
   it('terminates on a cycle', () => {
     const loop: ScadaScene = {
-      version: 1,
+      schemaVersion: 2,
+      units: 'm',
       components: [component('a', 'valve'), component('b', 'valve'), component('t', 'tee')],
       connections: [
         edge('e1', ['a', 'out'], ['t', 'left']),
@@ -197,7 +201,8 @@ describe('reachableComponents', () => {
     const count = 5000;
     const components = Array.from({ length: count }, (_, i) => component(`v${i}`, 'valve'));
     const connections = Array.from({ length: count - 1 }, (_, i) => edge(`e${i}`, [`v${i}`, 'out'], [`v${i + 1}`, 'in']));
-    expect(reachableComponents({ version: 1, components, connections }, 'v0')).toHaveLength(count);
+    expect(reachableComponents({ schemaVersion: 2,
+      units: 'm', components, connections }, 'v0')).toHaveLength(count);
   });
 });
 
@@ -207,6 +212,7 @@ describe('connectedGroups', () => {
   });
 
   it('returns no groups for an empty scene', () => {
-    expect(connectedGroups({ version: 1, components: [], connections: [] })).toEqual([]);
+    expect(connectedGroups({ schemaVersion: 2,
+      units: 'm', components: [], connections: [] })).toEqual([]);
   });
 });

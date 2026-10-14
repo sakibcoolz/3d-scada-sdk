@@ -23,13 +23,14 @@ const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = {
   sensor: [{ id: 'signal', kind: 'signal', position: [0, 0, 0], direction: [0, 1, 0] }],
 };
 
-const options: SceneValidationOptions = { resolvePorts: (kind) => ports[kind] };
+const options: SceneValidationOptions = { resolvePorts: (type) => ports[type] };
 
-const component = (id: string, kind: ComponentKind) => ({
+const component = (id: string, type: ComponentKind) => ({
   id,
-  kind,
+  type,
   position: [0, 0, 0],
-  rotation: [0, 0, 0],
+  rotation: [0, 0, 0, 1],
+  scale: [1, 1, 1],
   properties: {},
 });
 
@@ -40,7 +41,8 @@ const edge = (id: string, from: [string, string], to: [string, string]) => ({
 });
 
 const validScene = () => ({
-  version: 1,
+  schemaVersion: 2,
+  units: 'm',
   components: [component('tank-1', 'tank'), component('valve-1', 'valve'), component('tee-1', 'tee')],
   connections: [
     edge('e1', ['tank-1', 'outlet'], ['valve-1', 'in']),
@@ -55,9 +57,9 @@ function codes(input: unknown): SceneValidationErrorCode[] {
 
 describe('validateScene: accepted scenes', () => {
   it('accepts an empty scene', () => {
-    expect(validateScene({ version: 1, components: [], connections: [] }, options)).toEqual({
+    expect(validateScene({ schemaVersion: 2, units: 'm', components: [], connections: [] }, options)).toEqual({
       ok: true,
-      scene: { version: 1, components: [], connections: [] },
+      scene: { schemaVersion: 2, units: 'm', components: [], connections: [] },
     });
   });
 
@@ -104,12 +106,16 @@ describe('validateScene: document structure', () => {
     expect(codes(input)).toEqual(['NOT_AN_OBJECT']);
   });
 
-  it.each([0, 2, '1', undefined])('rejects unsupported version %p', (version) => {
+  it.each([0, 2, '1', undefined])('rejects unsupported legacy version %p', (version) => {
     expect(codes({ version, components: [], connections: [] })).toContain('UNSUPPORTED_VERSION');
   });
 
+  it.each([1, 3, '2', null])('rejects unsupported schemaVersion %p', (schemaVersion) => {
+    expect(codes({ schemaVersion, units: 'm', components: [], connections: [] })).toContain('UNSUPPORTED_VERSION');
+  });
+
   it('rejects missing component and connection arrays', () => {
-    const result = validateScene({ version: 1 }, options);
+    const result = validateScene({ schemaVersion: 2, units: 'm' }, options);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.errors.map((e) => [e.code, e.path])).toEqual([
@@ -156,8 +162,10 @@ describe('validateScene: components', () => {
     ['position', [0, 0]],
     ['position', [0, Number.NaN, 0]],
     ['position', [0, Number.POSITIVE_INFINITY, 0]],
-    ['rotation', [0, 0, '1']],
-    ['rotation', [0, 0, 0, 1]],
+    ['rotation', [0, 0, 0, '1']],
+    ['rotation', [0, 0, 0]],
+    ['rotation', [0, 0, 0, 1, 0]],
+    ['scale', [1, 1]],
   ])('rejects malformed %s %p', (field, value) => {
     const scene: Record<string, unknown> = validScene();
     (scene.components as Record<string, unknown>[])[1][field] = value;
@@ -257,7 +265,8 @@ describe('validateScene: connections', () => {
 
   it('allows a closed loop of components', () => {
     const scene = {
-      version: 1,
+      schemaVersion: 2,
+      units: 'm',
       components: [component('a', 'valve'), component('b', 'valve')],
       connections: [edge('e1', ['a', 'out'], ['b', 'in']), edge('e2', ['b', 'out'], ['a', 'in'])],
     };
@@ -273,7 +282,7 @@ describe('validateScene: connections', () => {
 
 describe('validateScene: limits', () => {
   it('rejects more components than the limit', () => {
-    const scene = { version: 1, components: [component('a', 'valve'), component('b', 'valve')], connections: [] };
+    const scene = { schemaVersion: 2, units: 'm', components: [component('a', 'valve'), component('b', 'valve')], connections: [] };
     expect(validateScene(scene, { ...options, limits: { maxComponents: 1 } })).toEqual({
       ok: false,
       errors: [expect.objectContaining({ code: 'LIMIT_EXCEEDED', path: 'components' })],

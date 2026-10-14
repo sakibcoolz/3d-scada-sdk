@@ -24,7 +24,7 @@ function define(definition: Omit<IndustrialComponentDefinition, 'defaultSize'>):
 export const componentCatalog: Record<ComponentKind, IndustrialComponentDefinition> = {
   // Vertical tank: radius 1 m, shell height 3 m, side nozzles 0.2 m long.
   tank: define({
-    kind: 'tank',
+    type: 'tank',
     label: 'Vertical Tank',
     ports: [fluidPort('inlet', [-1.2, 0.8, 0], [-1, 0, 0]), fluidPort('outlet', [1.2, -0.9, 0], [1, 0, 0])],
     bounds: { min: [-1.2, -1.535, -1], max: [1.2, 1.535, 1] },
@@ -38,7 +38,7 @@ export const componentCatalog: Record<ComponentKind, IndustrialComponentDefiniti
     ],
   }),
   pipe: define({
-    kind: 'pipe',
+    type: 'pipe',
     label: 'Straight Pipe',
     ports: [fluidPort('in', [-1, 0, 0], [-1, 0, 0]), fluidPort('out', [1, 0, 0], [1, 0, 0])],
     bounds: { min: [-1, -r, -r], max: [1, r, r] },
@@ -46,7 +46,7 @@ export const componentCatalog: Record<ComponentKind, IndustrialComponentDefiniti
   }),
   // 90° elbow, bend radius 2 × bore. Local origin is where the two pipe axes intersect.
   elbow: define({
-    kind: 'elbow',
+    type: 'elbow',
     label: '90° Elbow',
     ports: [fluidPort('in', [-elbowBendRadius, 0, 0], [-1, 0, 0]), fluidPort('out', [0, elbowBendRadius, 0], [0, 1, 0])],
     bounds: { min: [-elbowBendRadius, -r, -r], max: [r, elbowBendRadius, r] },
@@ -62,7 +62,7 @@ export const componentCatalog: Record<ComponentKind, IndustrialComponentDefiniti
     ],
   }),
   tee: define({
-    kind: 'tee',
+    type: 'tee',
     label: 'T-Junction',
     ports: [
       fluidPort('left', [-1, 0, 0], [-1, 0, 0]),
@@ -76,7 +76,7 @@ export const componentCatalog: Record<ComponentKind, IndustrialComponentDefiniti
     ],
   }),
   valve: define({
-    kind: 'valve',
+    type: 'valve',
     label: 'Ball Valve',
     ports: [fluidPort('in', [-0.6, 0, 0], [-1, 0, 0]), fluidPort('out', [0.6, 0, 0], [1, 0, 0])],
     bounds: { min: [-0.6, -0.2, -0.2], max: [0.6, 0.495, 0.2] },
@@ -89,7 +89,7 @@ export const componentCatalog: Record<ComponentKind, IndustrialComponentDefiniti
   }),
   // End-suction centrifugal pump placeholder: suction on -X, discharge on top.
   pump: define({
-    kind: 'pump',
+    type: 'pump',
     label: 'Centrifugal Pump',
     ports: [fluidPort('suction', [-0.6, 0, 0], [-1, 0, 0]), fluidPort('discharge', [0.3, 0.6, 0], [0, 1, 0])],
     bounds: { min: [-0.6, -0.4, -0.175], max: [0.4, 0.6, 0.175] },
@@ -101,14 +101,14 @@ export const componentCatalog: Record<ComponentKind, IndustrialComponentDefiniti
   }),
   // Placeholders without ports until mechanical and signal connections are designed.
   sensor: define({
-    kind: 'sensor',
+    type: 'sensor',
     label: 'Sensor',
     ports: [],
     bounds: { min: [-0.15, -0.3, -0.15], max: [0.15, 0.3, 0.15] },
     parts: [{ shape: 'box', role: 'shell', center: [0, 0, 0], size: [0.3, 0.6, 0.3] }],
   }),
   motor: define({
-    kind: 'motor',
+    type: 'motor',
     label: 'Motor',
     ports: [],
     bounds: { min: [-0.5, -0.38, -0.38], max: [0.7, 0.38, 0.38] },

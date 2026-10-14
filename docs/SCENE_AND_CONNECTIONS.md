@@ -18,10 +18,11 @@ ConnectionEdge {
   to: {instanceId:string;portId:string};
 }
 ```
-This is **target schema**, not necessarily current code. The v2 shape is proposed in [ADR-0004](adr/0004-scene-document-v2.md) and is not adopted.
+The version 2 shape is implemented ([ADR-0004](adr/0004-scene-document-v2.md), accepted); `tagBindings` is not part of the schema yet.
 
-## Current runtime validation (v1, T-003)
-`validateScene(input, { resolvePorts, limits? })` in `@scada3d/core` validates the current `ScadaScene` (`version: 1`, Euler XYZ rotation in radians, no scale). The caller supplies `resolvePorts` (e.g. from `componentCatalog`) because core does not import the catalog.
+## Current runtime validation (T-003, version 2 since T-005)
+`validateScene(input, { resolvePorts, limits? })` in `@scada3d/core` validates a version 2 `ScadaScene` (`schemaVersion: 2`, `units: 'm'`, components with `type`, `position`, unit-quaternion `rotation`, `scale`, `properties`). Version 1 input (`version: 1`, `kind`, Euler XYZ radians, no scale) is migrated: Euler XYZ → quaternion, `kind` → `type`, scale `[1, 1, 1]`, and the result carries `migratedFrom: 1`. Errors use the input's own field names. The caller supplies `resolvePorts` (e.g. from `componentCatalog`) because core does not import the catalog.
+- Rotation must be four finite numbers with length within 1e-6 of 1 (never renormalised). Scale must be three positive finite numbers. **Scale policy:** components whose type has ports must keep scale `[1, 1, 1]` (`UNSUPPORTED_SCALE`), because scaling would move ports and break the nominal bore; portless types may scale.
 - Returns `{ ok: true, scene }` with a fresh copy, or `{ ok: false, errors }` with typed `{ code, path, message }` errors in input order. Input is never mutated or repaired.
 - Structure first: object root, `version === 1`, required arrays, non-empty ids, three finite numbers for position/rotation, property values limited to string/boolean/finite number. Unknown fields are rejected (`UNKNOWN_FIELD`), not dropped.
 - References only after structure is valid: unique component and connection ids, known component kind, endpoints resolve to an existing instance and declared port, no self-connection, `portsCompatible` domain and bore, one connection per port (`PORT_OCCUPIED`), no repeated pair in either direction (`DUPLICATE_EDGE`). Tees and loops are valid.
@@ -40,7 +41,7 @@ This is **target schema**, not necessarily current code. The v2 shape is propose
 - Invalid input yields typed validation error; never silently mutate graph.
 
 ## World-space ports (T-004)
-`portToWorld(component, port)` in `@scada3d/core` returns `{ id, position, direction }` in world space. The local port position is rotated about the component origin and then translated by `component.position`; the direction is normalized and only rotated. `rotateVector(v, rotation)` uses intrinsic Euler XYZ (matrix Rx · Ry · Rz, Z applied first), identical to Three.js `Euler(x, y, z, 'XYZ')` used by the renderer; a test in `packages/react` checks every catalog port against Three.js. v1 has no scale or nested transforms. A zero-length port direction throws.
+`portToWorld(component, port)` in `@scada3d/core` returns `{ id, position, direction }` in world space. The local port position is scaled, rotated by the component quaternion about its origin, then translated by `component.position`; the direction is divided by the scale (normal transform), normalised and rotated. Quaternion helpers live in `quaternion.ts` (`rotateVector`, `quaternionFromEuler`/`quaternionToEuler` for intrinsic XYZ, `quaternionFromUnitVectors`, `multiplyQuaternions`) and match Three.js; a test in `packages/react` checks every catalog port against Three.js `Object3D`. No nested transforms. A zero-length port direction throws.
 
 ## Snap algorithm target
 1. Raycast dragged component/port into scene.
@@ -55,7 +56,7 @@ This is **target schema**, not necessarily current code. The v2 shape is propose
 `findSnapCandidates(scene, moving, options)` and `snapComponent(scene, moving, options)` live in `@scada3d/core` (`snapping.ts`) until a `connection-engine` package is justified. Both are pure and never modify the scene.
 - Candidates are all pairs (moving port, other component's port) whose world anchors are within `maxDistance` (default 0.5 m), sorted by distance, then target instance id, target port id, moving port id. A scene component with the moving component's id is skipped (it is the one being dragged). Linear search; a spatial index is deferred until scenes need it.
 - Status per candidate, checked in this order: `incompatible` (`portsCompatible` domain/bore), `occupied` (either port already in a connection), `misaligned` (moving normal more than `maxAngle`, default π/4, from the reversed target normal), else `ok`.
-- `snapComponent` takes the first `ok` candidate and returns the moving component's new `position` and `rotation` (Euler XYZ) plus the `from`/`to` endpoints, or `NO_CANDIDATE` with the nearest rejected candidate for preview messages. The rotation is the smallest turn that makes the normals oppose, so roll about the port axis is kept; a half turn prefers the world Y axis. The target component never moves.
+- `snapComponent` takes the first `ok` candidate and returns the moving component's new `position` and `rotation` (unit quaternion) plus the `from`/`to` endpoints, or `NO_CANDIDATE` with the nearest rejected candidate for preview messages. The rotation is the smallest turn that makes the normals oppose, so roll about the port axis is kept; a half turn prefers the world Y axis. The target component never moves.
 - Not done here: committing the edge and undo (T-008/T-011), preview UI and Escape cancel (T-010), collision checks.
 
 ## Current graph operations (T-008)
@@ -86,7 +87,9 @@ Distinguish logical edge from render mesh. Support straight runs and determinist
 - Click-to-add from the palette is kept for keyboard use: it rests the component on the ground in a row and never auto-connects.
 - Not done: moving existing components by drag (T-011 gizmos), undo (T-011), drop onto surfaces other than the ground plane.
 
-## Serialization
+## Serialization (T-005)
+`serializeScene(scene)` writes canonical JSON: `schemaVersion: 2` and `units` first, fixed key order for every object, property keys sorted, array order preserved, two-space indent, trailing newline. Only authored fields are written, so save → load → save is byte-identical. `parseScene(text, options)` checks length (`maxLength`, default 10,000,000 characters, `LIMIT_EXCEEDED`), parses (`INVALID_JSON`), then runs `validateScene`, which migrates version 1.
+
 Save authored scene only. Validate on load, reject/diagnose corrupt references, migrate supported versions, round-trip deterministically, avoid using React/Three objects or telemetry stream values in JSON.
 
 ## Required tests

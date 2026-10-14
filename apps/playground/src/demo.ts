@@ -5,16 +5,18 @@ import type { ComponentInstance, ScadaScene, Vector3Tuple } from '@scada3d/core'
 const base = 1.535;
 const line = base - 0.9; // tank outlet height
 
-const at = (id: string, kind: ComponentInstance['kind'], position: Vector3Tuple): ComponentInstance => ({
+const at = (id: string, type: ComponentInstance['type'], position: Vector3Tuple): ComponentInstance => ({
   id,
-  kind,
+  type,
   position,
-  rotation: [0, 0, 0],
-  properties: kind === 'tank' ? { level: 60 } : kind === 'valve' ? { open: true } : {},
+  rotation: [0, 0, 0, 1],
+  scale: [1, 1, 1],
+  properties: type === 'tank' ? { level: 60 } : type === 'valve' ? { open: true } : {},
 });
 
 export const demoScene: ScadaScene = {
-  version: 1,
+  schemaVersion: 2,
+  units: 'm',
   components: [
     at('tank', 'tank', [0, base, 0]),
     at('valve', 'valve', [3, line, 0]),

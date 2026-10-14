@@ -8,7 +8,7 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-002 | M0 | P0 | T-001 | DONE | CI, unit/E2E runner and browser smoke (PRs #8, #9; develop CI green) |
 | T-003 | M1 | P0 | T-002 | DONE | runtime scene schema and referential validation (`validateScene`, v1 shape; PR #10) |
 | T-004 | M1 | P0 | T-003 | DONE | world-space port transforms and unit fixtures (`rotateVector`, `portToWorld`; PR #11) |
-| T-005 | M1 | P0 | T-003 | TODO | versioned deterministic scene roundtrip |
+| T-005 | M1 | P0 | T-003 | REVIEW | versioned deterministic scene roundtrip (scene v2 per ADR-0004, v1 migration, `serializeScene`/`parseScene`) |
 | T-006 | M2 | P0 | T-004 | DONE | aligned industrial geometry, ports, disposal (part descriptors, elbow, geometry disposal; PR #13) |
 | T-007 | M3 | P0 | T-004,T-006 | DONE | compatible snap search and transform solver (`findSnapCandidates`, `snapComponent`; PR #14) |
 | T-008 | M3 | P0 | T-003,T-007 | DONE | persistent graph, cycles, tee and occupancy (`connect`, `disconnect`, `removeComponent`, traversal; PR #15) |

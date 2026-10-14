@@ -110,7 +110,7 @@ type Observation = {
 };
 ```
 
-The bootstrap uses a simpler `ScadaScene` and Euler rotation tuple. **Do not silently migrate it to this draft schema**: M1 requires an ADR/version and round-trip migration tests.
+**Implemented (T-005, ADR-0004 accepted):** `ScadaScene` is this version 2 document (`schemaVersion: 2`, `units: 'm'`, `type`, quaternion `rotation`, `scale`). Version 1 files (`version: 1`, `kind`, Euler XYZ) are migrated on load; saves always write version 2. `tagBindings` is not part of the schema yet.
 
 Geometry coordinates: right-handed, **Y up**, metres; angles in radians. Ports use local-space coordinates and **outward normals**. Nonuniform scaling of connected parts requires an explicit documented restriction or transform policy. Flow/volume units must be converted explicitly (litres vs cubic metres, pressure and temperature) at typed boundaries.
 

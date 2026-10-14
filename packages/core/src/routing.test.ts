@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  quaternionFromEuler,
   routeConnection,
   routeScene,
   type ComponentInstance,
@@ -22,7 +23,7 @@ const teePorts: ConnectionPort[] = [
   { id: 'branch', kind: 'fluid', position: [0, 1, 0], direction: [0, 1, 0], nominalSize: 0.15 },
 ];
 const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = { sensor: [nozzlePort], tee: teePorts };
-const options: RoutingOptions = { resolvePorts: (kind) => ports[kind], bendRadius: R };
+const options: RoutingOptions = { resolvePorts: (type) => ports[type], bendRadius: R };
 
 /** Rotations that turn local +X into each world axis. */
 const facing = {
@@ -36,15 +37,17 @@ const facing = {
 
 const nozzle = (id: string, position: Vector3Tuple, face: keyof typeof facing | Vector3Tuple): ComponentInstance => ({
   id,
-  kind: 'sensor',
+  type: 'sensor',
   position,
-  rotation: typeof face === 'string' ? facing[face] : face,
+  rotation: quaternionFromEuler(typeof face === 'string' ? facing[face] : face),
+  scale: [1, 1, 1],
   properties: {},
 });
 
 function pair(a: ComponentInstance, b: ComponentInstance): ScadaScene {
   return {
-    version: 1,
+    schemaVersion: 2,
+    units: 'm',
     components: [a, b],
     connections: [{ id: 'e1', from: { instanceId: a.id, portId: 'p' }, to: { instanceId: b.id, portId: 'p' } }],
   };
@@ -186,10 +189,11 @@ describe('routeConnection', () => {
 
 describe('routeScene', () => {
   const network = (): ScadaScene => ({
-    version: 1,
+    schemaVersion: 2,
+    units: 'm',
     components: [
       nozzle('src', [-3, 0, 0], '+x'),
-      { id: 'tee', kind: 'tee', position: [0, 0, 0], rotation: [0, 0, 0], properties: {} },
+      { id: 'tee', type: 'tee', position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: {} },
       nozzle('a', [3, 0, 0], '-x'),
       nozzle('b', [2, 3, 0], '-x'),
     ],
