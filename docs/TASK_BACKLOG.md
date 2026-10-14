@@ -10,8 +10,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-004 | M1 | P0 | T-003 | DONE | world-space port transforms and unit fixtures (`rotateVector`, `portToWorld`; PR #11) |
 | T-005 | M1 | P0 | T-003 | TODO | versioned deterministic scene roundtrip |
 | T-006 | M2 | P0 | T-004 | DONE | aligned industrial geometry, ports, disposal (part descriptors, elbow, geometry disposal; PR #13) |
-| T-007 | M3 | P0 | T-004,T-006 | REVIEW | compatible snap search and transform solver (`findSnapCandidates`, `snapComponent`) |
-| T-008 | M3 | P0 | T-003,T-007 | TODO | persistent graph, cycles, tee and occupancy |
+| T-007 | M3 | P0 | T-004,T-006 | DONE | compatible snap search and transform solver (`findSnapCandidates`, `snapComponent`; PR #14) |
+| T-008 | M3 | P0 | T-003,T-007 | REVIEW | persistent graph, cycles, tee and occupancy (`connect`, `disconnect`, `removeComponent`, traversal) |
 | T-009 | M3 | P0 | T-008 | TODO | pipe routing, elbow and tee geometry |
 | T-010 | M4 | P0 | T-007,T-009 | TODO | 3D canvas raycast drag/drop |
 | T-011 | M4 | P0 | T-005,T-010 | TODO | gizmos and atomic undo/redo |

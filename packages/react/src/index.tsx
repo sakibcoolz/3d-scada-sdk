@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { DoubleSide } from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
-import type { ComponentInstance, ComponentKind, ScadaScene, Vector3Tuple } from '@scada3d/core';
+import { removeComponent, type ComponentInstance, type ComponentKind, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
 import { createEquipmentGeometries, disposeGeometries } from './geometry';
 
@@ -71,7 +71,7 @@ export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;
         {component.kind==='tank'&&<label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Number(component.properties.level??45)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}})}/></label>}
         {component.kind==='valve'&&<label><input type="checkbox" checked={component.properties.open!==false} onChange={e=>patch({properties:{...component.properties,open:e.target.checked}})}/> Valve open</label>}
         {(component.kind==='pipe'||component.kind==='tee')&&<label><input type="checkbox" checked={component.properties.flowing===true} onChange={e=>patch({properties:{...component.properties,flowing:e.target.checked}})}/> Flow indicator</label>}
-        <p><button onClick={()=>{update({...scene,components:scene.components.filter(c=>c.id!==selected),connections:scene.connections.filter(c=>c.from.instanceId!==selected&&c.to.instanceId!==selected)});setSelected(undefined);}}>Remove</button></p>
+        <p><button onClick={()=>{const result=removeComponent(scene,component.id);if(result.ok)update(result.scene);setSelected(undefined);}}>Remove</button></p>
       </>:<p>Select equipment in the canvas.</p>}
       <hr/><small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={JSON.stringify(scene,null,2)} style={{width:'100%',height:170,boxSizing:'border-box'}}/>
     </aside>

@@ -116,3 +116,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: edge commit and undo (T-008/T-011), drag preview UI (T-010), spatial index, collision checks.
 - Status: T-007 REVIEW until PR is merged.
 - Handoff: next is T-008 (persistent graph, cycles, tee and occupancy), dependency-ready after T-003 and T-007.
+
+## 2026-10-15 — T-008 persistent connection graph
+- Branch: `feat/T-008-connection-graph` (from `develop` @ `2e7eed1`; T-007 merged and marked DONE).
+- Graphify: index NOT built. Fallback: read `validation.ts`, `snapping.ts` and the editor's remove handler directly.
+- Scope: `connect`, `disconnect`, `removeComponent`, `connectionsOf`, `reachableComponents` and `connectedGroups` in `packages/core/src/graph.ts`. `connect` reuses `validateScene` for all edge rules. The editor's Remove button now calls `removeComponent`. Kept in core (no package split) because rules.md §8 requires approval for package-boundary changes; proposed ADR-0005 instead.
+- Tests written first: 22 new tests failed before implementation. Covers every connect rejection with a frozen input, reconnect after disconnect, cascade delete, tee branches, a cycle, isolated and unknown starts, a 5,000-component chain and disconnected groups. Browser smoke test now also removes the tank.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (266 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (1 test, add and remove).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: undo/redo (T-011), route regeneration (T-009), editor UI for connecting.
+- Status: T-008 REVIEW until PR is merged.
+- Handoff: next is T-009 (pipe routing, elbow and tee geometry). ADR-0004 and ADR-0005 await owner decisions.
