@@ -293,3 +293,10 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: provider error surfacing in the UI (logged via `onError`, default console.error); GPU/heap leak measurement on repeated mounts (subscription cleanup is tested, memory is not measured).
 - Status: T-017 REVIEW until PR is merged. With T-017 merged, the MVP-required M6 tasks are done (T-018 is optional host examples).
 - Handoff: remaining MVP path is T-023 (perf/security/a11y and API hardening) → T-024 (independent consumer release). T-023 currently also depends on T-018 and T-020, which MVP.md says are not release blockers; per AGENTS.md this needs a backlog/ADR change before starting. ADR-0005 awaits an owner decision.
+
+## 2026-10-15 — Release-path backlog change (docs only)
+- Branch: `docs/mvp-release-gate` (from `feat/T-017-data-provider` @ `23faaf1`, so the append-only work log does not conflict). Also marks T-015 DONE (PR #24 merged).
+- Owner-approved: T-023 now depends on T-002, T-015, T-017 and is the MVP gate (P0); new T-028 holds post-MVP hardening (depends on T-018, T-020, T-023); T-018, T-019, T-020 marked post-MVP (P2). MVP.md, DEVELOPMENT_PLAN.md (new M7 MVP gate row, M8 dependency) and DECISION_LOG.md updated.
+- Verification: documentation only; no code or tests changed.
+- Handoff: T-023 is dependency-ready once #26 (T-017) merges.
+

@@ -13,3 +13,8 @@ Use one ADR per significant decision. Accepted decisions are binding; proposals 
 
 ## New ADR template
 Title / Status (Proposed/Accepted/Superseded) / Context / Options considered / Decision / Trade-offs / Consequences / Migration / Tests / Date / Approvers. Owner approval required before altering public schema or safety boundaries.
+
+## Planning decisions (no ADR required)
+| Date | Decision | Approver |
+|---|---|---|
+| 2026-10-15 | Split T-023 so the MVP release gate depends on T-002, T-015, T-017 only; post-MVP hardening moves to T-028; T-018–T-020 are post-MVP | repository owner |
