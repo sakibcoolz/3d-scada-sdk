@@ -96,6 +96,12 @@ Distinguish logical edge from render mesh. Support straight runs and determinist
 ## Serialization (T-005)
 `serializeScene(scene)` writes canonical JSON: `schemaVersion: 2` and `units` first, fixed key order for every object, property keys sorted, array order preserved, two-space indent, trailing newline. Only authored fields are written, so save → load → save is byte-identical. `parseScene(text, options)` checks length (`maxLength`, default 10,000,000 characters, `LIMIT_EXCEEDED`), parses (`INVALID_JSON`), then runs `validateScene`, which migrates version 1.
 
+### Editor import/export (T-012)
+- **Export JSON** downloads `scene.json` with exactly `serializeScene(scene)`; the Scene JSON panel shows the same canonical text.
+- **Import** from a `.json` file (rejected above 10,000,000 bytes before reading) or pasted text (**Load text**). `importSceneText` in `packages/react/src/sceneFile.ts` runs `parseScene` against the catalog ports, so version 1 migrates and every rule in validation applies. On failure the errors are listed (`role="alert"`, path first, capped at 20 lines) and the current scene is unchanged; on success the scene is replaced as one undo step, selection clears and a note reports the counts and any migration.
+- The browser test builds a connected scene with a gizmo-rotated pipe, exports it, reloads the page, imports the downloaded file and checks the JSON is byte-identical, then undoes the import.
+- Not done: reference checks are reported only after structural errors are fixed (validator behaviour); no merge/append import; no remote URLs (by design, no network).
+
 Save authored scene only. Validate on load, reject/diagnose corrupt references, migrate supported versions, round-trip deterministically, avoid using React/Three objects or telemetry stream values in JSON.
 
 ## Required tests

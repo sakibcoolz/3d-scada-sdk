@@ -2,15 +2,17 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DoubleSide, type Camera, type Object3D } from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { createEmptyScene, portToWorld, removeComponent, routeScene, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { createEmptyScene, portToWorld, removeComponent, routeScene, serializeScene, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionTuple, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
 
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
+import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile';
 
 export { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
 export { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
+export { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES, type SceneImport } from './sceneFile';
 
 function Equipment({ component, glass, selected, onSelect, objectRef }: { component:ComponentInstance; glass:boolean; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void }) {
   const definition = componentCatalog[component.type];
@@ -162,6 +164,29 @@ export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;
   // A whole gizmo drag shares one gesture key, so it merges into a single undo step.
   const transform:TransformHandler=(id,position,rotation,gesture)=>
     update({...scene,components:scene.components.map(c=>c.id===id?{...c,position,rotation}:c)},gesture);
+  const [importText,setImportText]=useState('');
+  const [importNote,setImportNote]=useState('');
+  const [importErrors,setImportErrors]=useState<string[]>([]);
+  /** Replaces the scene only when the text validates; a successful import is one undo step. */
+  function loadScene(text:string){
+    const result=importSceneText(text);
+    if(!result.ok){setImportErrors(result.errors);setImportNote('');return;}
+    update(result.scene);setSelected(undefined);setImportErrors([]);setImportNote(result.message);
+  }
+  function importFile(e:React.ChangeEvent<HTMLInputElement>){
+    const input=e.currentTarget, file=input.files?.[0];
+    input.value=''; // allow re-importing the same file
+    if(!file) return;
+    if(file.size>MAX_SCENE_FILE_BYTES){setImportErrors([`File is larger than ${MAX_SCENE_FILE_BYTES} bytes.`]);setImportNote('');return;}
+    file.text().then(loadScene,(error:Error)=>{setImportErrors([`Could not read file: ${error.message}`]);setImportNote('');});
+  }
+  function exportScene(){
+    const url=URL.createObjectURL(new Blob([serializeScene(scene)],{type:'application/json'}));
+    const link=document.createElement('a');
+    link.href=url;link.download='scene.json';link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),0);
+  }
+  const serialized=useMemo(()=>serializeScene(scene),[scene]);
   const toolButton=(mode:TransformMode,label:string)=><button aria-pressed={transformMode===mode} onClick={()=>setTransformMode(mode)} style={{fontWeight:transformMode===mode?700:400}}>{label}</button>;
   return <div tabIndex={-1} onKeyDown={onKeyDown} style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
     <aside style={{padding:14,borderRight:'1px solid #3c5366'}}>
@@ -190,7 +215,15 @@ export function Scada3DEditor({initialScene,onChange}:{initialScene?:ScadaScene;
         {(component.type==='pipe'||component.type==='tee')&&<label><input type="checkbox" checked={component.properties.flowing===true} onChange={e=>patch({properties:{...component.properties,flowing:e.target.checked}})}/> Flow indicator</label>}
         <p><button onClick={()=>{const result=removeComponent(scene,component.id);if(result.ok)update(result.scene);setSelected(undefined);}}>Remove</button></p>
       </>:<p>Select equipment in the canvas.</p>}
-      <hr/><small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={JSON.stringify(scene,null,2)} style={{width:'100%',height:170,boxSizing:'border-box'}}/>
+      <hr/><small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={serialized} style={{width:'100%',height:170,boxSizing:'border-box'}}/>
+      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:6}}>
+        <button onClick={exportScene}>Export JSON</button>
+        <input type="file" accept=".json,application/json" aria-label="Import scene file" onChange={importFile} style={{fontSize:12,maxWidth:'100%'}}/>
+      </div>
+      <textarea aria-label="Import JSON text" placeholder="Paste scene JSON to import" value={importText} onChange={e=>setImportText(e.target.value)} style={{width:'100%',height:60,marginTop:6,boxSizing:'border-box'}}/>
+      <button onClick={()=>loadScene(importText)} disabled={!importText.trim()}>Load text</button>
+      <p aria-live="polite" style={{fontSize:12,margin:'6px 0'}}>{importNote}</p>
+      {importErrors.length>0&&<ul role="alert" aria-label="Import errors" style={{fontSize:12,color:'#ff9aa2',paddingLeft:16,margin:0}}>{importErrors.map((line,i)=><li key={i}>{line}</li>)}</ul>}
     </aside>
   </div>;
 }
