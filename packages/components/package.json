@@ -1,0 +1,12 @@
+{
+  "name": "@scada3d/components",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@scada3d/core": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
