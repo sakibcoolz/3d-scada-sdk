@@ -4,9 +4,9 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 
 | ID | Gate | Priority | Depends on | Status | Deliverable and proof |
 |---|---|---|---|---|---|
-| T-001 | M0 | P0 | — | REVIEW | fresh clone pnpm install/typecheck/build passes |
-| T-002 | M0 | P0 | T-001 | REVIEW | CI, unit/E2E runner and browser smoke |
-| T-003 | M1 | P0 | T-002 | TODO | runtime scene schema and referential validation |
+| T-001 | M0 | P0 | — | DONE | fresh clone pnpm install/typecheck/build passes (PRs #6, #7) |
+| T-002 | M0 | P0 | T-001 | DONE | CI, unit/E2E runner and browser smoke (PRs #8, #9; develop CI green) |
+| T-003 | M1 | P0 | T-002 | REVIEW | runtime scene schema and referential validation (`validateScene`, v1 shape) |
 | T-004 | M1 | P0 | T-003 | TODO | world-space port transforms and unit fixtures |
 | T-005 | M1 | P0 | T-003 | TODO | versioned deterministic scene roundtrip |
 | T-006 | M2 | P0 | T-004 | TODO | aligned industrial geometry, ports, disposal |
