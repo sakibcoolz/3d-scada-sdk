@@ -70,7 +70,7 @@ test('markers move from→to for positive rates, back for negative, and stay put
       const xs: number[] = [];
       for (const scene of (window as unknown as { __scenes: { traverse(f: (o: any) => void): void }[] }).__scenes) {
         scene.traverse((o) => {
-          if (!o.isInstancedMesh) return;
+          if (!o.isInstancedMesh || o.userData?.role !== 'flow-markers') return;
           const m = o.instanceMatrix.array;
           for (let i = 0; i < o.count; i++) {
             const [x, y] = [m[i * 16 + 12], m[i * 16 + 13]];

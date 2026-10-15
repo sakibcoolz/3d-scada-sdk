@@ -669,3 +669,39 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0 and `pnpm test:consumer` 0 (1 test): the packed editor renders with the scoped stylesheet.
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-042 REVIEW until merged.
+
+## 2026-10-15 — T-029 rendering scale, part A
+- Branch: `feat/T-029-render-scale` (from `develop` @ `ff775eb`, after #45). T-042 marked DONE (#45 merged).
+- Owner request: "yes" to the first listed post-MVP task. T-023 dependency DONE.
+- Graphify: index NOT built. Fallback: read the viewer, geometry and flow-visual code directly.
+- Measured before changing anything, on the owner's hardware via their Chrome (Apple M2, ANGLE Metal, 75 Hz), using a production build served from the session scratchpad:
+  - chain-1000 ran at 26.6–40 ms median. 33 ms per frame was spent in the animation-frame callbacks, so it was CPU-bound.
+  - A throwaway experiment build (reverted, never committed) showed that removing any one layer (flow markers, equipment, pipe runs) restored the display rate.
+  - Object count in chain-1000 was 11,146:
+    - 999 flow instanced meshes, never culled and uploaded every frame;
+    - about 4,000 pipe-run pieces, each with its own material;
+    - 2,000 port-marker spheres;
+    - 4,000 equipment parts.
+- Changes (`packages/react`):
+  - `FlowLayer`/`FlowBeads`: one instanced mesh per colour/opacity, written in place each frame (`pointAtInto`, no allocation). Per-viewer travel state (a module-wide map would double the speed with two viewers); dashed lines for unknown flow as before.
+  - `createRouteGeometry`: each run merged with three's `mergeGeometries` (part of `three`, no new dependency); one shared material per view mode.
+  - `PortMarkers`: free ports only (visible change: connected ports no longer get a dot; it sat inside the joint), one instanced mesh, clicks pass through.
+  - `useSharedGeometries`: equipment part geometry shared per definition, reference-counted, disposed a microtask after the last user unmounts.
+- First pass raised headless triangles (2.03 M → 2.57 M): the instanced port markers are never culled. Fixed with a coarser 8×6 marker sphere, free ports only, and the original 12×8 bead sphere. Now 2.06 M.
+- A one-off 2.9 s stall on the demo after the change was investigated. Spikes also appeared in the old build (255 ms, 358 ms). Steady state over 12 s, two runs per build: 901/901 frames in both, none over 25 ms. Not a regression.
+- Results: chain-1000 13.3 ms median, p95 13.5–13.9 ms; chain-3000 13.3 / 13.7 ms (was 40 / 173 ms). Headless chain-1000: heap 228 → 117 MB, geometries 1,081 → 28, draw calls 1,086 → 58. Full tables in PERFORMANCE.md.
+- Tests:
+  - Written first and run red: `pointAtInto` (7 cases), merged route geometry.
+  - Written after the code and then run red against the old viewer: `e2e/render-scale.spec.ts` (instanced meshes, free-port count, 4 shared equipment geometries for 200 valves).
+  - `flow.spec.ts` now reads only the `flow-markers` instanced mesh.
+  - GPU leak tests pass unchanged.
+- Remaining (T-046): equipment instancing and LOD. chain-5000 on the M2 is 13.3 ms median but p95 66.6 ms.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (902 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (86 tests).
+  - `pnpm perf` 0.
+  - `pnpm verify:consumer` NOT RUN (no packaging change).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-029 part A REVIEW until merged.

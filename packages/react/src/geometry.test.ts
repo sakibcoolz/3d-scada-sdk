@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Box3, Vector3, type BufferGeometry } from 'three';
 import type { PipeRoute } from '@scada3d/core';
 import { componentCatalog, outerRadiusFor, pipeOuterRadius, sizeOfPort } from '@scada3d/components';
-import { createEquipmentGeometries, createPartGeometry, createRouteGeometries, disposeGeometries } from './geometry.js';
+import { createEquipmentGeometries, createPartGeometry, createRouteGeometries, createRouteGeometry, disposeGeometries } from './geometry.js';
 
 const definitions = Object.values(componentCatalog);
 
@@ -115,6 +115,19 @@ describe('createRouteGeometries', () => {
 
   it('creates nothing for a direct route', () => {
     expect(createRouteGeometries(ok([[1, 2, 3]]), r)).toEqual([]);
+    expect(createRouteGeometry(ok([[1, 2, 3]]), r)).toBeUndefined();
+  });
+
+  it('merges a bent route into one geometry with the same vertices and bounds', () => {
+    const route = ok([[0, 0, 0], [2, 0, 0], [2, 2, 0], [2, 2, 3]]);
+    const parts = createRouteGeometries(route, r);
+    const merged = createRouteGeometry(route, r)!;
+    expect(parts.length).toBeGreaterThan(1);
+    expect(merged.getAttribute('position').count).toBe(parts.reduce((n, g) => n + g.getAttribute('position').count, 0));
+    const [a, b] = [bounds(parts), bounds([merged])];
+    expect(b.min.distanceTo(a.min)).toBeLessThan(1e-9);
+    expect(b.max.distanceTo(a.max)).toBeLessThan(1e-9);
+    disposeGeometries([...parts, merged]);
   });
 
   it('creates one pipe for a straight route, open at both ports', () => {

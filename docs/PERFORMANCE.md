@@ -37,6 +37,41 @@ All operations scale roughly linearly with scene size. `routeScene` runs on ever
 
 The demo runs at the display rate (vsync-limited). Large scenes are CPU-rasterisation bound here: about one draw call per mesh and about 2,000 triangles per valve.
 
+## Rendering scale, part A (T-029, 2026-10-15)
+Changes:
+- **Flow beads:** one instanced mesh per colour/opacity for the whole scene, instead of one per route. Positions are written in place each frame (`pointAtInto`), with no per-frame allocation.
+- **Pipe runs:** each routed run is merged into one mesh (`createRouteGeometry`), and all runs share one material per view mode.
+- **Port markers:** markers on free ports only, all in one instanced mesh (8×6 sphere).
+- **Equipment geometry:** shared per catalog definition, reference-counted and disposed when the last user unmounts.
+
+Scene objects in chain-1000 fell from 11,146 to 5,005.
+
+### Hardware GPU (owner's machine, Apple M2, Chrome 154, ANGLE Metal, 75 Hz display, production build)
+Frame times are from `requestAnimationFrame` sampling over 3 s after a 6 s warm-up, in a visible tab:
+
+| Scene | Before: median / p95 / frames in 3 s | After: median / p95 / frames in 3 s |
+|---|---|---|
+| demo | 13.3 / 14.3 ms / 227 | 13.3 / 15.1 ms / 206–218 |
+| chain-200 | 13.3 / 13.4 ms / 226 | not re-measured (was already at display rate) |
+| chain-1000 | 26.6–40 / 40–67 ms (first runs); 13.4 / 26.8 ms (later runs) / 76–173 | **13.3 / 13.5–13.9 ms / 222–223** |
+| chain-3000 | 40 / 173 ms / 43, worst 908 ms | **13.3 / 13.7 ms / 198** |
+| chain-5000 | — | 13.3 / 66.6 ms / 161 (equipment-bound: 20,000 part meshes) |
+
+Further measurements:
+- **Steady-state demo comparison:** 12 s after warm-up, two runs per build. Both builds rendered 901/901 frames with no frame over 25 ms (worst 16–20 ms).
+- **Isolated stalls:** occasional 100 ms–3 s stalls showed up in **both** builds during or just after page load. They are not attributable to this change.
+- **chain-1000 before the change, by layer:** the time inside the animation-frame callbacks was 33 ms per frame, so the scene was CPU-bound. Removing any one layer (flow markers, equipment or pipe runs) brought it back to the display rate.
+- **JS heap** in these runs is not reliable: it grew across reloads in one tab, and background tabs do not render.
+
+### Headless (SwiftShader, same machine as the baseline above)
+| Scene | Heap before → after | Geometries | Draw calls / frame | Triangles / frame |
+|---|---|---|---|---|
+| demo | 12.8 → 12.1 MB | 29 → 21 | 34 → 26 | 4,510 → 3,670 |
+| chain-200 | 64.8 → 35.6 MB | 281 → 28 | 286 → 58 | 406,598 → 437,750 |
+| chain-1000 | 227.9 → 117.3 MB | 1,081 → 28 | 1,086 → 58 | 2,032,838 → 2,063,990 |
+
+SwiftShader frame times stay rasterisation-bound (chain-1000: 333 → 350 ms median), because triangle counts are about the same. The win shows on real GPUs, where the CPU was the limit.
+
 ## Findings and follow-ups
 - **Fixed in this part:** drei `TransformControls` built a new gizmo (17 geometries plus materials) on every selection and never disposed it, leaking GPU memory with each selection change. The viewer now disposes the gizmo on unmount; the leak test covers it.
-- Each component instance builds its own geometry, and equipment is not instanced, so geometry and draw calls grow one-for-one with components. Candidate optimisations, to be measured before adoption: share geometry per catalog type, instance equipment meshes, lower segment counts or LOD for distant parts, and avoid per-frame tuple allocation in flow markers. Tracked as T-029 (post-MVP).
+- Each component instance builds its own geometry, and equipment is not instanced, so geometry and draw calls grow one-for-one with components. Candidate optimisations, to be measured before adoption: share geometry per catalog type, instance equipment meshes, lower segment counts or LOD for distant parts, and avoid per-frame tuple allocation in flow markers. Tracked as T-029 (post-MVP). Part A (above) shares geometry and instances markers; equipment instancing and LOD remain (T-046): at chain-5000 the 20,000 equipment meshes are the limit on the M2 (p95 67 ms).
