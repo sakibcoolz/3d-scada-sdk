@@ -5,6 +5,7 @@ import * as core from './index';
 // and the changelog together with this list.
 const publicApi = [
   'SCENE_SCHEMA_VERSION',
+  'assemblyOf',
   'canonicalUnits',
   'componentKinds',
   'connect',
@@ -22,6 +23,8 @@ const publicApi = [
   'findTouchingPorts',
   'identityQuaternion',
   'isKnownUnit',
+  'lockConnectedAsChildren',
+  'moveAssembly',
   'parseScene',
   'portToWorld',
   'portsCompatible',
@@ -38,6 +41,7 @@ const publicApi = [
   'serializeScene',
   'snapComponent',
   'toCanonical',
+  'unlockFromParent',
   'validateScene',
 ];
 

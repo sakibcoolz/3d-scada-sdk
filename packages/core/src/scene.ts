@@ -36,6 +36,11 @@ export interface ComponentDefinition {
 export interface ComponentInstance {
   id: string;
   type: ComponentKind;
+  /**
+   * Optional assembly parent (ADR-0008). Positions stay in world space; the link only makes
+   * editing rigid: moving any member of an assembly moves all of it.
+   */
+  parentId?: string;
   /** Metres, world space. */
   position: Vector3Like;
   /** Unit quaternion. */

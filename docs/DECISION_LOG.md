@@ -11,6 +11,7 @@ Use one ADR per significant decision. Accepted decisions are binding; proposals 
 | [0005](adr/0005-connection-engine-package.md) | Rejected (MVP) | Move snapping/graph into `@scada3d/connection-engine` and routing into `@scada3d/pipe-routing` |
 | [0006](adr/0006-tag-bindings-in-scene.md) | Accepted | Optional `tagBindings` in scene version 2 |
 | [0007](adr/0007-structured-vectors-schema-v3.md) | Accepted | Scene version 3: named `{x, y, z}` / `{x, y, z, w}` vectors in files and the model; v1/v2 migrate |
+| [0008](adr/0008-assemblies-parent-child.md) | Accepted | Assemblies: optional `parentId`, rigid group editing, built from connections |
 
 ## New ADR template
 Title / Status (Proposed/Accepted/Superseded) / Context / Options considered / Decision / Trade-offs / Consequences / Migration / Tests / Date / Approvers. Owner approval required before altering public schema or safety boundaries.

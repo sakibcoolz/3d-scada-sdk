@@ -19,6 +19,7 @@ export function serializeScene(scene: ScadaScene): string {
     components: scene.components.map((c) => ({
       id: c.id,
       type: c.type,
+      ...(c.parentId !== undefined ? { parentId: c.parentId } : {}),
       position: { x: c.position.x, y: c.position.y, z: c.position.z },
       rotation: { x: c.rotation.x, y: c.rotation.y, z: c.rotation.z, w: c.rotation.w },
       scale: { x: c.scale.x, y: c.scale.y, z: c.scale.z },

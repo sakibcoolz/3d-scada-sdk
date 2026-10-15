@@ -39,6 +39,10 @@ export type { GraphError, GraphErrorCode, GraphOptions, GraphResult } from './gr
 export { routeConnection, routeScene, sampleRouteCenterline } from './routing';
 export type { PipeRoute, RouteBend, RouteFailure, RouteKind, RoutingOptions } from './routing';
 
+// Assemblies: parent/child locks for rigid editing (ADR-0008)
+export { assemblyOf, lockConnectedAsChildren, moveAssembly, unlockFromParent } from './assembly';
+export type { AssemblyResult } from './assembly';
+
 // Turning exactly touching ports into explicit connections (user-triggered)
 export { connectTouchingPorts, findTouchingPorts } from './touching';
 export type { ConnectTouchingResult, TouchingMatch, TouchingOptions, TouchingRejection, TouchingResult } from './touching';
