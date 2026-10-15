@@ -11,6 +11,7 @@ SceneDocument {
   components: ComponentInstance[];
   connections: ConnectionEdge[];
   tagBindings?: TagBinding[];
+  underlay?: SceneUnderlay; // ADR-0012: { svg, position: { x, z }, width, rotation, opacity }
 }
 ConnectionEdge {
   id: string;
@@ -19,6 +20,13 @@ ConnectionEdge {
 }
 ```
 The version 2 shape is implemented ([ADR-0004](adr/0004-scene-document-v2.md), accepted), including optional `tagBindings` ([ADR-0006](adr/0006-tag-bindings-in-scene.md), accepted): `{ id, tagId, kind: 'property', instanceId, property, unit? }` or `{ id, tagId, kind: 'flow', connectionId, unit? }`. Validation checks unique ids, existing targets, bindable property per catalog type (`resolveBindable`), accepted units, and one binding per target (`UNKNOWN_CONNECTION`, `UNBINDABLE_PROPERTY`, `INVALID_UNIT`, `DUPLICATE_BINDING_ID`, `DUPLICATE_BINDING_TARGET`). `removeComponent` and `disconnect` drop bindings to removed targets; serialization omits the field when absent.
+
+Optional `underlay` (version 3, [ADR-0012](adr/0012-svg-underlay.md), additive): `{ svg, position: { x, z }, width, rotation, opacity }`.
+- `svg` is sanitized markup (≤ 512 KiB);
+- `width` is in metres, 0 < w ≤ 1000, and the depth follows the viewBox aspect;
+- `rotation` is in degrees about +Y; `opacity` is 0–1.
+
+Core checks the structure and size. `validateUnderlay` lets the host check the content (`INVALID_UNDERLAY`); the editor's import passes the SVG sanitizer. An underlay is display only: no ports, snapping, collisions, flow or simulation. Older versions do not accept the field.
 
 ## Scene file example (version 3, ADR-0007)
 ```json

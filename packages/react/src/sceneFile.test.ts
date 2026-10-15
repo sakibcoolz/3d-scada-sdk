@@ -70,3 +70,17 @@ describe('importSceneText with tag bindings', () => {
     expect(importSceneText(text)).toEqual({ ok: false, errors: ['tagBindings[0].property: A valve has no bindable property "level".'] });
   });
 });
+
+describe('importSceneText with an underlay (ADR-0012)', () => {
+  const scene = (svg: string) => JSON.stringify({ schemaVersion: 3, units: 'm', components: [], connections: [], underlay: { svg, position: { x: 0, z: 0 }, width: 20, rotation: 0, opacity: 0.6 } });
+
+  it('accepts a sanitized underlay', () => {
+    const r = importSceneText(scene('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0L5 5"/></svg>'));
+    expect(r.ok && r.scene.underlay?.width).toBe(20);
+  });
+
+  it('refuses an underlay with a script, saying why', () => {
+    const r = importSceneText(scene('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><script>alert(1)</script></svg>'));
+    expect(r).toEqual({ ok: false, errors: ['underlay.svg: Unsafe or unreadable SVG: <script> is not allowed.'] });
+  });
+});

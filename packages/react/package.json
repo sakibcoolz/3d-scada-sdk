@@ -15,12 +15,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@scada3d/core": "workspace:*",
+    "@scada3d/asset-import": "workspace:*",
     "@scada3d/components": "workspace:*",
-    "@react-three/fiber": "^9.1.2",
+    "@scada3d/core": "workspace:*",
     "@react-three/drei": "^10.0.6",
-    "three": "^0.175.0",
-    "@types/three": "^0.175.0"
+    "@react-three/fiber": "^9.1.2",
+    "@types/three": "^0.175.0",
+    "three": "^0.175.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",

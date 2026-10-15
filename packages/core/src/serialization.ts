@@ -41,6 +41,17 @@ export function serializeScene(scene: ScadaScene): string {
           })),
         }
       : {}),
+    ...(scene.underlay
+      ? {
+          underlay: {
+            svg: scene.underlay.svg,
+            position: { x: scene.underlay.position.x, z: scene.underlay.position.z },
+            width: scene.underlay.width,
+            rotation: scene.underlay.rotation,
+            opacity: scene.underlay.opacity,
+          },
+        }
+      : {}),
   };
   // JSON.stringify already writes -0 as 0.
   return `${JSON.stringify(document, null, 2)}\n`;

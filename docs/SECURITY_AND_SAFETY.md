@@ -50,3 +50,10 @@ The SDK must never require a WebSocket connection, broker, network endpoint, cre
 
 ### Licences (`pnpm licenses list --prod`, includes playground tooling)
 MIT 111, ISC 8, Apache-2.0 5 (`@mediapipe/tasks-vision`, `baseline-browser-mapping`, `draco3d`, `hls.js`, `promise-worker-transferable`, all transitive via drei), BSD-3-Clause 3, CC-BY-4.0 1 (`caniuse-lite`, build-time browser data). No copyleft licences. No third-party 3D assets are bundled (all geometry is procedural).
+
+## SVG underlays (T-019a, ADR-0012)
+- Every SVG passes `sanitizeSvg`, an allow-list with no DOM and no entity expansion. It runs when the file is imported, when a scene file is loaded (`validateUnderlay`), and again before drawing.
+- Rejected: scripts, event handlers, `href`/`src`, `url()`/`data:`/`javascript:`/`expression()` values, `image`/`use`/`foreignObject`/`iframe`/`object`/`embed`/animation elements, DOCTYPE and entity declarations, processing instructions, CDATA, malformed XML or path data. A forbidden element is rejected even inside a subtree that would be dropped.
+- Limits: 512 KiB, 5,000 elements, nesting depth 32, 20,000 path commands. The sanitizer never throws (fuzz-tested).
+- Stored markup is written by the SDK from the shape model only. The viewer paints it through an `<img>` (no script execution, no network) onto a texture.
+

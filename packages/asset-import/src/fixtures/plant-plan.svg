@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Simple plant plan in the shape an editor like Inkscape writes: metadata, namespaces, labels. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+     width="400mm" height="200mm" viewBox="0 0 400 200" version="1.1" id="svg1">
+  <sodipodi:namedview id="nv" pagecolor="#ffffff"/>
+  <metadata><rdf>plant</rdf></metadata>
+  <title>Pump house plan</title>
+  <g inkscape:label="walls" style="fill:none;stroke:#334455;stroke-width:3">
+    <rect x="10" y="10" width="380" height="180" rx="6"/>
+    <path d="M 200,10 V 120 M 200,150 V 190"/>
+  </g>
+  <g inkscape:label="equipment" transform="translate(60 100)" fill="#2e86de" stroke="#1b4f72">
+    <circle cx="0" cy="0" r="30"/>
+    <rect x="80" y="-15" width="60" height="30" transform="rotate(10 110 0)"/>
+    <ellipse cx="240" cy="0" rx="40" ry="25" style="fill:#48b983;opacity:0.8"/>
+  </g>
+  <polyline points="90,100 140,100 300,100" style="fill:none;stroke:#e67e22;stroke-width:4"/>
+  <text x="40" y="30" style="font-size:12px">TK-101</text>
+  <text x="280" y="30">P-101</text>
+</svg>

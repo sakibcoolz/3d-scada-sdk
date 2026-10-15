@@ -66,6 +66,23 @@ export type TagBinding =
   | { id: string; tagId: string; kind: 'flow'; connectionId: string; unit?: string };
 
 export const SCENE_SCHEMA_VERSION = 3;
+/**
+ * A drawing shown flat on the ground as a tracing reference (ADR-0012). Display only: it never
+ * takes part in snapping, connections, collisions or simulation.
+ */
+export interface SceneUnderlay {
+  /** Sanitized SVG markup (written by the SDK's sanitizer), at most `maxUnderlayBytes`. */
+  svg: string;
+  /** Centre of the drawing on the ground plane, metres. */
+  position: { x: number; z: number };
+  /** Width of the drawing in metres; its height follows the viewBox aspect. */
+  width: number;
+  /** Degrees about +Y. */
+  rotation: number;
+  /** 0–1. */
+  opacity: number;
+}
+
 export interface ScadaScene {
   schemaVersion: 3;
   units: 'm';
@@ -73,6 +90,8 @@ export interface ScadaScene {
   connections: SceneConnection[];
   /** Optional; absent when the scene has no bindings. */
   tagBindings?: TagBinding[];
+  /** Optional reference drawing (ADR-0012); absent when there is none. */
+  underlay?: SceneUnderlay;
 }
 export function createEmptyScene(): ScadaScene {
   return { schemaVersion: 3, units: 'm', components: [], connections: [] };

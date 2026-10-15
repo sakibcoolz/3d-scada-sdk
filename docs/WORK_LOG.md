@@ -829,3 +829,47 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - GitHub Actions CI not awaited (owner direction).
 - Not included: looped networks (needs a Newton solver), NPSH and cavitation, configurable fluid and roughness, transients.
 - Status: T-022 REVIEW until merged.
+
+## 2026-10-16 — T-019a sanitized SVG underlay (ADR-0012)
+- Branch: `feat/T-019-svg-underlay` (from `develop` @ `fc57e94`, after #49). T-022 marked DONE (#49 merged).
+- Dependencies: T-006 DONE.
+- Owner decisions (asked in session):
+  - split T-019 into an underlay first and extrusion next (T-047);
+  - a new `@scada3d/asset-import` package;
+  - the underlay saved in the scene as sanitized SVG;
+  - shapes and paths only.
+  - Recorded as ADR-0012 (Accepted).
+- Graphify: index NOT built. Fallback: read the validation, serialization, scene-file and viewer code directly.
+- Scope:
+  - **`packages/asset-import`** (no dependencies, no DOM):
+    - `sanitizeSvg`: its own XML tokenizer (XML declaration only; no DOCTYPE, entities beyond the five standard ones and character references, PIs or CDATA; strict quoting and nesting), a security scan of the whole tree (forbidden elements even inside dropped subtrees, event handlers, `href`/`src`, `url()`/`data:`/`javascript:`/`expression()` values), allow-listed shapes and attributes, a style-attribute subset, colour normalisation, transform composition, path normalisation to absolute M/L/C/Q/A/Z, and limits;
+    - `toSvgMarkup`: writes clean markup from the model;
+    - `defaultSvgLimits`.
+  - **Core:** optional `underlay` in schema v3 (`SceneUnderlay`); validation of structure and size (`maxUnderlayBytes`); a `validateUnderlay` hook (`INVALID_UNDERLAY`); canonical serialization.
+  - **React** (now depends on asset-import):
+    - `importSceneText` passes the sanitizer as `validateUnderlay`;
+    - the viewer's `Underlay` sanitizes again and paints through an `<img>` onto a `CanvasTexture` on a ground plane (not pickable);
+    - the editor's Underlay section: import, width, X/Z, rotation, opacity, remove; undoable and lockable.
+  - **Release:** the consumer verification packs 5 packages; `node-check.mjs` checks the sanitizer in plain Node.
+  - **Docs:** ADR-0012, DECISION_LOG, API, SCENE_AND_CONNECTIONS, SECURITY_AND_SAFETY, RELEASE, README, ARCHITECTURE; backlog (T-019 REVIEW, new T-047 for extrusion).
+- Tests:
+  - Written first and run red: 36 sanitizer tests (25 rejection cases, limits, 2,000 fuzzed inputs that never throw, kept shapes and paths, relative-to-absolute path conversion, transforms and inherited styles, style parsing, notes, colour fallback, idempotent markup); 13 core underlay tests.
+  - Written right after the code: 2 scene-file tests; 5 e2e tests in `underlay.spec.ts` with a realistic fixture (`fixtures/plant-plan.svg`, Inkscape-style namespaces, metadata and text):
+    - import, summary and the drawn plane;
+    - undo and export/import;
+    - a script SVG refused, with `window.__pwned` never set;
+    - an unsafe underlay in a scene file refused;
+    - lock state and texture release.
+- Two test-side corrections: the fixture has 6 shapes, not 7 (the wall path is one shape); and `found` in the e2e helper needed an explicit type (TS narrowed it to `never`; typecheck exit 2, then 0).
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0 (after the test-typing fix).
+  - `pnpm test` 0 (997 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (101 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0.
+  - Screenshot of the demo plant over the fixture plan checked.
+  - GitHub Actions CI not awaited (owner direction).
+- Not included: extrusion into parts (T-047), text, gradients and patterns, and exact group opacity (group opacity is multiplied into each shape).
+- Status: T-019 part a REVIEW until merged.

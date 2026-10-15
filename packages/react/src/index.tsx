@@ -1,13 +1,14 @@
 import React, { useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { Color, DoubleSide, Matrix4, MeshStandardMaterial, Plane, Quaternion, SphereGeometry, Vector3, type BufferGeometry, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
+import { CanvasTexture, Color, DoubleSide, Matrix4, MeshStandardMaterial, Plane, Quaternion, SphereGeometry, SRGBColorSpace, Vector3, type BufferGeometry, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { catalogResolvers, componentCatalog, definitionFor, isChoiceParameter, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometry, disposeGeometries } from './geometry.js';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop.js';
 import { EDITOR_CSS, formatMetres } from './editorStyles.js';
 import { spatialChunks } from './instancing.js';
+import { sanitizeSvg } from '@scada3d/asset-import';
 import { componentNames, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice.js';
 
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history.js';
@@ -214,6 +215,48 @@ function useSharedGeometries(definition: ReturnType<typeof definitionFor>): Buff
     };
   }, [definition, geometries]);
   return geometries;
+}
+
+/** Longest side of the underlay texture, pixels. */
+const UNDERLAY_TEXTURE = 2048;
+
+/**
+ * The scene's reference drawing on the ground (ADR-0012). The markup is sanitized again here and
+ * drawn through an <img>, which never runs scripts or fetches anything, onto a canvas texture.
+ */
+function Underlay({ underlay }: { underlay: SceneUnderlay }) {
+  const clean = useMemo(() => sanitizeSvg(underlay.svg), [underlay.svg]);
+  const [texture, setTexture] = useState<CanvasTexture>();
+  useEffect(() => {
+    if (!clean.ok) return;
+    const [, , w, h] = clean.svg.viewBox;
+    const scale = UNDERLAY_TEXTURE / Math.max(w, h);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(w * scale));
+    canvas.height = Math.max(1, Math.round(h * scale));
+    const url = URL.createObjectURL(new Blob([clean.markup], { type: 'image/svg+xml' }));
+    const image = new Image();
+    let made: CanvasTexture | undefined;
+    let cancelled = false;
+    image.onload = () => {
+      if (cancelled) return;
+      canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+      made = new CanvasTexture(canvas);
+      made.colorSpace = SRGBColorSpace;
+      setTexture(made);
+      URL.revokeObjectURL(url);
+    };
+    image.onerror = () => URL.revokeObjectURL(url);
+    image.src = url;
+    return () => { cancelled = true; URL.revokeObjectURL(url); made?.dispose(); setTexture(undefined); };
+  }, [clean]);
+  if (!clean.ok || !texture) return null;
+  const [, , w, h] = clean.svg.viewBox;
+  const depth = (underlay.width * h) / w;
+  return <mesh position={[underlay.position.x, 0.002, underlay.position.z]} rotation={[-Math.PI / 2, 0, (underlay.rotation * Math.PI) / 180]} userData={{ role: 'underlay' }} raycast={() => null} renderOrder={-1}>
+    <planeGeometry args={[underlay.width, depth]}/>
+    <meshBasicMaterial map={texture} transparent opacity={underlay.opacity} depthWrite={false} toneMapped={false}/>
+  </mesh>;
 }
 
 const PORT_MARKER_RADIUS = 0.05;
@@ -496,6 +539,7 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   <Canvas camera={{position:[7,6,9],fov:50}} onCreated={({gl})=>{gl.localClippingEnabled=true;}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
+    {scene.underlay&&<Underlay underlay={scene.underlay}/>}
     {instanced.length>0&&<InstancedEquipment components={instanced} unknown={unknownByComponent} onSelect={onSelect}/>}
     {shown.components.filter(c=>!instancedIds.has(c.id)).map(c=><Equipment key={c.id} component={c} unknown={unknownByComponent.get(c.id)} colliding={collision?.collidingIds.has(c.id)} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
     {onTransform && transformMode && selectedId && selectedObject && <GizmoControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
@@ -741,6 +785,43 @@ function sizeMismatch(scene: ScadaScene, component: ComponentInstance, propertie
     }
   }
   return undefined;
+}
+
+/** Largest SVG the editor reads as an underlay (the sanitizer enforces the same limit). */
+const MAX_UNDERLAY_FILE_BYTES = 512 * 1024;
+
+/** Import, place and remove the scene's reference drawing (ADR-0012). */
+function UnderlayControls({ scene, onChange }: { scene: ScadaScene; onChange: (underlay: SceneUnderlay | undefined, mergeKey?: string) => void }) {
+  const [message, setMessage] = useState<{ text: string; error: boolean }>();
+  const u = scene.underlay;
+  function load(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget, file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (file.size > MAX_UNDERLAY_FILE_BYTES) { setMessage({ text: `Could not use this SVG: larger than ${MAX_UNDERLAY_FILE_BYTES} bytes.`, error: true }); return; }
+    file.text().then((text) => {
+      const r = sanitizeSvg(text);
+      if (!r.ok) { setMessage({ text: `Could not use this SVG: ${r.errors[0].message}`, error: true }); return; }
+      onChange({ svg: r.markup, position: u?.position ?? { x: 0, z: 0 }, width: u?.width ?? 20, rotation: u?.rotation ?? 0, opacity: u?.opacity ?? 0.6 });
+      const dropped = r.notes.filter((n) => n.kind === 'dropped-element').map((n) => `${n.count} ${n.name}`);
+      setMessage({ text: `Underlay loaded: ${r.svg.shapes.length} shape${r.svg.shapes.length === 1 ? '' : 's'}.${dropped.length ? ` Not shown: ${dropped.join(', ')}.` : ''}`, error: false });
+    }, (error: Error) => setMessage({ text: `Could not read file: ${error.message}`, error: true }));
+  }
+  const set = (patch: Partial<SceneUnderlay>, key: string) => u && onChange({ ...u, ...patch }, `underlay:${key}`);
+  const number = (label: string, value: number, apply: (n: number) => void, attrs: { min?: number; max?: number; step: number }) =>
+    <label className="s3-stack">{label} <input aria-label={label} type="number" {...attrs} value={value} onChange={(e) => { const n = Number(e.target.value); if (e.target.value.trim() !== '' && Number.isFinite(n) && (attrs.min === undefined || n >= attrs.min) && (attrs.max === undefined || n <= attrs.max)) apply(n); }}/></label>;
+  return <>
+    <label className="s3-stack">{u ? 'Replace SVG' : 'Import SVG drawing'} <input type="file" accept=".svg,image/svg+xml" aria-label="Import SVG underlay" onChange={load} style={{fontSize:12,maxWidth:'100%'}}/></label>
+    {message && <small role={message.error ? 'alert' : 'status'} style={{display:'block',marginTop:4,color:message.error ? '#ff9aa2' : undefined}}>{message.text}</small>}
+    {u && <>
+      {number('Underlay width (m)', u.width, (n) => n > 0 && set({ width: n }, 'width'), { min: 0.1, max: 1000, step: 1 })}
+      {number('Underlay X (m)', u.position.x, (n) => set({ position: { ...u.position, x: n } }, 'x'), { step: 0.5 })}
+      {number('Underlay Z (m)', u.position.z, (n) => set({ position: { ...u.position, z: n } }, 'z'), { step: 0.5 })}
+      {number('Underlay rotation (°)', u.rotation, (n) => set({ rotation: n }, 'rotation'), { step: 15 })}
+      <label className="s3-stack">Underlay opacity <input aria-label="Underlay opacity" type="range" min={0} max={1} step={0.05} value={u.opacity} onChange={(e) => set({ opacity: Number(e.target.value) }, 'opacity')}/></label>
+      <button className="s3-danger s3-block" onClick={() => { onChange(undefined); setMessage(undefined); }}>Remove underlay</button>
+    </>}
+  </>;
 }
 
 /** Parent/child locks for the selected component (ADR-0008). */
@@ -1004,6 +1085,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
       </fieldset>
       <SceneList scene={scene} selected={selected} onSelect={setSelected} locked={isLocked}/>
       <label className="s3-stack">View <select aria-label="View mode" value={viewMode} onChange={e=>setViewMode(e.target.value as ViewMode)}>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
+      <div style={{marginTop:12}}>{section('Underlay',<UnderlayControls scene={scene} onChange={(underlay,mergeKey)=>{const {underlay:_,...rest}=scene;update(underlay?{...rest,underlay}:rest,mergeKey);}}/>,isLocked)}</div>
       <div style={{marginTop:12}}>{section('Scene file',<>
         <small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={serialized} style={{height:150}}/>
         <div className="s3-row">

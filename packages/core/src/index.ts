@@ -14,6 +14,7 @@ export type {
   Quantity,
   ScadaScene,
   SceneConnection,
+  SceneUnderlay,
   TagBinding,
   Vector3Like,
   Vector3Tuple,
