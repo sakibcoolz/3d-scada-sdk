@@ -1,77 +1,13 @@
-import type { ComponentInstance, FlowReading, ScadaScene, SceneConnection } from '@scada3d/core';
-import { componentCatalog, definitionFor } from '@scada3d/components';
-
-type Endpoint = SceneConnection['from'];
+import type { ComponentInstance, ScadaScene } from '@scada3d/core';
+import { definitionFor } from '@scada3d/components';
+import { TANK, type Endpoint, type Feed, type Simulation, type SimulationNote, type SimulationOptions, type SimulationState } from './shared.js';
+import { createHydraulicSimulation } from './hydraulic.js';
 
 /** Model constants (ADR-0010). Results are always SIMULATED: a teaching model, not plant data. */
 export const MODEL = { name: 'mass-balance', version: 1, gravity: 9.81, dischargeCoefficient: 0.62, step: 0.1 } as const;
 
-const round = (n: number) => Math.round(n * 1e9) / 1e9;
-
-/** The catalog's vertical tank: cylinder size and port heights above its bottom, metres. */
-export const TANK = (() => {
-  const tank = componentCatalog.tank;
-  const shell = tank.parts.find((p) => p.shape === 'cylinder' && p.axis === 'y' && p.openEnded);
-  if (!shell || shell.shape !== 'cylinder') throw new Error('catalog tank has no vertical shell');
-  const bottom = shell.center[1] - shell.length / 2;
-  return {
-    radius: shell.radius,
-    height: shell.length,
-    ports: Object.fromEntries(tank.ports.map((p) => [p.id, round(p.position[1] - bottom)])) as Record<string, number>,
-  };
-})();
-
 const TANK_AREA = Math.PI * TANK.radius ** 2;
 const TANK_VOLUME = TANK_AREA * TANK.height;
-
-export interface Feed {
-  /** A free port where liquid enters; at a tank port it goes straight into the tank. */
-  at: Endpoint;
-  /** m³/s, finite and ≥ 0. */
-  rate: number;
-}
-
-export interface SimulationOptions {
-  feeds?: readonly Feed[];
-  /** Running pumps by component id, forcing `rate` m³/s from suction to discharge. Absent = stopped. */
-  pumps?: Readonly<Record<string, { rate: number }>>;
-  /** Integration step, seconds. Default 0.1. */
-  dt?: number;
-  /** Timestamp for emitted readings (ISO 8601). Default: the wall clock. */
-  clock?: () => string;
-}
-
-export type SimulationNote =
-  | { kind: 'assumed-empty'; instanceId: string }
-  | { kind: 'overflow'; instanceId: string }
-  | { kind: 'dry'; instanceId: string }
-  | { kind: 'blocked'; instanceId: string; portId?: string };
-
-export interface SimulationState {
-  /** Simulated seconds since start or reset. */
-  time: number;
-  /** Liquid level per tank id, percent 0–100. */
-  levels: Record<string, number>;
-  /** One reading per connection, m³/s, + = from→to. */
-  flows: FlowReading[];
-  /** Cumulative volumes, m³: `fed` entered through feeds, `spilled` left at free ends or overflowed, `stored` is in tanks now. */
-  totals: { fed: number; spilled: number; stored: number };
-  /** What the model could not do or assumed during the last step. */
-  notes: SimulationNote[];
-  model: { name: typeof MODEL.name; version: typeof MODEL.version };
-}
-
-export interface Simulation {
-  state(): SimulationState;
-  /** Advance by `seconds` of simulated time in fixed sub-steps. */
-  step(seconds: number): SimulationState;
-  /** Take a new scene (topology, valve states) and keep the volume of tanks that still exist. */
-  update(scene: ScadaScene): SimulationState;
-  /** Replace feeds and pumps. */
-  configure(options: Pick<SimulationOptions, 'feeds' | 'pumps'>): SimulationState;
-  /** Back to the authored levels, time 0 and zero totals. */
-  reset(): SimulationState;
-}
 
 const key = (e: Endpoint) => `${e.instanceId}\u0000${e.portId}`;
 
@@ -199,6 +135,8 @@ function assertRate(rate: number, what: string) {
 
 /** Starts a deterministic mass-balance simulation of `scene` (ADR-0010). The host calls `step`. */
 export function createSimulation(scene: ScadaScene, options: SimulationOptions = {}): Simulation {
+  if (options.model === 'hydraulic') return createHydraulicSimulation(scene, options);
+  if (options.model !== undefined && options.model !== 'mass-balance') throw new Error(`unknown model ${String(options.model)}`);
   const dt = options.dt ?? MODEL.step;
   if (!(dt > 0) || !Number.isFinite(dt)) throw new Error('dt must be a positive number of seconds');
   const clock = options.clock ?? (() => new Date().toISOString());
@@ -224,12 +162,13 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
       if (strict && network.link(f.at)) throw new Error(`feed at ${f.at.instanceId} "${f.at.portId}": port is connected; feeds enter at free ports`);
     }
     for (const [id, p] of Object.entries(next.pumps ?? {})) {
+      if (!('rate' in p)) throw new Error(`pump ${id}: the mass-balance model takes { rate }; pump curves need model 'hydraulic'`);
       assertRate(p.rate, `pump ${id}`);
       if (strict && network.components.get(id)?.type !== 'pump') throw new Error(`pump ${id}: no pump with that id`);
     }
     // After a scene edit, quietly ignore feeds and pumps whose component is gone.
     feeds = (next.feeds ?? []).filter((f) => ok(f.at.instanceId));
-    pumps = Object.fromEntries(Object.entries(next.pumps ?? {}).filter(([id]) => network.components.get(id)?.type === 'pump'));
+    pumps = Object.fromEntries(Object.entries(next.pumps ?? {}).filter(([id, p]) => 'rate' in p && network.components.get(id)?.type === 'pump')) as Record<string, { rate: number }>;
   }
 
   function substep(h: number) {

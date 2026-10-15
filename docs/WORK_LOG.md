@@ -784,3 +784,48 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - GitHub Actions CI not awaited (owner direction).
 - Not included: pressure, friction, pump curves and backflow (T-022, needs validated assumptions); tank rotation is assumed upright.
 - Status: T-021 REVIEW until merged.
+
+## 2026-10-16 — T-022 hydraulic simulation model (ADR-0011)
+- Branch: `feat/T-022-hydraulic` (from `develop` @ `4ccb5ae`, after #48). T-021 marked DONE (#48 merged).
+- Owner decisions (asked before coding):
+  - water at 20 °C in steel pipe, Darcy–Weisbach friction;
+  - standard K-factors;
+  - a quadratic pump curve;
+  - tree networks with loops reported.
+  - Recorded as ADR-0011 (Accepted).
+- Graphify: index NOT built. Fallback: read the simulation, routing and transform code directly.
+- Scope (`packages/simulation`):
+  - `shared.ts`: types and `TANK`, split out so the two models don't import each other at load time.
+  - `hydraulic.ts`: `HYDRAULIC` constants, `frictionFactor` (laminar / Swamee–Jain / linear transition) and `createHydraulicSimulation`.
+    - Terminals: tank surfaces at world elevation (dry ports accept inflow only); free ends are atmosphere and only let liquid out; tees and fed ports are unknown-head nodes.
+    - Links: chains of parts with friction segments (pipe and coupler length from validated port spacing; valve 1.2 m; elbow π/2·0.3 m; tee 1 m legs; routed runs at their length and bore), K-factors, tank entry/exit, free exit, pump gain, one-way rules.
+    - Solve: Gauss–Seidel on node heads and per-link flows, both with warm-started Illinois false position. Cycles among nodes are reported as `loop`. Quasi-steady 0.5 s steps; each step is shortened so no tank drops below its lowest connected port.
+  - `createSimulation({ model: 'hydraulic' })`: `mass-balance` stays the default and its 24 tests are unchanged; it rejects pump curves.
+  - Playground: a Model selector in `?simulate`, plus `?simulate=hydraulic`.
+  - The consumer `node-check.mjs` runs both models.
+- Tests (17 new, written first and run red: module missing):
+  - Friction against an independent Colebrook–White solve: within 2 % for the catalog's ε/D at Re ≥ 4000, and 1 % at Re ≥ 3·10⁴. A first grid that included ε/D = 0.01 failed at 2.8 %; it was narrowed to the catalog's real roughness range and the ADR now states the measured bound.
+  - Gravity line against an independent energy-equation solve (< 1 %).
+  - Two tanks equalising with volume conserved; backflow.
+  - Tee split by resistance with the node balancing.
+  - Pump operating point against the system curve (< 1 %); a pump that cannot lift delivers nothing.
+  - Free end above the surface (no flow, no air drawn in); closed valve; loop reported; blocked feed; conservation with a feed; determinism; curve validation.
+- Found while testing:
+  - one test case used a 60 m pipe, above the catalog's 20 m maximum;
+  - the model read the raw `length` instead of the validated geometry.
+  - Both were fixed (now an 18 m pipe; the model uses port spacing).
+- Mutation check: tank exit K 0.5 → 0.3 fails the energy-equation test.
+- Performance: 1,200 steps on the demo plant took 15.4 s with plain bisection and 228 ms after switching to Illinois false position (0.19 ms per step), with the same result.
+- Demo-plant behaviour: steady state where the feed equals the drain (26.7 %); the raised valve-B branch gets no flow, where mass-balance splits 50/50.
+- e2e: `simulation.spec.ts` gained a model-switch test, written after the code. It is self-controlled: the branch stopped under `hydraulic` flows under `mass-balance`.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (946 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (96 tests).
+  - `pnpm verify:consumer` 0 (plain Node: 61.1 % mass-balance vs 66.4 % hydraulic after 30 s).
+  - `pnpm test:consumer` 0.
+  - GitHub Actions CI not awaited (owner direction).
+- Not included: looped networks (needs a Newton solver), NPSH and cavitation, configurable fluid and roughness, transients.
+- Status: T-022 REVIEW until merged.

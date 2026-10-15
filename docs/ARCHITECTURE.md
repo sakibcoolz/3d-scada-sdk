@@ -186,7 +186,11 @@ Public React API (proposed, subject to M7 contract review): `Scada3DEditor`, `Sc
 - equal tee splits; closed valves and stopped pumps block;
 - explicit Euler in 0.1 s steps.
 
-It is verified against the analytic drain solution (< 0.5 %, measured 0.04 %) and volume conservation. The viewer's `simulation` prop draws its levels and flows, never mixed with measured values. Pressure, friction and pump curves are T-022.
+It is verified against the analytic drain solution (< 0.5 %, measured 0.04 %) and volume conservation. The viewer's `simulation` prop draws its levels and flows, never mixed with measured values. **Implemented (T-022, ADR-0011):** model `hydraulic` v1 in the same package.
+- Each step it solves the junction heads (Gauss–Seidel with Illinois root-finding), then integrates the volumes.
+- Physics: Darcy–Weisbach friction (Swamee–Jain, within 2 % of Colebrook–White for the catalog's pipes), K-factor fittings, quadratic pump curves with a built-in check valve, and elevations from world positions.
+- Tree networks only; loops are reported.
+- Verified against independent energy-equation solutions (< 1 %), tank equalisation and the pump operating point.
 
 ## 9. Telemetry and data adapters
 

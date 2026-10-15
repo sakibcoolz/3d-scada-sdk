@@ -53,3 +53,16 @@ test('without ?simulate there is no simulation badge or panel', async ({ page })
   await expect(page.getByLabel('Simulation badge')).toHaveCount(0);
   await expect(page.getByLabel('Simulation', { exact: true })).toHaveCount(0);
 });
+
+test('the hydraulic model can be chosen: friction slows the drain and the raised branch gets nothing', async ({ page }) => {
+  await installThreeHook(page);
+  await page.goto('/?simulate=hydraulic');
+  await waitForCanvas(page);
+  await expect(page.getByLabel('Simulation badge')).toHaveText('SIMULATED · hydraulic v1');
+  await expect(page.getByLabel('Simulation model')).toHaveValue('hydraulic');
+  // Valve B sits above the liquid surface, so its branch is stopped; the other four flow.
+  await expect(flowSummary(page)).toHaveText('Flow: 4 forward, 0 reverse, 1 stopped, 0 unknown');
+  await page.getByLabel('Simulation model').selectOption('mass-balance');
+  await expect(page.getByLabel('Simulation badge')).toHaveText('SIMULATED · mass-balance v1');
+  await expect(flowSummary(page)).toHaveText('Flow: 5 forward, 0 reverse, 0 stopped, 0 unknown');
+});

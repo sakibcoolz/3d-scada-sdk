@@ -35,7 +35,7 @@ Pure functions take the current time (`now`) and the catalog lookups (`resolvePo
 ### `@scada3d/simulation` (optional, ADR-0010)
 | Runtime | Types |
 |---|---|
-| `createSimulation(scene, { feeds?, pumps?, dt?, clock? })` → `{ state(), step(seconds), update(scene), configure({ feeds, pumps }), reset() }`, `MODEL` (name, version, g, Cd, step), `TANK` (radius, height, port heights) | `Simulation`, `SimulationOptions`, `SimulationState`, `SimulationNote`, `Feed` |
+| `createSimulation(scene, { model?, feeds?, pumps?, dt?, clock? })` → `{ state(), step(seconds), update(scene), configure({ feeds, pumps }), reset() }`, `MODEL` (mass-balance constants), `HYDRAULIC` (hydraulic constants: fluid, roughness, K-factors, lengths), `frictionFactor(re, ε/D)`, `TANK` (radius, height, port heights) | `Simulation`, `SimulationOptions`, `SimulationState`, `SimulationNote`, `Feed`, `PumpCurve` |
 
 The model is deterministic, and the host owns the clock.
 - **Gravity drain:** q = Cd·A·√(2 g Δh) through open paths, discharging to atmosphere.
@@ -43,6 +43,17 @@ The model is deterministic, and the host owns the clock.
 - **Tees** split equally; **closed valves** and **stopped pumps** block.
 - **Integration:** explicit Euler in 0.1 s steps, levels clamped 0–100 % with overflow counted as spilled.
 - **Notes:** `assumed-empty`, `overflow`, `dry`, `blocked`.
+
+`model: 'hydraulic'` (ADR-0011) adds:
+- pressure and elevation (world y);
+- Darcy–Weisbach friction (Swamee–Jain; water at 20 °C, steel ε 0.045 mm);
+- K-factor fitting losses;
+- pumps as curves `{ shutoffHead, design: { rate, head } }`, forward only;
+- tees that split by resistance;
+- head-driven tank-to-tank flow and backflow;
+- free ends that only let liquid out.
+
+It solves trees only; a loop is reported as `loop` and carries no flow. It is quasi-steady, in 0.5 s steps.
 
 Results are always `source: 'SIMULATED'`.
 
