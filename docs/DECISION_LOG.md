@@ -13,6 +13,7 @@ Use one ADR per significant decision. Accepted decisions are binding; proposals 
 | [0007](adr/0007-structured-vectors-schema-v3.md) | Accepted | Scene version 3: named `{x, y, z}` / `{x, y, z, w}` vectors in files and the model; v1/v2 migrate |
 | [0008](adr/0008-assemblies-parent-child.md) | Accepted | Assemblies: optional `parentId`, rigid group editing, built from connections |
 | [0009](adr/0009-pipe-sizes-and-fittings.md) | Accepted | Pipe sizes DN50–DN200 as optional `properties.size` (absent = DN150); reducer and coupler kinds |
+| [0010](adr/0010-simulation-package.md) | Accepted | Optional `@scada3d/simulation` package: deterministic mass-balance model (gravity drain, feeds, pumps), shown through a `simulation` prop, always SIMULATED |
 
 ## New ADR template
 Title / Status (Proposed/Accepted/Superseded) / Context / Options considered / Decision / Trade-offs / Consequences / Migration / Tests / Date / Approvers. Owner approval required before altering public schema or safety boundaries.

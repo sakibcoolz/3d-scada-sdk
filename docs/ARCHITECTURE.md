@@ -180,6 +180,14 @@ Public React API (proposed, subject to M7 contract review): `Scada3DEditor`, `Sc
 
 **Optional engineering simulator:** fixed-time-step tank mass-balance, bounded volume and documented pressure/valve/pump models, input assumptions, fixtures and validation tolerances. Always label results **SIMULATED**. Real CFD/particle fluid physics is not included in initial release; separate ADR and specialized solver evaluation required.
 
+**Implemented (T-021, ADR-0010):** `packages/simulation` (`@scada3d/simulation`, depends on core and components). Model `mass-balance` v1:
+- gravity drain through open paths (Torricelli, Cd 0.62, discharge to atmosphere, no friction or back-pressure);
+- feeds at free ports, and pumps forcing their rate from the first tank upstream;
+- equal tee splits; closed valves and stopped pumps block;
+- explicit Euler in 0.1 s steps.
+
+It is verified against the analytic drain solution (< 0.5 %, measured 0.04 %) and volume conservation. The viewer's `simulation` prop draws its levels and flows, never mixed with measured values. Pressure, friction and pump curves are T-022.
+
 ## 9. Telemetry and data adapters
 
 ```mermaid

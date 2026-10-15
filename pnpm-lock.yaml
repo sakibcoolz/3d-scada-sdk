@@ -38,6 +38,9 @@ importers:
       '@scada3d/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@scada3d/simulation':
+        specifier: workspace:*
+        version: link:../../packages/simulation
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.7.0(vite@6.4.4(@types/node@22.20.5))
@@ -105,6 +108,15 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.3.1(react@19.3.1)
+
+  packages/simulation:
+    dependencies:
+      '@scada3d/components':
+        specifier: workspace:*
+        version: link:../components
+      '@scada3d/core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 

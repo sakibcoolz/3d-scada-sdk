@@ -747,3 +747,40 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0 and `pnpm test:consumer` 0.
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-046 REVIEW until merged. LOD not built: on the M2 it is not needed.
+
+## 2026-10-15 — T-021 optional mass-balance simulation (ADR-0010)
+- Branch: `feat/T-021-simulation` (from `develop` @ `a2f63dc`, after #47). T-046 marked DONE (#47 merged).
+- Dependencies: T-013 and T-016 DONE.
+- Owner decisions (asked in session):
+  - a new `@scada3d/simulation` package;
+  - a gravity drain + sources model;
+  - a new `simulation` prop.
+  - Recorded as ADR-0010 (Accepted).
+- Graphify: index NOT built. Fallback: read the flow, telemetry and viewer code and the architecture docs directly.
+- Scope:
+  - `packages/simulation` (depends on core and components):
+    - `createSimulation` → `state/step/update/configure/reset`;
+    - `MODEL` (mass-balance v1: g 9.81, Cd 0.62, 0.1 s step);
+    - `TANK` (radius, height and port heights from the catalog);
+    - `SimulationState`: levels, SIMULATED flow readings, totals, notes, model.
+  - Rules: Torricelli drain through open paths to atmosphere; feeds at free ports; pumps force their rate from the first upstream tank (`dry` when it cannot supply); tees split equally across open branches; closed valves, stopped pumps and cycles block; overflow counted as spilled.
+  - React `simulation` prop on viewer and editor: levels and flows come only from it, the badge reads "SIMULATED · mass-balance v1", and the saved scene is untouched.
+  - Playground `?simulate` panel: run/pause, speed, feed into the tank inlet, reset, time, totals, notes.
+  - The consumer verification now packs and installs four packages, and `node-check.mjs` runs a simulation in plain Node.
+  - Docs: API.md, RELEASE.md, README, ARCHITECTURE (implemented note), DECISION_LOG.
+- Tests:
+  - Written first and run red: 24 simulation unit tests (module missing). They cover the analytic Torricelli drain (< 0.5 %; measured error 0.02–0.04 %), the drain stopping at the outlet, sign convention, closed valve, conservation (fed = Δstored + spilled to 1e-9), the steady state where feed equals drain, overflow, tank-to-tank transfer, assumed-empty, tee equal split and closed branch, cycles, pump rate and stopped pump, dry pump, blocked feed, determinism, update/reset and input validation.
+  - Mutation check: Cd 0.62 → 0.6 fails the drain and steady-state tests.
+  - `e2e/simulation.spec.ts` (4 tests) was written after the code. Mutation check: ignoring simulated levels fails 2 of them. Two test-side fixes: an exact match for "Reset" (it also matched "Reset rotation"), and pausing before reset at 60× speed.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0 (lockfile updated for the new package).
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (929 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (95 tests).
+  - `pnpm verify:consumer` 0 (simulated level 61.1 % after 30 s in plain Node).
+  - `pnpm test:consumer` 0.
+  - Playground screenshot checked.
+  - GitHub Actions CI not awaited (owner direction).
+- Not included: pressure, friction, pump curves and backflow (T-022, needs validated assumptions); tank rotation is assumed upright.
+- Status: T-021 REVIEW until merged.
