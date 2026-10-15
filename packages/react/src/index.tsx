@@ -342,6 +342,18 @@ export interface FlowInput {
   staleAfterMs?: number;
 }
 
+/**
+ * Simulated state from a host-run simulator (e.g. `@scada3d/simulation`, ADR-0010). While it is
+ * set, tank levels and connection flows come only from here, never mixed with telemetry or `flow`.
+ */
+export interface SimulationInput {
+  /** Tank level per component id, percent. */
+  levels?: Readonly<Record<string, number>>;
+  /** Readings per connection; drawn as SIMULATED whatever their own `source` says. */
+  flows?: readonly FlowReading[];
+  model?: { name: string; version: number };
+}
+
 /** Host-supplied tag observations for the scene's tag bindings. Omit it to show authored values. */
 export interface TelemetryInput {
   /** Observations passed directly, e.g. from the host's own state. */
@@ -416,7 +428,7 @@ export type TransformHandler = (id: string, position: Vector3Like, rotation: Qua
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,collisions=true,openJoints=true,instancing='auto',ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;ref?:React.Ref<ScadaHandle>}) {
   const telemetry = useTelemetryFeed(telemetryInput, ref);
   const collision = useMemo(() => (collisions ? findCollisions(scene, { resolveBounds }) : undefined), [scene, collisions]);
   const previewCollides = useMemo(() => !!(collisions && preview && collidingWith({ ...scene, components: [...scene.components, preview.component] }, preview.component.id).length), [scene, preview, collisions]);
@@ -437,7 +449,14 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   const now = useNow(1000);
   const live = useTelemetry(scene, telemetry, now);
   // What is drawn: live values over authored ones; never saved.
-  const shown = useMemo(() => (live ? displayScene(scene, live.properties) : scene), [scene, live]);
+  const shown = useMemo(() => {
+    // Simulated levels replace measured ones; the two are never mixed (ADR-0010).
+    const simulatedLevel = (p: PropertyState) => simulation?.levels !== undefined && p.property === 'level' && Object.hasOwn(simulation.levels, p.instanceId);
+    const measured = live ? displayScene(scene, live.properties.filter((p) => !simulatedLevel(p))) : scene;
+    const levels = simulation?.levels;
+    if (!levels) return measured;
+    return { ...measured, components: measured.components.map((c) => (c.type === 'tank' && Object.hasOwn(levels, c.id) ? { ...c, properties: { ...c.properties, level: levels[c.id] } } : c)) };
+  }, [scene, live, simulation?.levels]);
   // Keyed on content: telemetry re-resolves every second, but untrusted properties rarely change,
   // and a new map would make every instanced part rebuild its matrices.
   const unknownKey = (live?.properties ?? []).filter((p) => p.status === 'unknown').map((p) => `${p.instanceId}\u0000${p.property}`).join('\u0001');
@@ -451,11 +470,15 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   }, [unknownKey]);
   const hasFlowBindings = scene.tagBindings?.some((b) => b.kind === 'flow') ?? false;
   const flowStates = useMemo(() => {
+    if (simulation?.flows) {
+      const readings = simulation.flows.map((r) => ({ ...r, source: 'SIMULATED' as const }));
+      return resolveFlow(scene, readings, { now, source: 'SIMULATED' }).states;
+    }
     if (!flow && !(live && hasFlowBindings)) return undefined;
     // One source per view: explicit readings and tag-derived readings use the same source filter.
     const readings = [...(flow?.readings ?? []), ...(live?.flowReadings ?? [])];
     return resolveFlow(scene, readings, { now, source: flow?.source ?? telemetry?.source, staleAfterMs: flow?.staleAfterMs ?? telemetry?.staleAfterMs }).states;
-  }, [scene, flow, live, hasFlowBindings, now, telemetry]);
+  }, [scene, flow, live, hasFlowBindings, now, telemetry, simulation?.flows]);
   const stateById = useMemo(() => new Map(flowStates?.map((s) => [s.connectionId, s])), [flowStates]);
   const showHeatLegend = shown.components.some((c) => heatColor(c.properties.temperature) !== undefined);
   const [selectedObject, setSelectedObject] = useState<Object3D | null>(null);
@@ -486,12 +509,13 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     {onCamera && <CameraBridge onCamera={onCamera}/>}
     <OrbitControls makeDefault/><GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport/></GizmoHelper>
   </Canvas>
-  {(flow?.source??telemetry?.source)==='SIMULATED'&&<div style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED FLOW</div>}
+  {simulation?<div aria-label="Simulation badge" style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED{simulation.model?` · ${simulation.model.name} v${simulation.model.version}`:''}</div>
+    :(flow?.source??telemetry?.source)==='SIMULATED'&&<div style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED FLOW</div>}
   {((collision&&collision.pairs.length>0)||open.length>0)&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',display:'flex',flexDirection:'column',gap:4,alignItems:'center',pointerEvents:'none'}}>
     {collision&&collision.pairs.length>0&&<CollisionList pairs={collision.pairs} names={names} order={scene.components.map(c=>c.id)}/>}
     {open.length>0&&<OpenJointList open={open} names={names}/>}
   </div>}
-  {showHeatLegend&&<div style={{position:'absolute',top:flow?.source==='SIMULATED'?44:10,right:12,padding:'4px 8px',borderRadius:4,background:'#0b1725cc',color:'#ebf2fa',fontSize:12,pointerEvents:'none'}}>
+  {showHeatLegend&&<div style={{position:'absolute',top:simulation||(flow?.source??telemetry?.source)==='SIMULATED'?44:10,right:12,padding:'4px 8px',borderRadius:4,background:'#0b1725cc',color:'#ebf2fa',fontSize:12,pointerEvents:'none'}}>
     <div style={{height:8,borderRadius:2,marginBottom:4,background:`linear-gradient(90deg, ${heatColor(HEAT_RANGE_C.min)}, ${heatColor(HEAT_RANGE_C.max)})`}}/>
     Temperature tint {HEAT_RANGE_C.min}–{HEAT_RANGE_C.max} °C (display only, not simulated)
   </div>}
@@ -777,7 +801,7 @@ function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
-export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,collisions=true,openJoints=true,instancing='auto',locked,defaultLocked=false,onLockedChange,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',locked,defaultLocked=false,onLockedChange,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;ref?:React.Ref<ScadaHandle>}) {
   // The editor owns the feed; the viewer below only receives the merged observations.
   const telemetry=useTelemetryFeed(telemetryInput,ref);
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
@@ -995,7 +1019,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     <main onDragOver={e=>{if(!dragKind.current||isLocked)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} collisions={collisions} openJoints={openJoints} instancing={instancing}/>
+      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} simulation={simulation} collisions={collisions} openJoints={openJoints} instancing={instancing}/>
       {isLocked&&<div style={{position:'absolute',bottom:10,right:110,padding:'4px 10px',borderRadius:4,background:'#0b1725e6',border:'1px solid #ffd166',color:'#ffd166',fontSize:12,pointerEvents:'none'}}>🔒 Editing locked</div>}
       {notice.length>0&&<ConnectionNotice lines={notice} onDismiss={()=>setNotice([])}/>}
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene)+previewOverlap:''}</div>

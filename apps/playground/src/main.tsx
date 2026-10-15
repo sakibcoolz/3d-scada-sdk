@@ -5,11 +5,14 @@ import { componentCatalog } from '@scada3d/components';
 import { Scada3DEditor, Scada3DViewer, type ScadaHandle } from '@scada3d/react';
 import { demoScene, demoTagRows, generatedScene } from './demo';
 import { useDemoFeed } from './DemoFeed';
+import { useSimulation } from './SimulationPanel';
 
 const params = new URLSearchParams(location.search);
 // `?generate=N` loads the named benchmark scene "chain-N" with a live flow feed (see docs/PERFORMANCE.md).
 const generated = params.has('generate') ? generatedScene(Math.max(2, Math.min(5000, Number(params.get('generate')) || 200))) : undefined;
-const demo = params.has('demo') || generated !== undefined;
+// `?simulate` runs the demo plant through the mass-balance model instead of the demo tag feed (ADR-0010).
+const simulate = params.has('simulate');
+const demo = params.has('demo') || generated !== undefined || simulate;
 // `?collisions=off` shows the host switch for the default-on collision highlight.
 const collisions = params.get('collisions') !== 'off';
 // `?locked` starts the editor in view-only mode.
@@ -32,7 +35,8 @@ const start = initialScene();
 
 function App() {
   const [scene, setScene] = useState<ScadaScene>(start ?? createEmptyScene());
-  const { telemetry, panel } = useDemoFeed(scene, generated?.rows ?? (demo ? demoTagRows : {}));
+  const { telemetry, panel } = useDemoFeed(scene, generated?.rows ?? (demo && !simulate ? demoTagRows : {}));
+  const simulation = useSimulation(scene, simulate);
   const [mounted, setMounted] = useState(true);
   const [second, setSecond] = useState(false);
   const editor = useRef<ScadaHandle>(null);
@@ -41,7 +45,8 @@ function App() {
       <header style={{ padding: '12px 20px', background: '#0b1725', color: 'white', fontFamily: 'system-ui' }}>
         <b>3D SCADA SDK</b> <span style={{ opacity: 0.6 }}> / R&D Playground</span>
       </header>
-      {demo && !generated && panel}
+      {demo && !generated && !simulate && panel}
+      {simulation.panel}
       <div style={{ display: 'flex', gap: 14, padding: '4px 20px', background: '#0f1d2c', color: '#ebf2fa', fontFamily: 'system-ui', fontSize: 12 }}>
         <label><input type="checkbox" aria-label="Mount editor" checked={mounted} onChange={(e) => setMounted(e.target.checked)} /> Mount editor</label>
         <label><input type="checkbox" aria-label="Second viewer" checked={second} onChange={(e) => setSecond(e.target.checked)} /> Second viewer</label>
@@ -55,7 +60,8 @@ function App() {
             }}
             initialScene={scene}
             onChange={setScene}
-            telemetry={demo ? telemetry : undefined}
+            telemetry={demo && !simulate ? telemetry : undefined}
+            simulation={simulation.state}
             collisions={collisions}
             defaultLocked={defaultLocked}
             instancing={instancing}

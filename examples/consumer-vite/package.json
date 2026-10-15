@@ -12,9 +12,10 @@
     "node-check": "node node-check.mjs"
   },
   "dependencies": {
-    "@scada3d/core": "0.1.0",
     "@scada3d/components": "0.1.0",
+    "@scada3d/core": "0.1.0",
     "@scada3d/react": "0.1.0",
+    "@scada3d/simulation": "0.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
