@@ -3,14 +3,19 @@ import type { ScadaScene } from '@scada3d/core';
 import { createSimulation, type SimulationState } from '@scada3d/simulation';
 
 const speeds = [1, 10, 60] as const;
+const models = ['mass-balance', 'hydraulic'] as const;
+type Model = (typeof models)[number];
 
 /**
  * Host side of `?simulate`: runs the mass-balance model (ADR-0010) on the edited scene and hands
  * its state to the editor's `simulation` prop. The playground owns the clock, as any host would.
  */
-export function useSimulation(scene: ScadaScene, enabled: boolean) {
-  const sim = useMemo(() => (enabled ? createSimulation(scene) : undefined), [enabled]);
+export function useSimulation(scene: ScadaScene, enabled: boolean, initialModel: Model = 'mass-balance') {
+  const [model, setModel] = useState<Model>(initialModel);
+  // A new model starts a new run from the authored levels.
+  const sim = useMemo(() => (enabled ? createSimulation(scene, { model }) : undefined), [enabled, model]);
   const [state, setState] = useState<SimulationState | undefined>(() => sim?.state());
+  useEffect(() => { if (sim) setState(sim.state()); }, [sim]);
   const [running, setRunning] = useState(true);
   const [speed, setSpeed] = useState<(typeof speeds)[number]>(10);
   const [feed, setFeed] = useState(0);
@@ -39,6 +44,7 @@ export function useSimulation(scene: ScadaScene, enabled: boolean) {
   const panel = sim && state && (
     <div aria-label="Simulation" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', padding: '6px 20px', background: '#1b1530', color: '#e9e0ff', fontFamily: 'system-ui', fontSize: 12 }}>
       <b>Simulation</b>
+      <label>Model <select aria-label="Simulation model" value={model} onChange={(e) => setModel(e.target.value as Model)}>{models.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
       <span>{state.model.name} v{state.model.version} · SIMULATED, not plant data</span>
       <button onClick={() => setRunning(!running)}>{running ? 'Pause' : 'Run'}</button>
       <label>Speed <select aria-label="Simulation speed" value={speed} onChange={(e) => setSpeed(Number(e.target.value) as (typeof speeds)[number])}>{speeds.map((s) => <option key={s} value={s}>{s}×</option>)}</select></label>

@@ -10,8 +10,10 @@ import { useSimulation } from './SimulationPanel';
 const params = new URLSearchParams(location.search);
 // `?generate=N` loads the named benchmark scene "chain-N" with a live flow feed (see docs/PERFORMANCE.md).
 const generated = params.has('generate') ? generatedScene(Math.max(2, Math.min(5000, Number(params.get('generate')) || 200))) : undefined;
-// `?simulate` runs the demo plant through the mass-balance model instead of the demo tag feed (ADR-0010).
+// `?simulate` runs the demo plant through the simulator instead of the demo tag feed (ADR-0010);
+// `?simulate=hydraulic` starts with the hydraulic model (ADR-0011).
 const simulate = params.has('simulate');
+const simulateModel = params.get('simulate') === 'hydraulic' ? 'hydraulic' : 'mass-balance';
 const demo = params.has('demo') || generated !== undefined || simulate;
 // `?collisions=off` shows the host switch for the default-on collision highlight.
 const collisions = params.get('collisions') !== 'off';
@@ -36,7 +38,7 @@ const start = initialScene();
 function App() {
   const [scene, setScene] = useState<ScadaScene>(start ?? createEmptyScene());
   const { telemetry, panel } = useDemoFeed(scene, generated?.rows ?? (demo && !simulate ? demoTagRows : {}));
-  const simulation = useSimulation(scene, simulate);
+  const simulation = useSimulation(scene, simulate, simulateModel);
   const [mounted, setMounted] = useState(true);
   const [second, setSecond] = useState(false);
   const editor = useRef<ScadaHandle>(null);
