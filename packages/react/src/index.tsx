@@ -360,12 +360,12 @@ function CollisionList({ pairs, names, order }: { pairs: readonly { a: string; b
 }
 
 /** Keyboard-reachable list of everything in the scene; selecting here equals clicking in the canvas. */
-function SceneList({ scene, selected, onSelect }: { scene: ScadaScene; selected?: string; onSelect: (id: string) => void }) {
+function SceneList({ scene, selected, onSelect, locked }: { scene: ScadaScene; selected?: string; onSelect: (id: string) => void; locked?: boolean }) {
   const names = componentNames(scene);
   const entries = scene.components.map((c) => ({ id: c.id, name: names.get(c.id)! }));
   if (entries.length === 0) return null;
   return <nav aria-label="Scene components" style={{margin:'10px 0'}}>
-    <small>In scene (arrows move, R turns, Delete removes)</small>
+    <small>{locked ? 'In scene (editing locked)' : 'In scene (arrows move, R turns, Delete removes)'}</small>
     <div style={{maxHeight:160,overflowY:'auto'}}>
       {entries.map(e => <button key={e.id} aria-pressed={selected === e.id} onClick={() => onSelect(e.id)}
         style={{display:'block',width:'100%',textAlign:'left',marginTop:3,fontWeight:selected===e.id?700:400}}>{e.name}</button>)}
@@ -450,7 +450,7 @@ function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
-export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,collisions=true,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,collisions=true,locked,defaultLocked=false,onLockedChange,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;ref?:React.Ref<ScadaHandle>}) {
   // The editor owns the feed; the viewer below only receives the merged observations.
   const telemetry=useTelemetryFeed(telemetryInput,ref);
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
@@ -461,8 +461,13 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
   const [viewOverrides,setViewOverrides]=useState<Record<string,ViewMode>>({});
   const [transformMode,setTransformMode]=useState<TransformMode>('translate');
   /** Every scene change goes through history; pass a mergeKey to fold a gesture into one undo step. */
-  function update(next:ScadaScene, mergeKey?:string){setHistory(h=>commit(h,next,mergeKey));onChange?.(next);}
+  const [ownLocked,setOwnLocked]=useState(defaultLocked);
+  /** View-only mode: every scene change below is refused here, whatever control triggered it. */
+  const isLocked=locked??ownLocked;
+  function setLocked(next:boolean){if(locked===undefined)setOwnLocked(next);onLockedChange?.(next);}
+  function update(next:ScadaScene, mergeKey?:string){if(isLocked)return;setHistory(h=>commit(h,next,mergeKey));onChange?.(next);}
   function travel(step:(h:History)=>History){
+    if(isLocked) return;
     const next=step(history);
     if(next===history) return;
     setHistory(next);onChange?.(next.present);
@@ -470,6 +475,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
   }
   function onKeyDown(e:React.KeyboardEvent){
     if(isTextEntry(e.target)) return;
+    if(isLocked&&e.key!=='Escape') return;
     if(e.ctrlKey||e.metaKey){
       const key=e.key.toLowerCase();
       if(key==='z'&&!e.shiftKey){e.preventDefault();travel(undo);}
@@ -490,6 +496,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
   const root=useRef<HTMLDivElement>(null);
   /** Removes a component (with its edges and bindings); focus moves to the editor so keyboard shortcuts keep working. */
   function removeSelected(id:string){
+    if(isLocked) return;
     const result=removeComponent(scene,id);
     if(result.ok)update(result.scene);
     setSelected(undefined);
@@ -521,6 +528,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
   function endDrag(){dragKind.current=undefined;setPreview(undefined);}
   function drop(e:React.DragEvent<HTMLElement>) {
     e.preventDefault();
+    if(isLocked){endDrag();return;}
     const plan=planAt(e,newId());
     endDrag();
     if(!plan) return;
@@ -573,25 +581,30 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
   const toolButton=(mode:TransformMode,label:string)=><button aria-pressed={transformMode===mode} onClick={()=>setTransformMode(mode)} style={{fontWeight:transformMode===mode?700:400}}>{label}</button>;
   return <div ref={root} tabIndex={-1} onKeyDown={onKeyDown} style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
     <aside style={{padding:14,borderRight:'1px solid #3c5366'}}>
+      <button aria-pressed={isLocked} onClick={()=>setLocked(!isLocked)} style={{display:'block',width:'100%',marginBottom:8,padding:6,fontWeight:isLocked?700:400}}>{isLocked?'Unlock editing':'Lock editing'}</button>
+      <fieldset disabled={isLocked} style={{border:'none',padding:0,margin:0}}>
       <div style={{display:'flex',gap:6,marginBottom:8}}>
         <button onClick={()=>travel(undo)} disabled={!canUndo(history)} title="Undo (Ctrl+Z)">Undo</button>
         <button onClick={()=>travel(redo)} disabled={!canRedo(history)} title="Redo (Ctrl+Shift+Z / Ctrl+Y)">Redo</button>
       </div>
       <div role="group" aria-label="Transform tool" style={{display:'flex',gap:6}}>{toolButton('translate','Move')}{toolButton('rotate','Rotate')}</div>
       <h3>Components</h3>{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)} style={{display:'block',width:'100%',marginBottom:8,padding:9,cursor:'grab'}}>{componentCatalog[k].label} +</button>)}
-      <SceneList scene={scene} selected={selected} onSelect={setSelected}/>
+      </fieldset>
+      <SceneList scene={scene} selected={selected} onSelect={setSelected} locked={isLocked}/>
       <label style={{display:'block'}}>View <select aria-label="View mode" value={viewMode} onChange={e=>setViewMode(e.target.value as ViewMode)}>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
     </aside>
-    <main onDragOver={e=>{if(!dragKind.current)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
+    <main onDragOver={e=>{if(!dragKind.current||isLocked)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={transform} flow={flow} telemetry={telemetry} collisions={collisions}/>
+      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} collisions={collisions}/>
+      {isLocked&&<div style={{position:'absolute',bottom:10,right:110,padding:'4px 10px',borderRadius:4,background:'#0b1725e6',border:'1px solid #ffd166',color:'#ffd166',fontSize:12,pointerEvents:'none'}}>🔒 Editing locked</div>}
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene)+previewOverlap:''}</div>
     </main>
     <aside style={{padding:14,borderLeft:'1px solid #3c5366'}}>
       <h3>Properties</h3>
       {component ? <>
         <p>{componentCatalog[component.type].label}</p>
+        <fieldset disabled={isLocked} style={{border:'none',padding:0,margin:0}}>
         <small>Position (metres)</small>
         {(['x','y','z'] as const).map(axis=><label key={axis} style={{display:'block',marginTop:8}}>{axis.toUpperCase()} <input type="number" step=".1" style={{width:100}} value={component.position[axis]} onChange={e=>patch({position:{...component.position,[axis]:Number(e.target.value)}},`position:${component.id}:${axis}`)}/></label>)}
         <RotationFields rotation={component.rotation} onChange={(rotation,mergeKey)=>patch({rotation},mergeKey&&`rotation:${component.id}:${mergeKey}`)}/>
@@ -603,16 +616,17 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
         </>}
         {component.type==='valve'&&<label><input type="checkbox" checked={component.properties.open!==false} onChange={e=>patch({properties:{...component.properties,open:e.target.checked}})}/> Valve open</label>}
         <BindingsEditor component={component} scene={scene} live={live?.properties} onSet={setBinding}/>
+        </fieldset>
         <label style={{display:'block',marginTop:8}}>Component view <select aria-label="Component view" value={viewOverrides[component.id]??''} onChange={e=>{const value=e.target.value as ViewMode|'';setViewOverrides(({[component.id]:_,...rest})=>value?{...rest,[component.id]:value}:rest);}}><option value="">Use global</option>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
-        <p><button onClick={()=>removeSelected(component.id)}>Remove</button></p>
+        <p><button onClick={()=>removeSelected(component.id)} disabled={isLocked}>Remove</button></p>
       </>:<p>Select equipment in the canvas.</p>}
       <hr/><small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={serialized} style={{width:'100%',height:170,boxSizing:'border-box'}}/>
       <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:6}}>
         <button onClick={exportScene}>Export JSON</button>
-        <input type="file" accept=".json,application/json" aria-label="Import scene file" onChange={importFile} style={{fontSize:12,maxWidth:'100%'}}/>
+        <input type="file" accept=".json,application/json" aria-label="Import scene file" disabled={isLocked} onChange={importFile} style={{fontSize:12,maxWidth:'100%'}}/>
       </div>
-      <textarea aria-label="Import JSON text" placeholder="Paste scene JSON to import" value={importText} onChange={e=>setImportText(e.target.value)} style={{width:'100%',height:60,marginTop:6,boxSizing:'border-box'}}/>
-      <button onClick={()=>loadScene(importText)} disabled={!importText.trim()}>Load text</button>
+      <textarea aria-label="Import JSON text" placeholder="Paste scene JSON to import" disabled={isLocked} value={importText} onChange={e=>setImportText(e.target.value)} style={{width:'100%',height:60,marginTop:6,boxSizing:'border-box'}}/>
+      <button onClick={()=>loadScene(importText)} disabled={isLocked||!importText.trim()}>Load text</button>
       <p aria-live="polite" style={{fontSize:12,margin:'6px 0'}}>{importNote}</p>
       {importErrors.length>0&&<ul role="alert" aria-label="Import errors" style={{fontSize:12,color:'#ff9aa2',paddingLeft:16,margin:0}}>{importErrors.map((line,i)=><li key={i}>{line}</li>)}</ul>}
     </aside>

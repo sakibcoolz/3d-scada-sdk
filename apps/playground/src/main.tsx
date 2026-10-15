@@ -12,6 +12,8 @@ const generated = params.has('generate') ? generatedScene(Math.max(2, Math.min(5
 const demo = params.has('demo') || generated !== undefined;
 // `?collisions=off` shows the host switch for the default-on collision highlight.
 const collisions = params.get('collisions') !== 'off';
+// `?locked` starts the editor in view-only mode.
+const defaultLocked = params.has('locked');
 
 // `?demo` opens the MVP demo network, validated like any imported scene, with a demo tag feed.
 function initialScene(): ScadaScene | undefined {
@@ -53,6 +55,7 @@ function App() {
             onChange={setScene}
             telemetry={demo ? telemetry : undefined}
             collisions={collisions}
+            defaultLocked={defaultLocked}
           />
         )}
       </div>
