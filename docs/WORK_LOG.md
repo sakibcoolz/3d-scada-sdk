@@ -433,3 +433,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Not done: other parametric types (tank size, elbow angle), changing length by dragging an end.
 - Status: T-033 REVIEW until PR is merged.
 
+## 2026-10-15 — T-038 edit lock (view-only mode)
+- Branch: `feat/T-038-edit-lock` (from `feat/T-033-pipe-length` @ `f4253a2`, PRs #35/#36 open; targets `develop`). Numbered T-038 to leave T-034–T-037 free for planned work.
+- Owner request: lock edit mode in the SDK. Design stated before work: one guard in the editor's update path plus disabled controls; viewing, selection, live data and export stay available; host API `defaultLocked` or controlled `locked` + `onLockedChange`; not saved.
+- Graphify: index NOT built. Fallback: read the editor layout directly.
+- Scope: lock state and toggle, refusals in `update`, `travel`, `removeSelected`, keyboard handler, drag-over and drop; gizmo not mounted while locked; `fieldset disabled` around palette/history/tools and the editable property fields; import controls disabled; "🔒 Editing locked" badge; scene-list hint reflects the lock; playground `?locked`.
+- Tests written first: 5 e2e tests failed before implementation (disabled controls and available viewing tools; keyboard edits and palette drops do nothing while selection works; gizmo drag does not move; unlock restores editing; host can start locked with live data still flowing).
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (605 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (52 tests).
+  - Browser screenshot: `?demo&locked` with controls greyed and live values flowing.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-038 REVIEW until PR is merged (after #35, #36).
+

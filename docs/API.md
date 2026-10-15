@@ -43,6 +43,6 @@ handle.current?.setTagValues([{ tagId: 'LT-101', value: 62, quality: 'GOOD', sou
 ```
 
 - `Scada3DViewer` props: `scene`, `viewMode?`, `viewOverrides?`, `selectedId?`, `onSelect?`, `collisions?` (default `true`: overlapping solid components are shown in red and listed), `flow?` (`FlowInput`: readings keyed by connection), `telemetry?` (`TelemetryInput`: `observations?`, `provider?`, `source?`, `staleAfterMs?`), `ref?` (`ScadaHandle`). Editor-only props (`preview`, `onCamera`, `transformMode`, `onTransform`) are used by `Scada3DEditor` and are not part of the supported viewer contract.
-- `Scada3DEditor` props: `initialScene?`, `onChange?`, `flow?`, `telemetry?`, `collisions?` (default `true`), `ref?`.
+- `Scada3DEditor` props: `initialScene?`, `onChange?`, `flow?`, `telemetry?`, `collisions?` (default `true`), `defaultLocked?` (default `false`) or controlled `locked?` + `onLockedChange?` (view-only mode), `ref?`.
 
 Without `flow` and `telemetry` no live data is shown. Live values never change the scene passed to `onChange`.

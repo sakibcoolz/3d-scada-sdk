@@ -37,6 +37,7 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-031 | M7 (MVP) | P0 | T-006,T-011 | REVIEW | solid-body collision highlight, on by default: OBB overlap per catalog bounds, red shells, overlay, drop warning; non-blocking (owner request) |
 | T-032 | M7 (MVP) | P1 | T-011,T-030 | REVIEW | rotation form for every component: Euler XYZ degree fields, ±90° world-axis turns, reset (owner request) |
 | T-033 | M7 (MVP) | P1 | T-006,T-030 | REVIEW | adjustable pipe length: per-instance catalog definitions (`definitionFor`, `catalogResolvers`), `INVALID_PROPERTY` validation, Length field keeping the connected end fixed (owner request) |
+| T-038 | M7 (MVP) | P1 | T-011,T-033 | REVIEW | edit lock: view-only mode toggle, `defaultLocked` / controlled `locked` + `onLockedChange`, all edit paths refused while locked (owner request) |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.
