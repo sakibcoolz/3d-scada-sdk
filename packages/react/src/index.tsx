@@ -4,22 +4,22 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
 import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { catalogResolvers, componentCatalog, definitionFor, isChoiceParameter, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
-import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
-import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
-import { componentNames, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice';
+import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry.js';
+import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop.js';
+import { componentNames, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice.js';
 
-import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
-import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile';
-import { describeProperty, summarizeTelemetry } from './telemetryView';
-import { nudge } from './keyboard';
-import { degreesFromRotation, rotationFromDegrees, turnAboutWorldAxis } from './rotationForm';
-import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance';
-import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances, pathLengths, pointAt, summarizeFlow } from './flowVisual';
+import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history.js';
+import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile.js';
+import { describeProperty, summarizeTelemetry } from './telemetryView.js';
+import { nudge } from './keyboard.js';
+import { degreesFromRotation, rotationFromDegrees, turnAboutWorldAxis } from './rotationForm.js';
+import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance.js';
+import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances, pathLengths, pointAt, summarizeFlow } from './flowVisual.js';
 
 // Public API of @scada3d/react: the two components, their prop/handle types and scene import helpers.
 // Editor internals (drop planning, history, visual helpers) stay private. See docs/API.md.
-export { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES, type SceneImport } from './sceneFile';
-export { viewModes, type ViewMode } from './appearance';
+export { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES, type SceneImport } from './sceneFile.js';
+export { viewModes, type ViewMode } from './appearance.js';
 
 /**
  * drei's TransformControls builds a new three-stdlib gizmo (about 17 geometries plus materials) on

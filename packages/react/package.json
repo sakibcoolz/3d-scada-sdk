@@ -1,9 +1,17 @@
 {
   "name": "@scada3d/react",
   "version": "0.1.0",
+  "description": "React viewer and editor for @scada3d scenes, built on three.js and React Three Fiber.",
+  "license": "UNLICENSED",
   "type": "module",
   "private": true,
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -11,7 +19,8 @@
     "@scada3d/components": "workspace:*",
     "@react-three/fiber": "^9.1.2",
     "@react-three/drei": "^10.0.6",
-    "three": "^0.175.0"
+    "three": "^0.175.0",
+    "@types/three": "^0.175.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -20,11 +29,20 @@
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@types/three": "^0.175.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "exports": {
     ".": "./src/index.tsx"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "types": "./dist/index.d.ts",
+    "main": "./dist/index.js"
   }
 }

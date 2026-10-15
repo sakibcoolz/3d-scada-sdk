@@ -1,9 +1,17 @@
 {
   "name": "@scada3d/components",
   "version": "0.1.0",
+  "description": "Industrial component catalog (tank, pipe, valve, fittings) for @scada3d/core.",
+  "license": "UNLICENSED",
   "type": "module",
   "private": true,
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -11,5 +19,15 @@
   },
   "exports": {
     ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "types": "./dist/index.d.ts",
+    "main": "./dist/index.js"
   }
 }

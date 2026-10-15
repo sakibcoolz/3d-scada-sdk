@@ -1,6 +1,6 @@
-import { rotateVector } from './quaternion';
-import type { ComponentInstance, ComponentKind, ScadaScene, SceneConnection, Vector3Like, Vector3Tuple } from './scene';
-import { quaternionToTuple } from './vectors';
+import { rotateVector } from './quaternion.js';
+import type { ComponentInstance, ComponentKind, ScadaScene, SceneConnection, Vector3Like, Vector3Tuple } from './scene.js';
+import { quaternionToTuple } from './vectors.js';
 
 /** A snapshot of copied components and the connections between them. */
 export interface ComponentClipboard {

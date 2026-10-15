@@ -10,7 +10,7 @@ import {
   sizeOfPort,
   validateProperties,
   type GeometryPart,
-} from './index';
+} from './index.js';
 
 const sized: ComponentKind[] = ['pipe', 'elbow', 'tee', 'valve', 'reducer', 'coupler'];
 

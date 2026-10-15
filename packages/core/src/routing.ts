@@ -1,5 +1,5 @@
-import type { ComponentInstance, ComponentKind, ConnectionPort, ScadaScene, SceneConnection, Vector3Tuple } from './scene';
-import { portToWorld, type WorldPort } from './transforms';
+import type { ComponentInstance, ComponentKind, ConnectionPort, ScadaScene, SceneConnection, Vector3Tuple } from './scene.js';
+import { portToWorld, type WorldPort } from './transforms.js';
 
 export type RouteKind = 'direct' | 'straight' | 'orthogonal';
 export type RouteFailure = 'UNRESOLVED' | 'UNSUPPORTED_ORIENTATION' | 'UNROUTABLE' | 'BEND_TOO_TIGHT';

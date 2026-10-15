@@ -5,7 +5,7 @@ import {
   type ConnectionPort,
   type SceneValidationErrorCode,
   type SceneValidationOptions,
-} from './index';
+} from './index.js';
 
 const fluidPort = (id: string, nominalSize = 0.15): ConnectionPort => ({
   id,

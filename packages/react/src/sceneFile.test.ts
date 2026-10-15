@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { serializeScene, type ScadaScene, type SceneValidationError } from '@scada3d/core';
-import { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile';
+import { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile.js';
 
 const linked: ScadaScene = {
   schemaVersion: 3,

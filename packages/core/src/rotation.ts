@@ -1,6 +1,6 @@
-import * as tuples from './quaternion';
-import type { QuaternionLike, Vector3Like } from './scene';
-import { quaternionToTuple, tupleToQuaternion, tupleToVector, vectorToTuple } from './vectors';
+import * as tuples from './quaternion.js';
+import type { QuaternionLike, Vector3Like } from './scene.js';
+import { quaternionToTuple, tupleToQuaternion, tupleToVector, vectorToTuple } from './vectors.js';
 
 // Public rotation helpers in the named form used by the scene model.
 

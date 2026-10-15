@@ -1,6 +1,6 @@
 import type { ComponentKind, ConnectionPort, Vector3Tuple } from '@scada3d/core';
-import type { IndustrialComponentDefinition } from './geometry';
-import { DEFAULT_SIZE, outerRadiusFor, pipeSizes, SIZE_PARAMETER, type PipeSize } from './sizes';
+import type { IndustrialComponentDefinition } from './geometry.js';
+import { DEFAULT_SIZE, outerRadiusFor, pipeSizes, SIZE_PARAMETER, type PipeSize } from './sizes.js';
 
 /** Nominal bore of every MVP fluid port, metres (DN150). */
 export const nominalBore = 0.15;

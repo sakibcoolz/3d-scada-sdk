@@ -14,7 +14,7 @@ import {
   type FlowReading,
   type Observation,
   type ScadaScene,
-} from './index';
+} from './index.js';
 
 // Named benchmark scenes. "chain-N": N valves in a zig-zag line, each connected to the next, so
 // every route has two bends; every connection has a flow tag and every valve an open tag.

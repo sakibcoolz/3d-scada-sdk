@@ -1,6 +1,6 @@
-import { portsCompatible, type ComponentInstance, type ComponentKind, type ConnectionPort, type ScadaScene, type SceneConnection } from './scene';
-import { portToWorld, type WorldPort } from './transforms';
-import { validateScene, type SceneValidationOptions } from './validation';
+import { portsCompatible, type ComponentInstance, type ComponentKind, type ConnectionPort, type ScadaScene, type SceneConnection } from './scene.js';
+import { portToWorld, type WorldPort } from './transforms.js';
+import { validateScene, type SceneValidationOptions } from './validation.js';
 
 type Endpoint = SceneConnection['from'];
 

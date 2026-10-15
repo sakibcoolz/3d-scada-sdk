@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { componentKinds, quaternionFromEuler, snapComponent, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@scada3d/core';
-import { componentCatalog, definitionFor, outerRadiusFor, pipeOuterRadius, sizeOfPort, type GeometryPart } from './index';
+import { componentCatalog, definitionFor, outerRadiusFor, pipeOuterRadius, sizeOfPort, type GeometryPart } from './index.js';
 
 const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
 

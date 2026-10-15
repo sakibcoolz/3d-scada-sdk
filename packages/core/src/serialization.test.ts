@@ -8,7 +8,7 @@ import {
   type ConnectionPort,
   type ScadaScene,
   type SceneValidationOptions,
-} from './index';
+} from './index.js';
 
 const fluid = (id: string): ConnectionPort => ({ id, kind: 'fluid', position: [0, 0, 0], direction: [1, 0, 0], nominalSize: 0.15 });
 const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = {

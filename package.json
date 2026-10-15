@@ -13,12 +13,15 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "bench": "vitest bench --run",
-    "perf": "playwright test --config playwright.perf.config.ts"
+    "perf": "playwright test --config playwright.perf.config.ts",
+    "verify:consumer": "node scripts/verify-consumer.mjs",
+    "test:consumer": "playwright test --config playwright.consumer.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
     "@types/node": "^22.15.0",
     "typescript": "^5.7.3",
     "vitest": "^4.1.11"
-  }
+  },
+  "license": "UNLICENSED"
 }

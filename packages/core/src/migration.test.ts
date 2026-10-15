@@ -8,8 +8,8 @@ import {
   type SceneValidationErrorCode,
   type SceneValidationOptions,
   type Vector3Tuple,
-} from './index';
-import { quaternionFromEuler as quaternionTupleFromEuler } from './quaternion';
+} from './index.js';
+import { quaternionFromEuler as quaternionTupleFromEuler } from './quaternion.js';
 
 const { PI } = Math;
 const fluid = (id: string, position: Vector3Tuple, direction: Vector3Tuple): ConnectionPort => ({

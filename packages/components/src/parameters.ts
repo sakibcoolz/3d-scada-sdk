@@ -1,7 +1,7 @@
 import type { ComponentInstance, ComponentKind, Quantity } from '@scada3d/core';
-import { componentCatalog, couplerDefinition, elbowDefinition, pipeDefinition, reducerDefinition, teeDefinition, valveDefinition } from './catalog';
-import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry';
-import type { PipeSize } from './sizes';
+import { componentCatalog, couplerDefinition, elbowDefinition, pipeDefinition, reducerDefinition, teeDefinition, valveDefinition } from './catalog.js';
+import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
+import type { PipeSize } from './sizes.js';
 
 type Properties = ComponentInstance['properties'];
 

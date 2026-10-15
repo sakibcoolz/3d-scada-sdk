@@ -1,4 +1,4 @@
-import type { QuaternionTuple, Vector3Tuple } from './scene';
+import type { QuaternionTuple, Vector3Tuple } from './scene.js';
 
 // Quaternions are [x, y, z, w]. Conventions match Three.js so values round-trip with the renderer.
 

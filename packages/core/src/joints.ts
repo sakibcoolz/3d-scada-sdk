@@ -1,9 +1,9 @@
-import { assemblyOf, moveAssembly } from './assembly';
-import { multiplyQuaternions, normalizeQuaternion, quaternionFromUnitVectors } from './quaternion';
-import { routeScene, type PipeRoute, type RoutingOptions } from './routing';
-import type { ComponentInstance, QuaternionTuple, ScadaScene, SceneConnection, Vector3Tuple } from './scene';
-import { portToWorld, type WorldPort } from './transforms';
-import { quaternionToTuple, tupleToQuaternion, tupleToVector } from './vectors';
+import { assemblyOf, moveAssembly } from './assembly.js';
+import { multiplyQuaternions, normalizeQuaternion, quaternionFromUnitVectors } from './quaternion.js';
+import { routeScene, type PipeRoute, type RoutingOptions } from './routing.js';
+import type { ComponentInstance, QuaternionTuple, ScadaScene, SceneConnection, Vector3Tuple } from './scene.js';
+import { portToWorld, type WorldPort } from './transforms.js';
+import { quaternionToTuple, tupleToQuaternion, tupleToVector } from './vectors.js';
 
 type Endpoint = SceneConnection['from'];
 

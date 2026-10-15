@@ -1,5 +1,5 @@
-import type { ScadaScene } from './scene';
-import { validateScene, type SceneValidationOptions, type SceneValidationResult } from './validation';
+import type { ScadaScene } from './scene.js';
+import { validateScene, type SceneValidationOptions, type SceneValidationResult } from './validation.js';
 
 export interface ParseSceneOptions extends SceneValidationOptions {
   /** Largest accepted text length in characters, checked before parsing. Default 10,000,000. */

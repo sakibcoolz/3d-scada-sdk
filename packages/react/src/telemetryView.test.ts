@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PropertyState } from '@scada3d/core';
-import { describeProperty, summarizeTelemetry } from './telemetryView';
+import { describeProperty, summarizeTelemetry } from './telemetryView.js';
 
 const ok = (property: string, value: number | boolean, uncertain = false): PropertyState => ({
   bindingId: `b-${property}`,

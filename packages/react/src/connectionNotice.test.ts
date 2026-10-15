@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ComponentInstance, ScadaScene, SceneConnection } from '@scada3d/core';
-import { describeLock, describeNewConnections, describeOpenJoint, describeOpenJoints, describeSeat, formatDistance } from './connectionNotice';
+import { describeLock, describeNewConnections, describeOpenJoint, describeOpenJoints, describeSeat, formatDistance } from './connectionNotice.js';
 
 const part = (id: string, type: ComponentInstance['type'], parentId?: string): ComponentInstance => ({
   id,

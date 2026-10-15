@@ -11,7 +11,7 @@ import {
   type RoutingOptions,
   type ScadaScene,
   type Vector3Tuple,
-} from './index';
+} from './index.js';
 
 const { PI } = Math;
 const R = 0.3;

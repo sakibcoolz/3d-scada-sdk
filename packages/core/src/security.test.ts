@@ -11,7 +11,7 @@ import {
   type Quantity,
   type SceneValidationErrorCode,
   type SceneValidationOptions,
-} from './index';
+} from './index.js';
 
 // Adversarial input tests for everything that accepts untrusted host or file data. Fuzzing is
 // seeded, so any failure reproduces exactly.

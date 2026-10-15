@@ -594,3 +594,45 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - Render of tank → DN150 valve → reducer → DN100 pipe → DN100 valve → coupler → DN100 pipe shows the step, with no open joints and no collisions.
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-045 REVIEW until merged (after #41, #42).
+
+## 2026-10-15 — T-024 independent consumer release verification
+- Branch: `feat/T-024-consumer-release` (from `develop` @ `01aaac9`, after #43). T-043, T-044 and T-045 marked DONE (#41–#43 merged).
+- Dependencies: T-023 DONE.
+- Owner decisions (asked in session):
+  - licence proprietary (`UNLICENSED`);
+  - build with TypeScript compiler output;
+  - verify with local tarballs, no publishing.
+- Graphify: index NOT built. Fallback: read the package manifests, tsconfigs and docs directly.
+- Scope:
+  - `.js` extensions on every relative import in `packages/*/src`, so the output runs in plain Node.
+  - `tsconfig.build.json` per package (ESM, `.d.ts`, declaration maps, source maps with inlined sources; tests and fixtures excluded) and a `build` script.
+  - Manifests: description, `license`, `sideEffects: false`, `files`. `exports` still points at `src/` in the workspace; `publishConfig` points the packed tarball at `dist/`. `private: true` is kept.
+  - `@types/three` moved from devDependencies to dependencies of `@scada3d/react`: its public `.d.ts` imports three's `Camera`. Same package and version; no new dependency. `pnpm-lock.yaml` updated offline (3 lines); `pnpm install --frozen-lockfile` passes.
+  - `LICENSE` at the root and in each package.
+  - `examples/consumer-vite` (outside the pnpm workspace).
+  - `scripts/verify-consumer.mjs` (`pnpm verify:consumer`), `playwright.consumer.config.ts` + `e2e-consumer/consumer.spec.ts` (`pnpm test:consumer`).
+  - `docs/RELEASE.md`; README, TEST_STRATEGY and API status updated.
+- Evidence:
+  - The tarballs contain only `dist`, `LICENSE` and `package.json`, with `workspace:*` rewritten to `0.1.0`.
+  - In the consumer app, `npm ls` shows a single, deduped copy of each `@scada3d/*` package, installed from the tarballs, with no `src/`.
+  - The consumer typecheck and Vite production build pass. `node-check.mjs` validates a scene in plain Node and refuses a DN150→DN100 joint.
+  - The browser test passes and has been mutation-checked: renaming the Editor button makes it fail; restoring it makes it pass.
+- Licence inventory of the consumer install:
+  - MIT 111, ISC 8, Apache-2.0 6, BSD-3-Clause 3, the 3 SDK packages `UNLICENSED`;
+  - `webgl-constants` (via drei) has no licence field but an MIT LICENSE file;
+  - `caniuse-lite` (CC-BY-4.0) comes from the consumer's Vite tooling, not the SDK.
+- Process note: while looking for a licence tool I ran `npx --yes license-checker-rseidelsohn --version`, which may have downloaded and run that package from npm. Its output was not used (licences were counted with a local script). Recorded for transparency; avoid in future.
+- Not covered:
+  - publishing (separate owner decision);
+  - semver policy and changelog;
+  - CommonJS builds;
+  - the consumer bundle is 1.26 MB minified (354 kB gzip) with Vite's large-chunk warning; code splitting is the consumer's choice and T-029 covers SDK rendering scale.
+- Verification (Node v22.23.2, pnpm 9.15.4, npm 10.9.8), with exit codes:
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (888 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (80 tests).
+  - `pnpm verify:consumer` 0 (`CONSUMER_WORKDIR` in the session scratchpad).
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-024 REVIEW until merged. This is the last MVP release-gate task; MVP sign-off is the owner's call.

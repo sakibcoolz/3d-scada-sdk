@@ -13,7 +13,7 @@ import {
   type GraphOptions,
   type ScadaScene,
   type SceneConnection,
-} from './index';
+} from './index.js';
 
 const fluid = (id: string, nominalSize = 0.15): ConnectionPort => ({
   id,

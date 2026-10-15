@@ -16,7 +16,7 @@ import {
   type ConnectionPort,
   type ScadaScene,
   type Vector3Tuple,
-} from './index';
+} from './index.js';
 
 const fluid = (id: string, x: number, dir: 1 | -1): ConnectionPort => ({ id, kind: 'fluid', position: [x, 0, 0], direction: [dir, 0, 0], nominalSize: 0.15 });
 const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = { pipe: [fluid('in', -1, -1), fluid('out', 1, 1)], valve: [fluid('in', -0.6, -1), fluid('out', 0.6, 1)] };

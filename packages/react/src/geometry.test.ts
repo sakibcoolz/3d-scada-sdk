@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Box3, Vector3, type BufferGeometry } from 'three';
 import type { PipeRoute } from '@scada3d/core';
 import { componentCatalog, outerRadiusFor, pipeOuterRadius, sizeOfPort } from '@scada3d/components';
-import { createEquipmentGeometries, createPartGeometry, createRouteGeometries, disposeGeometries } from './geometry';
+import { createEquipmentGeometries, createPartGeometry, createRouteGeometries, disposeGeometries } from './geometry.js';
 
 const definitions = Object.values(componentCatalog);
 

@@ -8,7 +8,7 @@ import {
   type ComponentKind,
   type ScadaScene,
   type Vector3Tuple,
-} from './index';
+} from './index.js';
 
 // Box bounds per type, as the catalog provides them (local metres).
 const bounds: Partial<Record<ComponentKind, { min: Vector3Tuple; max: Vector3Tuple }>> = {

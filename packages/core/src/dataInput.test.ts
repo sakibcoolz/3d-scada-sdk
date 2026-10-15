@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { connectProvider, createObservationStore, type DataProvider, type Observation } from './index';
+import { connectProvider, createObservationStore, type DataProvider, type Observation } from './index.js';
 
 const obs = (tagId: string, value: number, secondsAgo = 1, overrides: Partial<Observation> = {}): Observation => ({
   tagId,

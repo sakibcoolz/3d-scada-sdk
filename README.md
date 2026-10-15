@@ -15,6 +15,9 @@ Reusable industrial 3D visualization SDK for Three.js, with a React editor/viewe
 - `@scada3d/components`: procedural industrial geometry
 - `@scada3d/react`: React Three Fiber rendering and editor
 - `apps/playground`: Vite research playground
+- `examples/consumer-vite`: stand-alone app that installs the packed SDK tarballs (see [release packaging](docs/RELEASE.md))
+
+**Licence:** proprietary, all rights reserved (`UNLICENSED`; see [LICENSE](LICENSE)). The packages are not published to npm; releases are verified and shared as tarballs (`pnpm verify:consumer`).
 
 ## Quick start
 Install Node.js 20+ and pnpm 9+.
