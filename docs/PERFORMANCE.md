@@ -72,6 +72,34 @@ Further measurements:
 
 SwiftShader frame times stay rasterisation-bound (chain-1000: 333 → 350 ms median), because triangle counts are about the same. The win shows on real GPUs, where the CPU was the limit.
 
+## Rendering scale, part B: equipment instancing (T-046, 2026-10-15)
+Owner decisions:
+- instance large scenes only;
+- an `instancing` prop, `'auto'` (default, from 100 components) | `'off'` | `'always'`;
+- LOD deferred until measured.
+
+Changes:
+- **Instanced equipment:** plain components (not selected, not colliding, normal view mode) are drawn as instanced meshes per definition × part. Valve state and tank heat are per-instance colours; liquid level and handle angle are per-instance matrices. Selected, colliding, glass, X-ray and cutaway components keep individual meshes, so the gizmo, edges and clipping are unchanged.
+- **Chunks for culling:** instances are split into compact chunks of at most 64 (median split along the longest axis), so off-screen chunks are culled. One mesh per part with a scene-wide bounding sphere had raised headless triangles from 2.06 M to 3.04 M; strips sorted by x reached only 2.55 M.
+- **Per-second work removed:** telemetry re-resolves every second. Before, each tick rebuilt the "unknown properties" map (and with it every instance matrix) and re-sampled every flow centreline. Now the map is keyed on content, centrelines are cached per route object, pipe runs and instanced groups are memoised, and pipe radii are indexed once per scene instead of searched per route (which was quadratic).
+
+### Hardware GPU (Apple M2, as above; 5 s sample after 10 s load)
+| Scene | T-029 (part A): frames / median / p95 / frames > 25 ms | T-046: frames / median / p95 / frames > 25 ms |
+|---|---|---|
+| chain-5000 | 218–220 / 13.4 / 53.6–106.7 ms / 39–75 | **368–369 / 13.3 / 13.7–14.0 ms / 6–7** (375 = display rate) |
+| chain-1000 | 222–223 / 13.3 / 13.5–13.9 ms (3 s) | 374 / 13.3 / 14.0 ms / 1 |
+| demo (classic path, < 100 components) | 901/901 in 12 s | 889 in 12 s; one 173 ms frame at 0.3 s, when the measuring script was injected |
+
+LOD is not needed on this hardware: the remaining slow frames are about one per second, matching the telemetry tick, not triangle load.
+
+### Headless (SwiftShader)
+| Scene | Heap | Draw calls / frame | Triangles / frame | Median frame |
+|---|---|---|---|---|
+| chain-200 | 35.6 → 24.8 MB | 58 → 37 | 437,750 → 529,506 | 83 → 100 ms |
+| chain-1000 | 117.3 → 77.6 MB | 58 → 37 | 2,063,990 → 2,180,446 | 350 → 367 ms |
+
+Software rasterisation pays a little for coarser culling: a 64-instance chunk is culled only when all of it is off-screen. Real GPUs gain because the CPU work drops.
+
 ## Findings and follow-ups
 - **Fixed in this part:** drei `TransformControls` built a new gizmo (17 geometries plus materials) on every selection and never disposed it, leaking GPU memory with each selection change. The viewer now disposes the gizmo on unmount; the leak test covers it.
-- Each component instance builds its own geometry, and equipment is not instanced, so geometry and draw calls grow one-for-one with components. Candidate optimisations, to be measured before adoption: share geometry per catalog type, instance equipment meshes, lower segment counts or LOD for distant parts, and avoid per-frame tuple allocation in flow markers. Tracked as T-029 (post-MVP). Part A (above) shares geometry and instances markers; equipment instancing and LOD remain (T-046): at chain-5000 the 20,000 equipment meshes are the limit on the M2 (p95 67 ms).
+- Each component instance builds its own geometry, and equipment is not instanced, so geometry and draw calls grow one-for-one with components. Candidate optimisations, to be measured before adoption: share geometry per catalog type, instance equipment meshes, lower segment counts or LOD for distant parts, and avoid per-frame tuple allocation in flow markers. Tracked as T-029 (post-MVP). Part A (above) shares geometry and instances markers; equipment instancing followed in T-046 (part B, above). LOD remains unbuilt: the M2 measurements do not need it.

@@ -2,9 +2,11 @@ import { expect, test } from '@playwright/test';
 import { installThreeHook, waitForCanvas } from './helpers';
 
 // Rendering scale (T-029): large scenes share geometry and draw markers in a handful of calls.
+// Equipment instancing (T-046) is turned off here: this checks the individual-mesh path, which
+// selected, colliding and non-normal-view components still use.
 test('a 200-valve chain shares geometry and draws markers in single instanced meshes', async ({ page }) => {
   await installThreeHook(page);
-  await page.goto('/?generate=200');
+  await page.goto('/?generate=200&instancing=off');
   await waitForCanvas(page);
   await page.waitForTimeout(500);
   const counts = await page.evaluate(() => {

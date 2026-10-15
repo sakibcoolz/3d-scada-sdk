@@ -1,5 +1,5 @@
-import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { DoubleSide, Matrix4, MeshStandardMaterial, Plane, SphereGeometry, Vector3, type BufferGeometry, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
+import React, { useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Color, DoubleSide, Matrix4, MeshStandardMaterial, Plane, Quaternion, SphereGeometry, Vector3, type BufferGeometry, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
 import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
@@ -7,6 +7,7 @@ import { catalogResolvers, componentCatalog, definitionFor, isChoiceParameter, o
 import { createEquipmentGeometries, createRouteGeometry, disposeGeometries } from './geometry.js';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop.js';
 import { EDITOR_CSS, formatMetres } from './editorStyles.js';
+import { spatialChunks } from './instancing.js';
 import { componentNames, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice.js';
 
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history.js';
@@ -52,6 +53,78 @@ const { resolveBounds, resolvePorts, resolveBindable } = catalogResolvers;
 /** Valve ball colour when its bound open/closed tag cannot be trusted. */
 const VALVE_UNKNOWN = '#8a96a3';
 
+/** When the viewer draws plain equipment as instanced meshes (T-046). */
+export type InstancingMode = 'auto' | 'off' | 'always';
+/** `instancing="auto"` instances scenes with at least this many components. */
+const INSTANCING_THRESHOLD = 100;
+
+const definitionKeys = new WeakMap<object, number>();
+let nextDefinitionKey = 0;
+const definitionKey = (d: object) => definitionKeys.get(d) ?? (definitionKeys.set(d, ++nextDefinitionKey), nextDefinitionKey);
+
+/**
+ * Plain equipment (not selected, not colliding, normal view mode) drawn as one instanced mesh per
+ * part of each definition: thousands of identical valves become a handful of draws. Valve state
+ * and tank heat are per-instance colours; liquid level and handle angle are per-instance matrices.
+ */
+function InstancedEquipment({ components, unknown, onSelect }: { components: readonly ComponentInstance[]; unknown: ReadonlyMap<string, ReadonlySet<string>>; onSelect?: (id: string) => void }) {
+  const groups = useMemo(() => {
+    const byDefinition = new Map<ReturnType<typeof definitionFor>, ComponentInstance[]>();
+    for (const c of components) {
+      const d = definitionFor(c.type, c.properties);
+      byDefinition.set(d, [...(byDefinition.get(d) ?? []), c]);
+    }
+    return [...byDefinition];
+  }, [components]);
+  return <>{groups.map(([definition, members]) => <InstancedDefinition key={definitionKey(definition)} definition={definition} members={members} unknown={unknown} onSelect={onSelect}/>)}</>;
+}
+
+const InstancedDefinition = React.memo(function InstancedDefinition({ definition, members, unknown, onSelect }: { definition: ReturnType<typeof definitionFor>; members: ComponentInstance[]; unknown: ReadonlyMap<string, ReadonlySet<string>>; onSelect?: (id: string) => void }) {
+  const geometries = useSharedGeometries(definition);
+  const chunks = useMemo(() => spatialChunks(members), [members]);
+  return <>{chunks.map((chunk, c) => definition.parts.map((part, i) => <InstancedPart key={`${c}:${i}:${chunk.length}`} part={part} geometry={geometries[i]} members={chunk} unknown={unknown} onSelect={onSelect}/>))}</>;
+});
+
+const instanceScratch = { local: new Matrix4(), world: new Matrix4(), position: new Vector3(), rotation: new Quaternion(), scale: new Vector3(), color: new Color() };
+const normalShell = shellLook('normal');
+
+function InstancedPart({ part, geometry, members, unknown, onSelect }: { part: ReturnType<typeof definitionFor>['parts'][number]; geometry: BufferGeometry; members: ComponentInstance[]; unknown: ReadonlyMap<string, ReadonlySet<string>>; onSelect?: (id: string) => void }) {
+  const mesh = useRef<InstancedMesh>(null);
+  const role = part.role;
+  useLayoutEffect(() => {
+    const m = mesh.current;
+    if (!m) return;
+    const { local, world, position, rotation, scale, color } = instanceScratch;
+    members.forEach((c, k) => {
+      world.compose(position.set(c.position.x, c.position.y, c.position.z), rotation.set(c.rotation.x, c.rotation.y, c.rotation.z, c.rotation.w), scale.set(c.scale.x, c.scale.y, c.scale.z));
+      local.identity();
+      if (role === 'liquid' && part.shape === 'cylinder') {
+        // Same as the individual mesh: scale the column from its bottom face; no level, no liquid.
+        const fraction = liquidFill(c.properties.level).fraction ?? 0;
+        const height = Math.max(0.001, fraction);
+        local.makeScale(1, fraction > 0 ? height : 0, 1).setPosition(0, (part.center[1] - part.length / 2) * (1 - height), 0);
+        m.setColorAt(k, color.set(heatColor(c.properties.temperature) ?? LIQUID_COLOR));
+      } else if (role === 'valve-handle') {
+        local.makeRotationY(c.properties.open !== false ? 0 : Math.PI / 2);
+      } else if (role === 'valve-ball') {
+        m.setColorAt(k, color.set(unknown.get(c.id)?.has('open') ? VALVE_UNKNOWN : c.properties.open !== false ? '#48b983' : '#e76e75'));
+      }
+      m.setMatrixAt(k, world.multiply(local));
+    });
+    m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    m.computeBoundingSphere();
+  }, [members, unknown, role, part]);
+  const material = role === 'liquid' ? <meshStandardMaterial color="#ffffff" transparent opacity={0.65} depthWrite={false}/>
+    : role === 'valve-ball' ? <meshStandardMaterial color="#ffffff"/>
+    : role === 'valve-handle' ? <meshStandardMaterial color="#e3d5a5"/>
+    : <meshStandardMaterial color="#7b9eb6" metalness={normalShell.metalness} roughness={0.35} side={DoubleSide}/>;
+  return <instancedMesh ref={mesh} args={[geometry, undefined, members.length]} userData={{ role, componentIds: members.map((c) => c.id) }}
+    onClick={(e) => { e.stopPropagation(); if (e.instanceId !== undefined && members[e.instanceId]) onSelect?.(members[e.instanceId].id); }}>
+    {material}
+  </instancedMesh>;
+}
+
 function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown, colliding }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void; /** Bound properties whose live value cannot be trusted. */ unknown?:ReadonlySet<string>; /** Overlaps another solid component. */ colliding?:boolean }) {
   // Per-instance definition: parametric types (pipe length) change ports, bounds and parts.
   const definition = definitionFor(component.type, component.properties);
@@ -91,15 +164,8 @@ function portRadius(port: ConnectionPort): number {
   return size ? outerRadiusFor(size) : pipeOuterRadius;
 }
 
-/** Routed runs are as wide as the ports they join (validation keeps both ends the same size). */
-function routeRadius(scene: ScadaScene, connectionId: string): number {
-  const c = scene.connections.find((x) => x.id === connectionId);
-  const component = c && scene.components.find((x) => x.id === c.from.instanceId);
-  const port = component && catalogResolvers.resolvePorts(component.type, component.properties)?.find((p) => p.id === c!.from.portId);
-  return port ? portRadius(port) : pipeOuterRadius;
-}
 
-function RoutePipe({ route, radius, material }: { route: PipeRoute; /** Outer radius of the connected ports' size. */ radius: number; material: Material }) {
+const RoutePipe = React.memo(function RoutePipe({ route, radius, material }: { route: PipeRoute; /** Outer radius of the connected ports' size. */ radius: number; material: Material }) {
   // Rebuild geometry only when the routed centreline changes, not on every scene update.
   const shape = route.status === 'ok' ? route.points.flat().join(',') : '';
   const geometry = useMemo(() => (route.status === 'ok' ? createRouteGeometry(route, radius) : undefined), [shape, radius]);
@@ -109,7 +175,7 @@ function RoutePipe({ route, radius, material }: { route: PipeRoute; /** Outer ra
     return 'from' in route ? <Line points={[route.from, route.to]} color="#e76e75" dashed dashSize={0.15} gapSize={0.1} lineWidth={2}/> : null;
   }
   return geometry ? <mesh geometry={geometry} material={material}/> : null;
-}
+});
 
 /** One material for every routed pipe; follows glass/x-ray transparency, cutaway leaves pipes whole. */
 function useRouteMaterial(viewMode: ViewMode): Material {
@@ -185,6 +251,18 @@ function PortMarkers({ scene }: { scene: ScadaScene }) {
  * Flow along one routed pipe: beads slightly wider than the pipe that travel from→to or to→from,
  * sit still when stopped, or a dashed overlay when the flow is unknown. Motion uses frame delta.
  */
+/** Sampled centreline per route object: routes change only with the scene, flow states every second. */
+const centerlines = new WeakMap<object, { centerline: Vector3Tuple[]; lengths: number[]; total: number }>();
+function centerlineOf(route: Extract<PipeRoute, { status: 'ok' }>) {
+  let entry = centerlines.get(route);
+  if (!entry) {
+    const centerline = sampleRouteCenterline(route);
+    const lengths = pathLengths(centerline);
+    centerlines.set(route, (entry = { centerline, lengths, total: lengths[lengths.length - 1] }));
+  }
+  return entry;
+}
+
 type Run = { id: string; centerline: Vector3Tuple[]; lengths: number[]; total: number; count: number; scale: number; sign: number };
 
 /**
@@ -198,9 +276,7 @@ function FlowLayer({ routes, stateById, radiusOf }: { routes: readonly PipeRoute
     for (const route of routes) {
       const state = route.status === 'ok' ? stateById.get(route.connectionId) : undefined;
       if (route.status !== 'ok' || !state) continue;
-      const centerline = sampleRouteCenterline(route);
-      const lengths = pathLengths(centerline);
-      const total = lengths[lengths.length - 1];
+      const { centerline, lengths, total } = centerlineOf(route);
       if (!(total > 0)) continue;
       const look = flowAppearance(state);
       if (look.dashed) { dashed.push({ id: route.connectionId, points: centerline, color: look.color, opacity: look.opacity }); continue; }
@@ -340,24 +416,39 @@ export type TransformHandler = (id: string, position: Vector3Like, rotation: Qua
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,collisions=true,openJoints=true,ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,collisions=true,openJoints=true,instancing='auto',ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;ref?:React.Ref<ScadaHandle>}) {
   const telemetry = useTelemetryFeed(telemetryInput, ref);
   const collision = useMemo(() => (collisions ? findCollisions(scene, { resolveBounds }) : undefined), [scene, collisions]);
   const previewCollides = useMemo(() => !!(collisions && preview && collidingWith({ ...scene, components: [...scene.components, preview.component] }, preview.component.id).length), [scene, preview, collisions]);
   const names = useMemo(() => componentNames(scene), [scene]);
   const routes = useMemo(() => routeScene(scene, catalogResolvers), [scene]);
   const routeMaterial = useRouteMaterial(viewMode);
-  const radiusOf = useMemo(() => { const memo = new Map<string, number>(); return (id: string) => memo.get(id) ?? memo.set(id, routeRadius(scene, id)).get(id)!; }, [scene]);
+  // Pipe radius per connection, indexed once per scene (a search per route would be quadratic).
+  const radiusOf = useMemo(() => {
+    const components = new Map(scene.components.map((c) => [c.id, c]));
+    const radii = new Map(scene.connections.map((c) => {
+      const component = components.get(c.from.instanceId);
+      const port = component && catalogResolvers.resolvePorts(component.type, component.properties)?.find((p) => p.id === c.from.portId);
+      return [c.id, port ? portRadius(port) : pipeOuterRadius] as const;
+    }));
+    return (id: string) => radii.get(id) ?? pipeOuterRadius;
+  }, [scene]);
   const open = useMemo(() => (openJoints ? findOpenJoints(scene, { ...catalogResolvers, routes }) : []), [scene, routes, openJoints]);
   const now = useNow(1000);
   const live = useTelemetry(scene, telemetry, now);
   // What is drawn: live values over authored ones; never saved.
   const shown = useMemo(() => (live ? displayScene(scene, live.properties) : scene), [scene, live]);
+  // Keyed on content: telemetry re-resolves every second, but untrusted properties rarely change,
+  // and a new map would make every instanced part rebuild its matrices.
+  const unknownKey = (live?.properties ?? []).filter((p) => p.status === 'unknown').map((p) => `${p.instanceId}\u0000${p.property}`).join('\u0001');
   const unknownByComponent = useMemo(() => {
     const map = new Map<string, Set<string>>();
-    for (const p of live?.properties ?? []) if (p.status === 'unknown') map.set(p.instanceId, new Set([...(map.get(p.instanceId) ?? []), p.property]));
+    for (const entry of unknownKey ? unknownKey.split('\u0001') : []) {
+      const [id, property] = entry.split('\u0000');
+      map.set(id, new Set([...(map.get(id) ?? []), property]));
+    }
     return map;
-  }, [live]);
+  }, [unknownKey]);
   const hasFlowBindings = scene.tagBindings?.some((b) => b.kind === 'flow') ?? false;
   const flowStates = useMemo(() => {
     if (!flow && !(live && hasFlowBindings)) return undefined;
@@ -368,6 +459,12 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   const stateById = useMemo(() => new Map(flowStates?.map((s) => [s.connectionId, s])), [flowStates]);
   const showHeatLegend = shown.components.some((c) => heatColor(c.properties.temperature) !== undefined);
   const [selectedObject, setSelectedObject] = useState<Object3D | null>(null);
+  // Plain equipment of large scenes is instanced; selected, colliding and non-normal views keep their own meshes.
+  const instanced = useMemo(() => {
+    const on = instancing === 'always' || (instancing === 'auto' && shown.components.length >= INSTANCING_THRESHOLD);
+    return on ? shown.components.filter((c) => c.id !== selectedId && !collision?.collidingIds.has(c.id) && effectiveViewMode(viewMode, viewOverrides?.[c.id]) === 'normal') : [];
+  }, [instancing, shown, selectedId, collision, viewMode, viewOverrides]);
+  const instancedIds = useMemo(() => new Set(instanced.map((c) => c.id)), [instanced]);
   const gesture = useRef(0);
   const descriptionId = useId();
   const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
@@ -376,11 +473,12 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   <Canvas camera={{position:[7,6,9],fov:50}} onCreated={({gl})=>{gl.localClippingEnabled=true;}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
-    {shown.components.map(c=><Equipment key={c.id} component={c} unknown={unknownByComponent.get(c.id)} colliding={collision?.collidingIds.has(c.id)} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
+    {instanced.length>0&&<InstancedEquipment components={instanced} unknown={unknownByComponent} onSelect={onSelect}/>}
+    {shown.components.filter(c=>!instancedIds.has(c.id)).map(c=><Equipment key={c.id} component={c} unknown={unknownByComponent.get(c.id)} colliding={collision?.collidingIds.has(c.id)} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
     {onTransform && transformMode && selectedId && selectedObject && <GizmoControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
       onMouseDown={()=>{gesture.current++;}}
       onObjectChange={()=>{const {position:p,quaternion:q}=selectedObject;onTransform(selectedId,{x:p.x,y:p.y,z:p.z},{x:q.x,y:q.y,z:q.z,w:q.w},`transform:${selectedId}:${gesture.current}`);}}/>}
-    {routes.map(route=><RoutePipe key={route.connectionId} route={route} material={routeMaterial} radius={routeRadius(scene,route.connectionId)}/>)}
+    {routes.map(route=><RoutePipe key={route.connectionId} route={route} material={routeMaterial} radius={radiusOf(route.connectionId)}/>)}
     <PortMarkers scene={shown}/>
     {open.map(o=><OpenJointMarkers key={`open:${o.connectionId}`} scene={scene} open={o}/>)}
     {flowStates && <FlowLayer routes={routes} stateById={stateById} radiusOf={radiusOf}/>}
@@ -679,7 +777,7 @@ function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
-export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,collisions=true,openJoints=true,locked,defaultLocked=false,onLockedChange,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,collisions=true,openJoints=true,instancing='auto',locked,defaultLocked=false,onLockedChange,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;ref?:React.Ref<ScadaHandle>}) {
   // The editor owns the feed; the viewer below only receives the merged observations.
   const telemetry=useTelemetryFeed(telemetryInput,ref);
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
@@ -897,7 +995,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     <main onDragOver={e=>{if(!dragKind.current||isLocked)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} collisions={collisions} openJoints={openJoints}/>
+      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} collisions={collisions} openJoints={openJoints} instancing={instancing}/>
       {isLocked&&<div style={{position:'absolute',bottom:10,right:110,padding:'4px 10px',borderRadius:4,background:'#0b1725e6',border:'1px solid #ffd166',color:'#ffd166',fontSize:12,pointerEvents:'none'}}>🔒 Editing locked</div>}
       {notice.length>0&&<ConnectionNotice lines={notice} onDismiss={()=>setNotice([])}/>}
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene)+previewOverlap:''}</div>

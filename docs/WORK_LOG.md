@@ -705,3 +705,45 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` NOT RUN (no packaging change).
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-029 part A REVIEW until merged.
+
+## 2026-10-15 — T-046 equipment instancing (rendering scale part B)
+- Branch: `feat/T-046-equipment-instancing` (from `develop` @ `1ccf3df`, after #46). T-029 marked DONE (#46 merged).
+- Owner decisions (asked after a written plan):
+  - instance large scenes only;
+  - add an `instancing` prop (`'auto'` | `'off'` | `'always'`);
+  - defer LOD until measured.
+- Graphify: index NOT built. Fallback: read the viewer, equipment and selection code directly.
+- Scope (`packages/react`):
+  - `InstancedEquipment`/`InstancedDefinition`/`InstancedPart`: plain components (not selected, not colliding, normal effective view) drawn instanced per definition × part. Valve ball and tank liquid colours are per-instance colours; handle angle and liquid level are per-instance matrices, identical to the individual meshes. A click maps `instanceId` to the component.
+  - `instancing` prop on viewer and editor (`InstancingMode` type exported). `'auto'` instances from 100 components.
+  - `instancing.ts` `spatialChunks`: median split along the longest axis into chunks of ≤ 64 so chunks are frustum-culled.
+  - Per-second work removed:
+    - the unknown-properties map is keyed on content;
+    - flow centrelines are cached per route object;
+    - `RoutePipe` and `InstancedDefinition` are memoised;
+    - pipe radii are indexed once per scene (the old per-route search was quadratic).
+  - Playground: `?instancing=off|always`.
+- Tests:
+  - Written first and run red: `e2e/instancing.spec.ts`. Two cases first passed trivially through the old path and were tightened to require the instanced path.
+    - instanced vs classic render compared pixel by pixel (< 0.2 % of pixels differ);
+    - live colours and liquid level;
+    - click-to-select moving the part out of the instanced set with the gizmo;
+    - auto threshold and `off`.
+  - Added: an instanced remount and selection leak test; `spatialChunks` unit tests (complete, ≤ 64, compact, stable).
+  - `renderedParts` helper reads instanced meshes (instance colours converted to sRGB).
+  - `e2e/render-scale.spec.ts` pinned to `?instancing=off`: it checks the individual-mesh path.
+- Measurement and iterations:
+  - First version: one mesh per part. M2 chain-5000 went from 218–220 to 250–348 frames in 5 s, but headless triangles rose 2.06 M → 3.04 M because there was no culling.
+  - Removing the per-second work brought the M2 to 355–369 frames (p95 14.2–14.3 ms).
+  - x-sorted strips reached 2.55 M triangles; median-split chunks of 64 reached 2.18 M.
+  - Final M2 chain-5000: 368–369 / 375 frames, p95 13.7–14.0 ms. chain-1000: 374 / 375. Full tables in PERFORMANCE.md.
+  - Demo: one 173 ms frame at 0.3 s into a 12 s run, coinciding with the measuring script's injection (earlier spikes in both builds behaved the same); otherwise clean.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (905 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (91 tests).
+  - `pnpm perf` 0.
+  - `pnpm verify:consumer` 0 and `pnpm test:consumer` 0.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-046 REVIEW until merged. LOD not built: on the M2 it is not needed.
