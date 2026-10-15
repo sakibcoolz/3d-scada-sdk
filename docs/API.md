@@ -16,6 +16,7 @@ All geometry is right-handed, Y-up, metres. Scene components use named vectors (
 | Graph | `connect`, `disconnect`, `removeComponent`, `connectionsOf`, `reachableComponents`, `connectedGroups` | `GraphResult`, `GraphError`, `GraphErrorCode`, `GraphOptions` |
 | Routing | `routeConnection`, `routeScene`, `sampleRouteCenterline` | `PipeRoute`, `RouteBend`, `RouteKind`, `RouteFailure`, `RoutingOptions` |
 | Assemblies | `assemblyOf`, `moveAssembly`, `lockConnectedAsChildren`, `unlockFromParent` | `AssemblyResult` (`ComponentInstance.parentId`) |
+| Copy and paste | `copyComponents`, `pasteComponents`, `clipboardWidth` | `ComponentClipboard` |
 | Touching ports | `findTouchingPorts`, `connectTouchingPorts` | `TouchingOptions`, `TouchingMatch`, `TouchingRejection`, `TouchingResult`, `ConnectTouchingResult` |
 | Collisions | `findCollisions` | `CollisionOptions`, `CollisionPair`, `CollisionResult` |
 | Flow | `resolveFlow` | `FlowReading`, `FlowState`, `FlowDirection`, `FlowUnknownReason`, `FlowOptions`, `FlowResolution`, `Quality`, `ValueSource` |

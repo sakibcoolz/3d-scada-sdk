@@ -479,3 +479,17 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-040 REVIEW until PR is merged (after #37, #38).
 
+## 2026-10-15 — T-041 copy and paste of components and assemblies
+- Branch: `feat/T-041-copy-paste` (from `feat/T-040-assemblies` @ `e94113c`, PR #39 open; targets `develop`).
+- Owner request: copy/paste for a component and for a parent with its connected children. Defaults stated before work: separate Copy component / Copy assembly, Ctrl+C / Ctrl+Shift+C / Ctrl+V, offset by copy width + 0.5 m along +X, internal connections and parent links remapped, tag bindings and outside connections not copied, in-editor snapshot clipboard, copy allowed when locked and paste not.
+- Graphify: index NOT built. Fallback: read assembly, graph and editor code directly.
+- Scope: core `copyComponents`, `pasteComponents`, `clipboardWidth` (API snapshot updated); editor clipboard, buttons, shortcuts, validation of the pasted scene, selection of the pasted root, notes.
+- Tests written first: 9 core tests (one test title broke the file through shell quoting and one width expectation was wrong, 4.2 instead of 5.2 m; both fixed before implementation) and 4 e2e tests failed before implementation.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (640 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (63 tests).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-041 REVIEW until PR is merged (after #39).
+

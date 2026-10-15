@@ -43,6 +43,10 @@ export type { PipeRoute, RouteBend, RouteFailure, RouteKind, RoutingOptions } fr
 export { assemblyOf, lockConnectedAsChildren, moveAssembly, unlockFromParent } from './assembly';
 export type { AssemblyResult } from './assembly';
 
+// Copy and paste of components and assemblies
+export { clipboardWidth, copyComponents, pasteComponents } from './clipboard';
+export type { ComponentClipboard } from './clipboard';
+
 // Turning exactly touching ports into explicit connections (user-triggered)
 export { connectTouchingPorts, findTouchingPorts } from './touching';
 export type { ConnectTouchingResult, TouchingMatch, TouchingOptions, TouchingRejection, TouchingResult } from './touching';

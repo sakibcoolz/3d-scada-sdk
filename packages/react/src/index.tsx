@@ -2,7 +2,7 @@ import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState
 import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { assemblyOf, connectProvider, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { catalogResolvers, componentCatalog, definitionFor, pipeOuterRadius, type ParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
@@ -502,9 +502,13 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
   }
   function onKeyDown(e:React.KeyboardEvent){
     if(isTextEntry(e.target)) return;
-    if(isLocked&&e.key!=='Escape') return;
-    if(e.ctrlKey||e.metaKey){
-      const key=e.key.toLowerCase();
+    const key=e.key.toLowerCase();
+    const command=e.ctrlKey||e.metaKey;
+    // Copying never changes the scene, so it stays available while editing is locked.
+    if(isLocked&&e.key!=='Escape'&&!(command&&key==='c')) return;
+    if(command){
+      if(key==='c'&&selected){e.preventDefault();copyIds(e.shiftKey?assemblyOf(scene,selected):[selected]);return;}
+      if(key==='v'){e.preventDefault();paste();return;}
       if(key==='z'&&!e.shiftKey){e.preventDefault();travel(undo);}
       else if((key==='z'&&e.shiftKey)||key==='y'){e.preventDefault();travel(redo);}
       return;
@@ -594,6 +598,30 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     setTimeout(()=>URL.revokeObjectURL(url),0);
   }
   const serialized=useMemo(()=>serializeScene(scene),[scene]);
+  const [clipboard,setClipboard]=useState<ComponentClipboard>();
+  const pasteCount=useRef(0);
+  const [clipNote,setClipNote]=useState('');
+  const plural=(n:number)=>`${n} component${n===1?'':'s'}`;
+  function copyIds(ids:string[]){
+    setClipboard(copyComponents(scene,ids));
+    pasteCount.current=0;
+    setClipNote(`Copied ${plural(ids.length)}.`);
+  }
+  /** Pastes beside the original (copy width + 0.5 m along +X, further each time) as one undo step. */
+  function paste(){
+    if(!clipboard||isLocked) return;
+    pasteCount.current+=1;
+    const step=clipboardWidth(clipboard,catalogResolvers)+0.5;
+    const pasted=pasteComponents(scene,clipboard,{createId:newId,offset:{x:step*pasteCount.current,y:0,z:0}});
+    const checked=validateScene(pasted.scene,catalogResolvers);
+    if(!checked.ok){setClipNote(`Could not paste: ${checked.errors[0].message}`);return;}
+    update(checked.scene);
+    const root=checked.scene.components.find(c=>pasted.pastedIds.includes(c.id)&&!(c.parentId&&pasted.pastedIds.includes(c.parentId)));
+    setSelected(root?.id);
+    const copiedIds=new Set(clipboard.components.map(c=>c.id));
+    const hadBindings=(scene.tagBindings??[]).some(b=>b.kind==='property'?copiedIds.has(b.instanceId):clipboard.connections.some(c=>c.id===b.connectionId));
+    setClipNote(`Pasted ${plural(pasted.pastedIds.length)}.${hadBindings?' Tag bindings are not copied.':''}`);
+  }
   // Explicit, user-triggered: ports at the same point facing each other become connections (ADR-0002).
   const touching=useMemo(()=>findTouchingPorts(scene,catalogResolvers),[scene]);
   const [touchingNote,setTouchingNote]=useState('');
@@ -629,6 +657,8 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
       <div role="group" aria-label="Transform tool" style={{display:'flex',gap:6}}>{toolButton('translate','Move')}{toolButton('rotate','Rotate')}</div>
       <button onClick={connectTouching} disabled={touching.matches.length===0} title="Join ports that sit at the same point and face each other" style={{display:'block',width:'100%',marginTop:8}}>Connect touching ports ({touching.matches.length})</button>
       <p aria-live="polite" style={{fontSize:12,margin:'4px 0 0'}}>{touchingNote}</p>
+      <button onClick={paste} disabled={!clipboard} title="Paste (Ctrl+V)" style={{display:'block',width:'100%',marginTop:6}}>Paste ({clipboard?.components.length??0})</button>
+      <p aria-live="polite" style={{fontSize:12,margin:'4px 0 0'}}>{clipNote}</p>
       <h3>Components</h3>{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)} style={{display:'block',width:'100%',marginBottom:8,padding:9,cursor:'grab'}}>{componentCatalog[k].label} +</button>)}
       </fieldset>
       <SceneList scene={scene} selected={selected} onSelect={setSelected} locked={isLocked}/>
@@ -660,6 +690,10 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
         <BindingsEditor component={component} scene={scene} live={live?.properties} onSet={setBinding}/>
         </fieldset>
         <label style={{display:'block',marginTop:8}}>Component view <select aria-label="Component view" value={viewOverrides[component.id]??''} onChange={e=>{const value=e.target.value as ViewMode|'';setViewOverrides(({[component.id]:_,...rest})=>value?{...rest,[component.id]:value}:rest);}}><option value="">Use global</option>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
+        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:10}}>
+          <button onClick={()=>copyIds([component.id])} title="Copy (Ctrl+C)">Copy component</button>
+          {assemblyOf(scene,component.id).length>1&&<button onClick={()=>copyIds(assemblyOf(scene,component.id))} title="Copy the parent and all its children (Ctrl+Shift+C)">Copy assembly</button>}
+        </div>
         <p><button onClick={()=>removeSelected(component.id)} disabled={isLocked}>Remove</button></p>
       </>:<p>Select equipment in the canvas.</p>}
       <hr/><small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={serialized} style={{width:'100%',height:170,boxSizing:'border-box'}}/>
