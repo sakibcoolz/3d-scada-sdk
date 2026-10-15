@@ -26,7 +26,7 @@ export interface SnapCandidate {
 }
 
 export interface SnapOptions {
-  resolvePorts: (type: ComponentKind) => readonly ConnectionPort[] | undefined;
+  resolvePorts: (type: ComponentKind, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
   /** Search radius around each moving port, metres. Default 0.5. */
   maxDistance?: number;
   /** Largest allowed misalignment before snapping, radians. Default π/4. */
@@ -73,12 +73,12 @@ export function findSnapCandidates(scene: ScadaScene, moving: ComponentInstance,
   const maxDistance = options.maxDistance ?? 0.5;
   const maxAngle = options.maxAngle ?? Math.PI / 4;
   const occupied = occupiedPorts(scene);
-  const movingPorts = (options.resolvePorts(moving.type) ?? []).map((port) => ({ port, world: portToWorld(moving, port) }));
+  const movingPorts = (options.resolvePorts(moving.type, moving.properties) ?? []).map((port) => ({ port, world: portToWorld(moving, port) }));
   const candidates: SnapCandidate[] = [];
 
   for (const other of scene.components) {
     if (other.id === moving.id) continue;
-    for (const targetPort of options.resolvePorts(other.type) ?? []) {
+    for (const targetPort of options.resolvePorts(other.type, other.properties) ?? []) {
       const target = portToWorld(other, targetPort);
       for (const { port, world } of movingPorts) {
         const offset: Vector3Tuple = [
@@ -113,8 +113,8 @@ export function snapComponent(scene: ScadaScene, moving: ComponentInstance, opti
   if (!candidate) return candidates.length > 0 ? { ok: false, reason: 'NO_CANDIDATE', nearest: candidates[0] } : { ok: false, reason: 'NO_CANDIDATE' };
 
   const targetInstance = scene.components.find((c) => c.id === candidate.target.instanceId)!;
-  const targetPort = options.resolvePorts(targetInstance.type)!.find((p) => p.id === candidate.target.portId)!;
-  const movingPort = options.resolvePorts(moving.type)!.find((p) => p.id === candidate.movingPortId)!;
+  const targetPort = options.resolvePorts(targetInstance.type, targetInstance.properties)!.find((p) => p.id === candidate.target.portId)!;
+  const movingPort = options.resolvePorts(moving.type, moving.properties)!.find((p) => p.id === candidate.movingPortId)!;
   const target: WorldPort = portToWorld(targetInstance, targetPort);
   const current = portToWorld(moving, movingPort);
 

@@ -1,5 +1,5 @@
 import { rotateVector } from './quaternion';
-import type { ComponentKind, ScadaScene, Vector3Tuple } from './scene';
+import type { ComponentInstance, ComponentKind, ScadaScene, Vector3Tuple } from './scene';
 import { quaternionToTuple } from './vectors';
 
 /**
@@ -9,7 +9,7 @@ import { quaternionToTuple } from './vectors';
  */
 export interface CollisionOptions {
   /** Local bounds of a component type; types without bounds are skipped. */
-  resolveBounds: (type: ComponentKind) => { min: Vector3Tuple; max: Vector3Tuple } | undefined;
+  resolveBounds: (type: ComponentKind, properties?: ComponentInstance['properties']) => { min: Vector3Tuple; max: Vector3Tuple } | undefined;
   /** Overlap up to this depth (metres) is treated as touching, so joined ports never collide. Default 0.001. */
   tolerance?: number;
 }
@@ -83,7 +83,7 @@ export function findCollisions(scene: ScadaScene, options: CollisionOptions): Co
   const tolerance = options.tolerance ?? 0.001;
   const boxes: Box[] = [];
   for (const c of scene.components) {
-    const local = options.resolveBounds(c.type);
+    const local = options.resolveBounds(c.type, c.properties);
     if (local) boxes.push(orientedBox(c, local));
   }
   boxes.sort((p, q) => p.min[0] - q.min[0]);

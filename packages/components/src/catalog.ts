@@ -21,6 +21,22 @@ function define(definition: Omit<IndustrialComponentDefinition, 'defaultSize'>):
   return { ...definition, defaultSize: size(definition.bounds) };
 }
 
+/** Straight pipe length, stored as `properties.length` in metres. */
+export const PIPE_LENGTH = { label: 'Length', unit: 'm', default: 2, min: 0.2, max: 20, step: 0.1 } as const;
+
+/** A straight pipe of `length` metres, centred on its origin along local X, ports at both ends. */
+export function pipeDefinition(length: number): IndustrialComponentDefinition {
+  const h = length / 2;
+  return define({
+    type: 'pipe',
+    label: 'Straight Pipe',
+    ports: [fluidPort('in', [-h, 0, 0], [-1, 0, 0]), fluidPort('out', [h, 0, 0], [1, 0, 0])],
+    bounds: { min: [-h, -r, -r], max: [h, r, r] },
+    parts: [{ shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'x', radius: r, length }],
+    parameters: { length: { ...PIPE_LENGTH } },
+  });
+}
+
 export const componentCatalog: Record<ComponentKind, IndustrialComponentDefinition> = {
   // Vertical tank: radius 1 m, shell height 3 m, side nozzles 0.2 m long.
   tank: define({
@@ -38,13 +54,7 @@ export const componentCatalog: Record<ComponentKind, IndustrialComponentDefiniti
       { shape: 'cylinder', role: 'liquid', center: [0, 0, 0], axis: 'y', radius: 0.94, length: 2.93 },
     ],
   }),
-  pipe: define({
-    type: 'pipe',
-    label: 'Straight Pipe',
-    ports: [fluidPort('in', [-1, 0, 0], [-1, 0, 0]), fluidPort('out', [1, 0, 0], [1, 0, 0])],
-    bounds: { min: [-1, -r, -r], max: [1, r, r] },
-    parts: [{ shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'x', radius: r, length: 2 }],
-  }),
+  pipe: pipeDefinition(PIPE_LENGTH.default),
   // 90° elbow, bend radius 2 × bore. Local origin is where the two pipe axes intersect.
   elbow: define({
     type: 'elbow',

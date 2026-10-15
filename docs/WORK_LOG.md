@@ -418,3 +418,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-032 REVIEW until PR is merged (after #34).
 
+## 2026-10-15 — T-033 adjustable pipe length
+- Branch: `feat/T-033-pipe-length` (from `feat/T-032-rotation-form` @ `93dc81d`, T-032 committed locally, not pushed; targets `develop`).
+- Owner request: pipe length adjustable in the SDK. Defaults chosen and stated before work: `properties.length` in metres, default 2, range 0.2–20, out-of-range rejected (not coerced), one end kept fixed.
+- Graphify: index NOT built. Fallback: grep for every `resolvePorts`/`resolveBounds`/catalog lookup.
+- Scope: components `ParameterSpec`, `PIPE_LENGTH`, `pipeDefinition`, `definitionFor` (cached per length), `validateProperties`, `catalogResolvers`; core resolvers receive `properties` (validation, snapping, routing, collisions, graph options) and new optional `validateProperties` → `INVALID_PROPERTY`; React uses per-instance definitions for drawing, ports, routes, drop and import; per-type default properties for new components (tank level, valve open, pipe length); generic `ParameterField`.
+- Tests written first: `parameters.test.ts` (16) failed before implementation (one of my fixtures had the wrong pipe position and was corrected by hand-checking). e2e (4): default and edited length with inlet fixed and undo; out-of-range explained and not applied; import rejection. The first e2e version showed that keeping the inlet fixed pushed a pipe 2 m into a valve snapped at its outlet; the rule became "keep the connected end fixed" (inlet if both or neither) and the test now asserts no collision.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (605 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (47 tests).
+  - GitHub Actions CI not awaited (owner direction).
+- Not done: other parametric types (tank size, elbow angle), changing length by dragging an end.
+- Status: T-033 REVIEW until PR is merged.
+

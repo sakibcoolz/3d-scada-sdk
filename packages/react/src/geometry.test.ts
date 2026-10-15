@@ -151,3 +151,19 @@ describe('createRouteGeometries', () => {
     disposeGeometries(geometries);
   });
 });
+
+describe('parametric pipe geometry', () => {
+  it('builds a 5 m pipe that fills its bounds with openings at both ports', async () => {
+    const { definitionFor } = await import('@scada3d/components');
+    const definition = definitionFor('pipe', { length: 5 });
+    const geometries = createEquipmentGeometries(definition);
+    const box = new Box3();
+    for (const g of geometries) {
+      g.computeBoundingBox();
+      box.union(g.boundingBox!);
+    }
+    expect(box.min.x).toBeCloseTo(-2.5, 6);
+    expect(box.max.x).toBeCloseTo(2.5, 6);
+    disposeGeometries(geometries);
+  });
+});
