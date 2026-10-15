@@ -30,7 +30,7 @@ Pure functions take the current time (`now`) and the catalog lookups (`resolvePo
 
 | Runtime exports | Types |
 |---|---|
-| `componentCatalog` (tank, pipe, elbow, tee, valve, pump, sensor, motor), `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m) | `IndustrialComponentDefinition`, `ParameterSpec`, `GeometryPart`, `PartRole`, `Bounds`, `Axis` |
+| `componentCatalog` (tank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
 
 Pass `catalogResolvers` to core functions (`validateScene(input, catalogResolvers)`, `routeScene(scene, catalogResolvers)`, `findCollisions(scene, catalogResolvers)` …). It resolves ports and bounds per instance, so parametric parts such as pipe length are respected, and validates their properties (`INVALID_PROPERTY`).
 

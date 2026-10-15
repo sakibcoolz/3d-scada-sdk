@@ -564,3 +564,33 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-044 REVIEW until merged (after #40 and T-043).
 - Not covered: two *unconnected* parts 15–35 mm apart (the pump and spare valve case) are neither connections nor exact touching pairs, so neither check reports them. A "near miss" hint for Connect touching ports would be a separate task.
+
+## 2026-10-15 — T-045 pipe sizes, reducer and coupler (ADR-0009)
+- Branch: `feat/T-045-sizes-fittings` (from `feat/T-044-open-joints` @ `d95234a`; PRs #41 and #42 open). T-041 marked DONE (PR #40 merged).
+- Owner request: "create coupler to connect different size of pipes or component". Explained first that a coupler cannot close the 15 mm *sideways* gap (Seat on … does) and that every part was DN150, so a size step needs sized parts.
+- Owner decisions (asked in session):
+  - reducer and coupler;
+  - DN50, DN80, DN100, DN150, DN200;
+  - sizes on pipe, elbow, tee, valve and the fittings;
+  - optional `properties.size` with a new ADR, no version bump.
+  - Recorded as ADR-0009 (Accepted).
+- Graphify: index NOT built. Fallback: read the catalog, parameters, validation, routing and editor code directly.
+- Scope:
+  - Core: `reducer` and `coupler` in `componentKinds`.
+  - Components: `pipeSizes`, `outerRadiusFor`, `sizeOfPort`, `isPipeSize`, `DEFAULT_SIZE`; sized builders (port positions unchanged by size; valve ball/stem/handle scale); reducer (0.3 m, cone) and coupler (0.05–0.2 m, sleeve band).
+  - Choice parameters (`ChoiceParameterSpec`, `isChoiceParameter`). `ParameterSpec` is now a union, a type-level change before the first release.
+  - Reducer equal-size rule; generic `definitionFor` cache; `cone` geometry part.
+  - React: cone geometry; Size and Outlet size dropdowns; refusal naming the blocking joint; size-matching drop; route, flow-bead and open-joint marker radii from port size; new parts store `size` only when not DN150.
+- Tests:
+  - Written first and run red: the component size tests (module missing) and the cone test.
+  - Written after the code, **not run red first**: the drop size tests and the 6 e2e tests in `sizes.spec.ts`.
+  - Existing tests updated where they assumed one size: default bore, tee cross-check (now same-size pairs plus a refusal case), guard radius per port size, API snapshots.
+- Correction: earlier checks ran `pnpm -s typecheck | tail`, which hides the exit code. Re-ran typecheck on the pushed T-043 (`a5657a4`) and T-044 (`d95234a`) commits: both exit 0, so their recorded PASS stands. Checks now record exit codes.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS (exit 0).
+  - `pnpm test` PASS (888 tests).
+  - `pnpm build` PASS (exit 0).
+  - `pnpm test:e2e` PASS (80 tests).
+  - Render of tank → DN150 valve → reducer → DN100 pipe → DN100 valve → coupler → DN100 pipe shows the step, with no open joints and no collisions.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-045 REVIEW until merged (after #41, #42).

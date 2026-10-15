@@ -162,3 +162,28 @@ describe('describeDrop', () => {
     );
   });
 });
+
+describe('planDrop with pipe sizes', () => {
+  const reducerScene = (): ScadaScene => ({
+    schemaVersion: 3,
+    units: 'm',
+    components: [{ id: 'r', type: 'reducer', position: { x: 0, y: 0.084, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} }],
+    connections: [],
+  });
+
+  it('gives a dropped pipe the size of the port it snaps to', () => {
+    const plan = planDrop(reducerScene(), 'pipe', [1.2, 0, 0], { createId: () => 'p', properties: { length: 2 } });
+    expect(plan.snap.ok).toBe(true);
+    expect(plan.component.properties).toEqual({ length: 2, size: 'DN100' });
+    if (plan.snap.ok) expect(plan.snap.connection.to).toEqual({ instanceId: 'r', portId: 'out' });
+    const applied = applyDrop(reducerScene(), plan, () => 'c');
+    expect(applied.ok).toBe(true);
+  });
+
+  it('leaves a part without a size choice unsnapped next to a port of another size', () => {
+    // The tank inlet is DN150 and cannot change, so it never snaps to the DN100 outlet.
+    const plan = planDrop(reducerScene(), 'tank', [1.5, 0, 0], { createId: () => 't' });
+    expect(plan.snap.ok).toBe(false);
+    expect(plan.component.properties).toEqual({});
+  });
+});
