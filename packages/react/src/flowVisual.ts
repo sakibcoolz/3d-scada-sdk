@@ -49,14 +49,22 @@ export function pathLengths(points: readonly Vector3Tuple[]): number[] {
 
 /** The point at `distance` along the path, clamped to its ends. */
 export function pointAt(points: readonly Vector3Tuple[], lengths: readonly number[], distance: number): Vector3Tuple {
+  return pointAtInto(points, lengths, distance, [0, 0, 0]);
+}
+
+/** `pointAt` written into `out` (and returned), so per-frame callers allocate nothing. */
+export function pointAtInto(points: readonly Vector3Tuple[], lengths: readonly number[], distance: number, out: Vector3Tuple): Vector3Tuple {
   const total = lengths[lengths.length - 1];
   const d = Math.min(Math.max(distance, 0), total);
   let i = 0;
   while (i < lengths.length - 2 && lengths[i + 1] < d) i++;
   const span = lengths[i + 1] - lengths[i];
   const t = span > 0 ? (d - lengths[i]) / span : 0;
-  const [a, b] = [points[i], points[i + 1] ?? points[i]];
-  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const a = points[i], b = points[i + 1] ?? points[i];
+  out[0] = a[0] + (b[0] - a[0]) * t;
+  out[1] = a[1] + (b[1] - a[1]) * t;
+  out[2] = a[2] + (b[2] - a[2]) * t;
+  return out;
 }
 
 /**

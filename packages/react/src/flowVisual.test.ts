@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FlowState } from '@scada3d/core';
-import { flowAppearance, markerDistances, pathLengths, pointAt, summarizeFlow } from './flowVisual.js';
+import { flowAppearance, markerDistances, pathLengths, pointAt, pointAtInto, summarizeFlow } from './flowVisual.js';
 
 const known = (direction: 'forward' | 'reverse' | 'stopped', overrides: Partial<FlowState> = {}): FlowState =>
   ({
@@ -101,5 +101,16 @@ describe('summarizeFlow', () => {
     expect(summarizeFlow([known('forward', { uncertain: true, quality: 'UNCERTAIN' })])).toBe(
       'Flow: 1 forward (1 uncertain), 0 reverse, 0 stopped, 0 unknown',
     );
+  });
+});
+
+describe('pointAtInto', () => {
+  const points: [number, number, number][] = [[0, 0, 0], [2, 0, 0], [2, 3, 0]];
+  const lengths = pathLengths(points);
+
+  it.each([0, 1, 2, 3.5, 5, -1, 9])('writes the same point as pointAt for distance %p', (d) => {
+    const out: [number, number, number] = [NaN, NaN, NaN];
+    expect(pointAtInto(points, lengths, d, out)).toBe(out);
+    expect(out).toEqual(pointAt(points, lengths, d));
   });
 });

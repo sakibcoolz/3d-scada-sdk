@@ -1,3 +1,4 @@
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BoxGeometry, CylinderGeometry, Matrix4, Quaternion, SphereGeometry, TorusGeometry, Vector3, type BufferGeometry } from 'three';
 import type { PipeRoute } from '@scada3d/core';
 import type { GeometryPart, IndustrialComponentDefinition } from '@scada3d/components';
@@ -79,4 +80,13 @@ export function createRouteGeometries(route: Extract<PipeRoute, { status: 'ok' }
     }
   }
   return geometries;
+}
+
+/** The route's straights and bends merged into one geometry (one draw call), or undefined if direct. */
+export function createRouteGeometry(route: Extract<PipeRoute, { status: 'ok' }>, outerRadius: number): BufferGeometry | undefined {
+  const parts = createRouteGeometries(route, outerRadius);
+  if (parts.length <= 1) return parts[0];
+  const merged = mergeGeometries(parts) ?? undefined;
+  disposeGeometries(parts);
+  return merged;
 }

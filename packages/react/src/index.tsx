@@ -1,10 +1,10 @@
 import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
+import { DoubleSide, Matrix4, MeshStandardMaterial, Plane, SphereGeometry, Vector3, type BufferGeometry, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
 import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { catalogResolvers, componentCatalog, definitionFor, isChoiceParameter, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
-import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry.js';
+import { createEquipmentGeometries, createRouteGeometry, disposeGeometries } from './geometry.js';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop.js';
 import { EDITOR_CSS, formatMetres } from './editorStyles.js';
 import { componentNames, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice.js';
@@ -15,7 +15,7 @@ import { describeProperty, summarizeTelemetry } from './telemetryView.js';
 import { nudge } from './keyboard.js';
 import { degreesFromRotation, rotationFromDegrees, turnAboutWorldAxis } from './rotationForm.js';
 import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance.js';
-import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, markerDistances, pathLengths, pointAt, summarizeFlow } from './flowVisual.js';
+import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, pathLengths, pointAtInto, summarizeFlow } from './flowVisual.js';
 
 // Public API of @scada3d/react: the two components, their prop/handle types and scene import helpers.
 // Editor internals (drop planning, history, visual helpers) stay private. See docs/API.md.
@@ -55,8 +55,7 @@ const VALVE_UNKNOWN = '#8a96a3';
 function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown, colliding }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void; /** Bound properties whose live value cannot be trusted. */ unknown?:ReadonlySet<string>; /** Overlaps another solid component. */ colliding?:boolean }) {
   // Per-instance definition: parametric types (pipe length) change ports, bounds and parts.
   const definition = definitionFor(component.type, component.properties);
-  const geometries = useMemo(() => createEquipmentGeometries(definition), [definition]);
-  useEffect(() => () => disposeGeometries(geometries), [geometries]);
+  const geometries = useSharedGeometries(definition);
   const fill = liquidFill(component.properties.level);
   const liquidColor = heatColor(component.properties.temperature) ?? LIQUID_COLOR;
   const open = component.properties.open !== false;
@@ -83,7 +82,6 @@ function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown
         {look.edges && <Edges userData={tag('edges')} threshold={20} color="#9fd3ff"/>}
       </mesh>;
     })}
-    {definition.ports.map(port=><mesh key={port.id} position={port.position}><sphereGeometry args={[.05,10,10]}/><meshBasicMaterial color="#ffd166"/></mesh>)}
   </group>;
 }
 
@@ -101,55 +99,152 @@ function routeRadius(scene: ScadaScene, connectionId: string): number {
   return port ? portRadius(port) : pipeOuterRadius;
 }
 
-function RoutePipe({ route, viewMode, radius }: { route: PipeRoute; viewMode: ViewMode; /** Outer radius of the connected ports' size. */ radius: number }) {
+function RoutePipe({ route, radius, material }: { route: PipeRoute; /** Outer radius of the connected ports' size. */ radius: number; material: Material }) {
   // Rebuild geometry only when the routed centreline changes, not on every scene update.
   const shape = route.status === 'ok' ? route.points.flat().join(',') : '';
-  const geometries = useMemo(() => (route.status === 'ok' ? createRouteGeometries(route, radius) : []), [shape, radius]);
-  useEffect(() => () => disposeGeometries(geometries), [geometries]);
+  const geometry = useMemo(() => (route.status === 'ok' ? createRouteGeometry(route, radius) : undefined), [shape, radius]);
+  useEffect(() => () => geometry?.dispose(), [geometry]);
   if (route.status !== 'ok') {
     // Invalid route: dashed red line between the ports so the problem is visible, no pipe drawn.
     return 'from' in route ? <Line points={[route.from, route.to]} color="#e76e75" dashed dashSize={0.15} gapSize={0.1} lineWidth={2}/> : null;
   }
-  // Routed pipes follow glass/x-ray transparency; cutaway leaves them whole.
-  const look = shellLook(viewMode === 'cutaway' ? 'normal' : viewMode);
-  return <>{geometries.map((geometry, i) => <mesh key={i} geometry={geometry}><meshStandardMaterial key={viewMode} color="#8fa9bc" metalness={look.metalness} roughness={0.35} transparent={look.transparent} opacity={look.opacity} depthWrite={look.depthWrite}/></mesh>)}</>;
+  return geometry ? <mesh geometry={geometry} material={material}/> : null;
+}
+
+/** One material for every routed pipe; follows glass/x-ray transparency, cutaway leaves pipes whole. */
+function useRouteMaterial(viewMode: ViewMode): Material {
+  const material = useMemo(() => {
+    const look = shellLook(viewMode === 'cutaway' ? 'normal' : viewMode);
+    return new MeshStandardMaterial({ color: '#8fa9bc', metalness: look.metalness, roughness: 0.35, transparent: look.transparent, opacity: look.opacity, depthWrite: look.depthWrite });
+  }, [viewMode]);
+  useEffect(() => () => material.dispose(), [material]);
+  return material;
+}
+
+/**
+ * Part geometries shared by every component with the same definition (definitions are cached per
+ * shape, so identical parts share one GPU buffer). Disposed when the last user unmounts.
+ */
+const sharedGeometries = new Map<object, { geometries: BufferGeometry[]; users: number }>();
+function useSharedGeometries(definition: ReturnType<typeof definitionFor>): BufferGeometry[] {
+  const geometries = useMemo(() => {
+    let entry = sharedGeometries.get(definition);
+    if (!entry) sharedGeometries.set(definition, (entry = { geometries: createEquipmentGeometries(definition), users: 0 }));
+    return entry.geometries;
+  }, [definition]);
+  useEffect(() => {
+    const entry = sharedGeometries.get(definition);
+    if (!entry || entry.geometries !== geometries) return;
+    entry.users++;
+    return () => {
+      entry.users--;
+      // Wait a tick: a remount of the same shape picks the entry up again instead of rebuilding it.
+      queueMicrotask(() => {
+        if (entry.users === 0 && sharedGeometries.get(definition) === entry) {
+          sharedGeometries.delete(definition);
+          disposeGeometries(entry.geometries);
+        }
+      });
+    };
+  }, [definition, geometries]);
+  return geometries;
+}
+
+const PORT_MARKER_RADIUS = 0.05;
+// Port markers are 5 cm dots: a coarse sphere looks the same and keeps 2,000 of them cheap.
+const portMarkerGeometry = new SphereGeometry(1, 8, 6);
+const beadGeometry = new SphereGeometry(1, 12, 8);
+const instanceMatrix = new Matrix4();
+
+/**
+ * Yellow markers on free ports (connected ones sit inside a joint), all in one instanced draw.
+ * Clicks pass through to the equipment.
+ */
+function PortMarkers({ scene }: { scene: ScadaScene }) {
+  const positions = useMemo(() => {
+    const used = new Set(scene.connections.flatMap((c) => [`${c.from.instanceId}\u0000${c.from.portId}`, `${c.to.instanceId}\u0000${c.to.portId}`]));
+    return scene.components.flatMap((c) => (catalogResolvers.resolvePorts(c.type, c.properties) ?? []).filter((p) => !used.has(`${c.id}\u0000${p.id}`)).map((p) => portToWorld(c, p).position));
+  }, [scene]);
+  const mesh = useRef<InstancedMesh>(null);
+  useEffect(() => {
+    const m = mesh.current;
+    if (!m) return;
+    positions.forEach((p, i) => m.setMatrixAt(i, instanceMatrix.makeScale(PORT_MARKER_RADIUS, PORT_MARKER_RADIUS, PORT_MARKER_RADIUS).setPosition(p[0], p[1], p[2])));
+    m.instanceMatrix.needsUpdate = true;
+    m.computeBoundingSphere();
+  }, [positions]);
+  if (positions.length === 0) return null;
+  return <instancedMesh key={positions.length} ref={mesh} args={[portMarkerGeometry, undefined, positions.length]} userData={{ role: 'port-markers' }} raycast={() => null}>
+    <meshBasicMaterial color="#ffd166"/>
+  </instancedMesh>;
 }
 
 
-const markerDummy = new Object3DImpl();
 
 /**
  * Flow along one routed pipe: beads slightly wider than the pipe that travel from→to or to→from,
  * sit still when stopped, or a dashed overlay when the flow is unknown. Motion uses frame delta.
  */
-function FlowMarkers({ route, state, radius }: { route: Extract<PipeRoute, { status: 'ok' }>; state: FlowState; radius: number }) {
-  const shape = route.points.flat().join(',');
-  const centerline = useMemo(() => sampleRouteCenterline(route), [shape]);
-  const lengths = useMemo(() => pathLengths(centerline), [centerline]);
-  const total = lengths[lengths.length - 1];
-  const count = markerDistances(total, FLOW_MARKER_SPACING, 0).length;
-  const appearance = flowAppearance(state);
+type Run = { id: string; centerline: Vector3Tuple[]; lengths: number[]; total: number; count: number; scale: number; sign: number };
+
+/**
+ * Flow beads for every route in as few draws as possible: one instanced mesh per colour/opacity,
+ * updated in place each frame without allocating. Unknown states get a dashed line per route.
+ */
+function FlowLayer({ routes, stateById, radiusOf }: { routes: readonly PipeRoute[]; stateById: ReadonlyMap<string, FlowState>; radiusOf: (connectionId: string) => number }) {
+  const { groups, dashed } = useMemo(() => {
+    const groups = new Map<string, { color: string; opacity: number; runs: Run[]; instances: number }>();
+    const dashed: { id: string; points: Vector3Tuple[]; color: string; opacity: number }[] = [];
+    for (const route of routes) {
+      const state = route.status === 'ok' ? stateById.get(route.connectionId) : undefined;
+      if (route.status !== 'ok' || !state) continue;
+      const centerline = sampleRouteCenterline(route);
+      const lengths = pathLengths(centerline);
+      const total = lengths[lengths.length - 1];
+      if (!(total > 0)) continue;
+      const look = flowAppearance(state);
+      if (look.dashed) { dashed.push({ id: route.connectionId, points: centerline, color: look.color, opacity: look.opacity }); continue; }
+      const key = `${look.color}:${look.opacity}`;
+      const group = groups.get(key) ?? { color: look.color, opacity: look.opacity, runs: [], instances: 0 };
+      const count = Math.max(1, Math.floor(total / FLOW_MARKER_SPACING + 1e-9));
+      group.runs.push({ id: route.connectionId, centerline, lengths, total, count, scale: radiusOf(route.connectionId) * 1.25, sign: look.motion === 'forward' ? 1 : look.motion === 'reverse' ? -1 : 0 });
+      group.instances += count;
+      groups.set(key, group);
+    }
+    return { groups: [...groups.entries()], dashed };
+  }, [routes, stateById, radiusOf]);
+  // Distance travelled per route, kept across re-renders so beads do not jump when the scene changes.
+  const travelledByRoute = useRef(new Map<string, number>()).current;
+  return <>
+    {groups.map(([key, group]) => <FlowBeads key={`${key}:${group.instances}`} color={group.color} opacity={group.opacity} runs={group.runs} instances={group.instances} travelledByRoute={travelledByRoute}/>)}
+    {/* Drawn over the pipe (no depth test) so missing or untrusted data is never hidden by geometry. */}
+    {dashed.map(d => <Line key={d.id} points={d.points} color={d.color} dashed dashSize={0.15} gapSize={0.1} lineWidth={3} transparent opacity={d.opacity} depthTest={false} renderOrder={10}/>)}
+  </>;
+}
+
+const beadPoint: Vector3Tuple = [0, 0, 0];
+
+function FlowBeads({ color, opacity, runs, instances, travelledByRoute }: { color: string; opacity: number; runs: Run[]; instances: number; /** Per viewer, so two viewers of one scene do not double the speed. */ travelledByRoute: Map<string, number> }) {
   const mesh = useRef<InstancedMesh>(null);
-  const travelled = useRef(0);
   useFrame((_, delta) => {
-    if (!mesh.current) return;
-    const sign = appearance.motion === 'forward' ? 1 : appearance.motion === 'reverse' ? -1 : 0;
-    travelled.current = (travelled.current + sign * FLOW_MARKER_SPEED * delta) % total;
-    markerDistances(total, FLOW_MARKER_SPACING, travelled.current).forEach((d, i) => {
-      markerDummy.position.set(...pointAt(centerline, lengths, d));
-      markerDummy.updateMatrix();
-      mesh.current!.setMatrixAt(i, markerDummy.matrix);
-    });
-    mesh.current.instanceMatrix.needsUpdate = true;
+    const m = mesh.current;
+    if (!m) return;
+    let k = 0;
+    for (const run of runs) {
+      const travelled = ((travelledByRoute.get(run.id) ?? 0) + run.sign * FLOW_MARKER_SPEED * delta) % run.total;
+      travelledByRoute.set(run.id, travelled);
+      const step = run.total / run.count;
+      for (let i = 0; i < run.count; i++) {
+        let d = (i * step + travelled) % run.total;
+        if (d < 0) d += run.total;
+        pointAtInto(run.centerline, run.lengths, d, beadPoint);
+        m.setMatrixAt(k++, instanceMatrix.makeScale(run.scale, run.scale, run.scale).setPosition(beadPoint[0], beadPoint[1], beadPoint[2]));
+      }
+    }
+    m.instanceMatrix.needsUpdate = true;
   });
-  if (total <= 0) return null;
-  if (appearance.dashed) {
-    // Drawn over the pipe (no depth test) so missing or untrusted data is never hidden by geometry.
-    return <Line points={centerline} color={appearance.color} dashed dashSize={0.15} gapSize={0.1} lineWidth={3} transparent opacity={appearance.opacity} depthTest={false} renderOrder={10}/>;
-  }
-  return <instancedMesh key={`${count}:${appearance.color}:${appearance.opacity}`} ref={mesh} args={[undefined, undefined, count]} frustumCulled={false}>
-    <sphereGeometry args={[radius * 1.25, 12, 8]}/>
-    <meshBasicMaterial color={appearance.color} transparent={appearance.opacity < 1} opacity={appearance.opacity}/>
+  return <instancedMesh ref={mesh} args={[beadGeometry, undefined, instances]} frustumCulled={false} userData={{ role: 'flow-markers' }}>
+    <meshBasicMaterial color={color} transparent={opacity < 1} opacity={opacity}/>
   </instancedMesh>;
 }
 
@@ -251,6 +346,8 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   const previewCollides = useMemo(() => !!(collisions && preview && collidingWith({ ...scene, components: [...scene.components, preview.component] }, preview.component.id).length), [scene, preview, collisions]);
   const names = useMemo(() => componentNames(scene), [scene]);
   const routes = useMemo(() => routeScene(scene, catalogResolvers), [scene]);
+  const routeMaterial = useRouteMaterial(viewMode);
+  const radiusOf = useMemo(() => { const memo = new Map<string, number>(); return (id: string) => memo.get(id) ?? memo.set(id, routeRadius(scene, id)).get(id)!; }, [scene]);
   const open = useMemo(() => (openJoints ? findOpenJoints(scene, { ...catalogResolvers, routes }) : []), [scene, routes, openJoints]);
   const now = useNow(1000);
   const live = useTelemetry(scene, telemetry, now);
@@ -283,9 +380,10 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     {onTransform && transformMode && selectedId && selectedObject && <GizmoControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
       onMouseDown={()=>{gesture.current++;}}
       onObjectChange={()=>{const {position:p,quaternion:q}=selectedObject;onTransform(selectedId,{x:p.x,y:p.y,z:p.z},{x:q.x,y:q.y,z:q.z,w:q.w},`transform:${selectedId}:${gesture.current}`);}}/>}
-    {routes.map(route=><RoutePipe key={route.connectionId} route={route} viewMode={viewMode} radius={routeRadius(scene,route.connectionId)}/>)}
+    {routes.map(route=><RoutePipe key={route.connectionId} route={route} material={routeMaterial} radius={routeRadius(scene,route.connectionId)}/>)}
+    <PortMarkers scene={shown}/>
     {open.map(o=><OpenJointMarkers key={`open:${o.connectionId}`} scene={scene} open={o}/>)}
-    {flowStates && routes.map(route=>{const state=stateById.get(route.connectionId);return route.status==='ok'&&state?<FlowMarkers key={`flow:${route.connectionId}`} route={route} state={state} radius={routeRadius(scene,route.connectionId)}/>:null;})}
+    {flowStates && <FlowLayer routes={routes} stateById={stateById} radiusOf={radiusOf}/>}
     {preview && <DropPreview scene={scene} plan={preview} colliding={previewCollides}/>}
     {onCamera && <CameraBridge onCamera={onCamera}/>}
     <OrbitControls makeDefault/><GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport/></GizmoHelper>
