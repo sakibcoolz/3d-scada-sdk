@@ -39,7 +39,9 @@ export type SceneValidationErrorCode =
   | 'INVALID_UNIT'
   | 'DUPLICATE_BINDING_ID'
   | 'DUPLICATE_BINDING_TARGET'
-  | 'INVALID_PROPERTY';
+  | 'INVALID_PROPERTY'
+  | 'UNKNOWN_PARENT'
+  | 'PARENT_CYCLE';
 
 export interface SceneValidationError {
   code: SceneValidationErrorCode;
@@ -102,7 +104,7 @@ const sceneKeys: Record<SchemaVersion, string[]> = {
 const componentKeys: Record<SchemaVersion, string[]> = {
   1: ['id', 'kind', 'position', 'rotation', 'properties'],
   2: ['id', 'type', 'position', 'rotation', 'scale', 'properties'],
-  3: ['id', 'type', 'position', 'rotation', 'scale', 'properties'],
+  3: ['id', 'type', 'parentId', 'position', 'rotation', 'scale', 'properties'],
 };
 /** Accepted deviation of a rotation quaternion's length from 1; larger values are rejected, never renormalised. */
 const UNIT_TOLERANCE = 1e-6;
@@ -287,6 +289,7 @@ function readComponent(
   let position: Vector3Like | undefined;
   let rotation: QuaternionLike | undefined;
   let scale: Vector3Like | undefined;
+  const parentId = version === 3 && value.parentId !== undefined ? readId(value.parentId, `${path}.parentId`, limits, errors) : undefined;
   if (version === 3) {
     position = readVectorObject(value.position, `${path}.position`, errors);
     rotation = readQuaternionObject(value.rotation, `${path}.rotation`, errors);
@@ -307,7 +310,7 @@ function readComponent(
   }
   const properties = readProperties(value.properties, `${path}.properties`, limits, errors);
   if (errors.length > before || !id || !position || !rotation || !scale || !properties) return undefined;
-  return { id, type: type as ComponentKind, position, rotation, scale, properties };
+  return { id, type: type as ComponentKind, ...(parentId ? { parentId } : {}), position, rotation, scale, properties };
 }
 
 function readEndpoint(value: unknown, path: string, limits: SceneLimits, errors: Errors): SceneConnection['from'] | undefined {
@@ -447,6 +450,20 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
     const hasPorts = (options.resolvePorts(c.type, c.properties)?.length ?? 0) > 0;
     if (hasPorts && (c.scale.x !== 1 || c.scale.y !== 1 || c.scale.z !== 1)) {
       errors.push({ code: 'UNSUPPORTED_SCALE', path: `components[${i}].scale`, message: 'Components with ports must keep scale { x: 1, y: 1, z: 1 }.' });
+    }
+    if (c.parentId !== undefined && !scene.components.some((p) => p.id === c.parentId)) {
+      errors.push({ code: 'UNKNOWN_PARENT', path: `components[${i}].parentId`, message: `No component "${c.parentId}" to be the parent.` });
+    } else if (c.parentId !== undefined) {
+      // Walk up the parent chain; coming back to this component means a cycle.
+      const parents = new Map(scene.components.map((p) => [p.id, p.parentId]));
+      let at: string | undefined = c.parentId;
+      for (let steps = 0; at !== undefined && steps <= scene.components.length; steps++) {
+        if (at === c.id) {
+          errors.push({ code: 'PARENT_CYCLE', path: `components[${i}].parentId`, message: 'A component cannot be its own ancestor.' });
+          break;
+        }
+        at = parents.get(at);
+      }
     }
     if (componentsById.has(c.id)) {
       errors.push({ code: 'DUPLICATE_COMPONENT_ID', path: `components[${i}].id`, message: `Duplicate component id "${c.id}".` });

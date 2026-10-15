@@ -33,14 +33,20 @@ export function disconnect(scene: ScadaScene, connectionId: string): GraphResult
   return { ok: true, scene: withoutDanglingBindings(next) };
 }
 
-/** Removes a component together with every edge that touches it, so no edge is left dangling. */
+/** Removes a component with every edge that touches it, so no edge is left dangling; its children are freed. */
 export function removeComponent(scene: ScadaScene, instanceId: string): GraphResult {
   if (!scene.components.some((c) => c.id === instanceId)) {
     return { ok: false, error: { code: 'UNKNOWN_INSTANCE', message: `No component "${instanceId}".` } };
   }
   const next = {
     ...scene,
-    components: scene.components.filter((c) => c.id !== instanceId),
+    components: scene.components
+      .filter((c) => c.id !== instanceId)
+      .map((c) => {
+        if (c.parentId !== instanceId) return c;
+        const { parentId: _, ...free } = c;
+        return free;
+      }),
     connections: scene.connections.filter((c) => c.from.instanceId !== instanceId && c.to.instanceId !== instanceId),
   };
   return { ok: true, scene: withoutDanglingBindings(next) };

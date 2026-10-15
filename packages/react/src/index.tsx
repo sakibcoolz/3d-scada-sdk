@@ -2,7 +2,7 @@ import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState
 import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { connectProvider, connectionsOf, connectTouchingPorts, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { assemblyOf, connectProvider, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { catalogResolvers, componentCatalog, definitionFor, pipeOuterRadius, type ParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
@@ -362,13 +362,22 @@ function CollisionList({ pairs, names, order }: { pairs: readonly { a: string; b
 /** Keyboard-reachable list of everything in the scene; selecting here equals clicking in the canvas. */
 function SceneList({ scene, selected, onSelect, locked }: { scene: ScadaScene; selected?: string; onSelect: (id: string) => void; locked?: boolean }) {
   const names = componentNames(scene);
-  const entries = scene.components.map((c) => ({ id: c.id, name: names.get(c.id)! }));
+  // Roots in scene order, each followed by its descendants (indented).
+  const children = new Map<string, string[]>();
+  const ids = new Set(scene.components.map((c) => c.id));
+  for (const c of scene.components) if (c.parentId && ids.has(c.parentId)) children.set(c.parentId, [...(children.get(c.parentId) ?? []), c.id]);
+  const entries: { id: string; name: string; depth: number }[] = [];
+  const visit = (id: string, depth: number) => {
+    entries.push({ id, name: names.get(id)!, depth });
+    for (const child of children.get(id) ?? []) visit(child, depth + 1);
+  };
+  for (const c of scene.components) if (!c.parentId || !ids.has(c.parentId)) visit(c.id, 0);
   if (entries.length === 0) return null;
   return <nav aria-label="Scene components" style={{margin:'10px 0'}}>
     <small>{locked ? 'In scene (editing locked)' : 'In scene (arrows move, R turns, Delete removes)'}</small>
     <div style={{maxHeight:160,overflowY:'auto'}}>
       {entries.map(e => <button key={e.id} aria-pressed={selected === e.id} onClick={() => onSelect(e.id)}
-        style={{display:'block',width:'100%',textAlign:'left',marginTop:3,fontWeight:selected===e.id?700:400}}>{e.name}</button>)}
+        style={{display:'block',width:`calc(100% - ${e.depth*14}px)`,marginLeft:e.depth*14,textAlign:'left',marginTop:3,fontWeight:selected===e.id?700:400}}>{e.name}</button>)}
     </div>
   </nav>;
 }
@@ -436,6 +445,24 @@ function ParameterField({ name, spec, component, connectedPorts, onChange }: {
   </label>;
 }
 
+/** Parent/child locks for the selected component (ADR-0008). */
+function AssemblyControls({ component, scene, onChange }: { component: ComponentInstance; scene: ScadaScene; onChange: (next: ScadaScene) => void }) {
+  const names = componentNames(scene);
+  const children = scene.components.filter((c) => c.parentId === component.id).length;
+  const assemblySize = assemblyOf(scene, component.id).length;
+  const hasConnections = connectionsOf(scene, component.id).length > 0;
+  return <div style={{marginTop:10}}>
+    <small>Assembly</small>
+    {component.parentId && <p style={{fontSize:12,margin:'4px 0'}}>Locked to {names.get(component.parentId)}</p>}
+    {children > 0 && <p style={{fontSize:12,margin:'4px 0'}}>Parent of {children} component{children === 1 ? '' : 's'}</p>}
+    {assemblySize === 1 && <p style={{fontSize:12,margin:'4px 0'}}>Not in an assembly. Moving it moves only this component.</p>}
+    <button disabled={!hasConnections} title="Make this the parent of everything connected to it; then they all move together"
+      onClick={() => { const r = lockConnectedAsChildren(scene, component.id); if (r.ok) onChange(r.scene); }}>Lock connected as children</button>
+    {component.parentId && <button onClick={() => onChange(unlockFromParent(scene, component.id))}>Unlock from parent</button>}
+    {children > 0 && <button onClick={() => onChange(unlockFromParent(scene, component.id))}>Unlock assembly</button>}
+  </div>;
+}
+
 const viewLabels: Record<ViewMode, string> = { normal: 'Normal', glass: 'Glass', xray: 'X-ray', cutaway: 'Cutaway' };
 
 /** Explains a level that cannot be drawn as entered (policy in `liquidFill`). */
@@ -491,7 +518,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     if(!moved) return;
     e.preventDefault();
     // Repeated presses of the same key fold into one undo step.
-    update({...scene,components:scene.components.map(c=>c.id===target.id?{...c,...moved}:c)},`nudge:${target.id}:${e.key.toLowerCase()}`);
+    moveMember(target.id,moved.position,moved.rotation,`nudge:${target.id}:${e.key.toLowerCase()}`);
   }
   const root=useRef<HTMLDivElement>(null);
   /** Removes a component (with its edges and bindings); focus moves to the editor so keyboard shortcuts keep working. */
@@ -541,8 +568,9 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     update({...scene,components:scene.components.map(c=>c.id===selected?{...c,...changes}:c)},mergeKey);
   }
   // A whole gizmo drag shares one gesture key, so it merges into a single undo step.
-  const transform:TransformHandler=(id,position,rotation,gesture)=>
-    update({...scene,components:scene.components.map(c=>c.id===id?{...c,position,rotation}:c)},gesture);
+  /** Every pose change goes through here: members of an assembly move together, rigidly (ADR-0008). */
+  function moveMember(id:string,position:Vector3Like,rotation:QuaternionLike,mergeKey?:string){update(moveAssembly(scene,id,position,rotation),mergeKey);}
+  const transform:TransformHandler=(id,position,rotation,gesture)=>moveMember(id,position,rotation,gesture);
   const [importText,setImportText]=useState('');
   const [importNote,setImportNote]=useState('');
   const [importErrors,setImportErrors]=useState<string[]>([]);
@@ -590,8 +618,8 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     update(tagBindings.length?{...rest,tagBindings}:rest);
   }
   const toolButton=(mode:TransformMode,label:string)=><button aria-pressed={transformMode===mode} onClick={()=>setTransformMode(mode)} style={{fontWeight:transformMode===mode?700:400}}>{label}</button>;
-  return <div ref={root} tabIndex={-1} onKeyDown={onKeyDown} style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
-    <aside style={{padding:14,borderRight:'1px solid #3c5366'}}>
+  return <div ref={root} tabIndex={-1} onKeyDown={onKeyDown} style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',gridTemplateRows:'minmax(0,1fr)',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
+    <aside style={{padding:14,borderRight:'1px solid #3c5366',overflowY:'auto',minHeight:0}}>
       <button aria-pressed={isLocked} onClick={()=>setLocked(!isLocked)} style={{display:'block',width:'100%',marginBottom:8,padding:6,fontWeight:isLocked?700:400}}>{isLocked?'Unlock editing':'Lock editing'}</button>
       <fieldset disabled={isLocked} style={{border:'none',padding:0,margin:0}}>
       <div style={{display:'flex',gap:6,marginBottom:8}}>
@@ -613,14 +641,15 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
       {isLocked&&<div style={{position:'absolute',bottom:10,right:110,padding:'4px 10px',borderRadius:4,background:'#0b1725e6',border:'1px solid #ffd166',color:'#ffd166',fontSize:12,pointerEvents:'none'}}>🔒 Editing locked</div>}
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene)+previewOverlap:''}</div>
     </main>
-    <aside style={{padding:14,borderLeft:'1px solid #3c5366'}}>
+    <aside style={{padding:14,borderLeft:'1px solid #3c5366',overflowY:'auto',minHeight:0}}>
       <h3>Properties</h3>
       {component ? <>
         <p>{componentCatalog[component.type].label}</p>
         <fieldset disabled={isLocked} style={{border:'none',padding:0,margin:0}}>
         <small>Position (metres)</small>
-        {(['x','y','z'] as const).map(axis=><label key={axis} style={{display:'block',marginTop:8}}>{axis.toUpperCase()} <input type="number" step=".1" style={{width:100}} value={component.position[axis]} onChange={e=>patch({position:{...component.position,[axis]:Number(e.target.value)}},`position:${component.id}:${axis}`)}/></label>)}
-        <RotationFields rotation={component.rotation} onChange={(rotation,mergeKey)=>patch({rotation},mergeKey&&`rotation:${component.id}:${mergeKey}`)}/>
+        {(['x','y','z'] as const).map(axis=><label key={axis} style={{display:'block',marginTop:8}}>{axis.toUpperCase()} <input type="number" step=".1" style={{width:100}} value={component.position[axis]} onChange={e=>moveMember(component.id,{...component.position,[axis]:Number(e.target.value)},component.rotation,`position:${component.id}:${axis}`)}/></label>)}
+        <RotationFields rotation={component.rotation} onChange={(rotation,mergeKey)=>moveMember(component.id,component.position,rotation,mergeKey&&`rotation:${component.id}:${mergeKey}`)}/>
+        <AssemblyControls component={component} scene={scene} onChange={next=>update(next)}/>
         {Object.entries(componentCatalog[component.type].parameters??{}).map(([name,spec])=><ParameterField key={`${component.id}:${name}`} name={name} spec={spec} component={component} connectedPorts={new Set(connectionsOf(scene,component.id).flatMap(c=>[c.from,c.to]).filter(e=>e.instanceId===component.id).map(e=>e.portId))} onChange={(changes)=>patch(changes,`parameter:${component.id}:${name}`)}/>)}
         {component.type==='tank'&&<>
           <label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Math.round((liquidFill(component.properties.level).fraction??0)*100)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>

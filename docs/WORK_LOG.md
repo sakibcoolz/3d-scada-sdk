@@ -463,3 +463,19 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-039 REVIEW until PR is merged.
 
+## 2026-10-15 — T-040 assemblies (parent/child locks)
+- Branch: `feat/T-040-assemblies` (from `feat/T-039-connect-touching` @ `30160db`, PRs #37/#38 open; targets `develop`).
+- Owner request and decisions (ADR-0008, accepted): children locked from connections; locked is rigid (any member moves the whole assembly); saved in the file as `parentId`.
+- Graphify: index NOT built. Fallback: read validation, serialization, graph and editor transform paths directly.
+- Scope: `parentId` in scene v3 with `UNKNOWN_PARENT`/`PARENT_CYCLE` validation and canonical serialization; `assemblyOf`, `moveAssembly`, `lockConnectedAsChildren`, `unlockFromParent`; `removeComponent` frees children; editor routes every pose change through `moveAssembly`, Assembly section, indented scene list. API snapshot and docs updated.
+- Tests written first: 14 core tests and 4 e2e tests failed before implementation.
+- Defect found and fixed: e2e drops failed because a long properties panel stretched the editor grid row, making the 3D canvas 1158 px tall in a 720 px window, so the drop point was off-screen. The grid now has a fixed row and the side panels scroll; `e2e/layout.spec.ts` guards it. Test-setup fix: a ground-dropped pipe's ports sit too low to snap to a valve outlet (0.55 m > 0.5 m reach), so the e2e chain uses a second valve. Keyboard nudges round to 1 µm, so one assertion compares at that precision.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (632 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (59 tests).
+  - Screenshot: the owner's plant connected, tee locked as parent of 11, one +90° turn swings the whole plant.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-040 REVIEW until PR is merged (after #37, #38).
+

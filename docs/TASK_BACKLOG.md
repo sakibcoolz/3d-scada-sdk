@@ -39,6 +39,7 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-033 | M7 (MVP) | P1 | T-006,T-030 | REVIEW | adjustable pipe length: per-instance catalog definitions (`definitionFor`, `catalogResolvers`), `INVALID_PROPERTY` validation, Length field keeping the connected end fixed (owner request) |
 | T-038 | M7 (MVP) | P1 | T-011,T-033 | REVIEW | edit lock: view-only mode toggle, `defaultLocked` / controlled `locked` + `onLockedChange`, all edit paths refused while locked (owner request) |
 | T-039 | M7 (MVP) | P1 | T-008,T-033 | REVIEW | connect touching ports: explicit, user-triggered conversion of exactly meeting, facing, compatible ports into connections; doubtful pairs reported (owner request) |
+| T-040 | M7 (MVP) | P1 | T-008,T-039 | REVIEW | assemblies: parent/child locks from connections, rigid moves, saved `parentId` (ADR-0008, owner request); editor layout overflow fix |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.
