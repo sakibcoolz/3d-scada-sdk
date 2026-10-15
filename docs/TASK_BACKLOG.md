@@ -37,10 +37,11 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-031 | M7 (MVP) | P0 | T-006,T-011 | REVIEW | solid-body collision highlight, on by default: OBB overlap per catalog bounds, red shells, overlay, drop warning; non-blocking (owner request) |
 | T-032 | M7 (MVP) | P1 | T-011,T-030 | REVIEW | rotation form for every component: Euler XYZ degree fields, ±90° world-axis turns, reset (owner request) |
 | T-033 | M7 (MVP) | P1 | T-006,T-030 | REVIEW | adjustable pipe length: per-instance catalog definitions (`definitionFor`, `catalogResolvers`), `INVALID_PROPERTY` validation, Length field keeping the connected end fixed (owner request) |
-| T-038 | M7 (MVP) | P1 | T-011,T-033 | REVIEW | edit lock: view-only mode toggle, `defaultLocked` / controlled `locked` + `onLockedChange`, all edit paths refused while locked (owner request) |
-| T-039 | M7 (MVP) | P1 | T-008,T-033 | REVIEW | connect touching ports: explicit, user-triggered conversion of exactly meeting, facing, compatible ports into connections; doubtful pairs reported (owner request) |
-| T-040 | M7 (MVP) | P1 | T-008,T-039 | REVIEW | assemblies: parent/child locks from connections, rigid moves, saved `parentId` (ADR-0008, owner request); editor layout overflow fix |
+| T-038 | M7 (MVP) | P1 | T-011,T-033 | DONE | edit lock: view-only mode toggle, `defaultLocked` / controlled `locked` + `onLockedChange`, all edit paths refused while locked (owner request) |
+| T-039 | M7 (MVP) | P1 | T-008,T-033 | DONE | connect touching ports: explicit, user-triggered conversion of exactly meeting, facing, compatible ports into connections; doubtful pairs reported (owner request) |
+| T-040 | M7 (MVP) | P1 | T-008,T-039 | DONE | assemblies: parent/child locks from connections, rigid moves, saved `parentId` (ADR-0008, owner request); editor layout overflow fix |
 | T-041 | M7 (MVP) | P1 | T-040 | REVIEW | copy and paste of a component or a whole assembly: internal connections and parent links remapped, tag bindings not copied, offset beside original (owner request) |
+| T-042 | post-MVP | P2 | T-041 | TODO | editor look (owner UI review 2026-10-15): themed controls with clear hover/disabled/active states, distinct destructive actions, grouped collapsible properties sections, position fields rounded to 1 mm for display, scene JSON/import moved out of the properties column, scene list fits without clipping; visual only, no behaviour or schema change; after T-024 unless owner reprioritises |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.

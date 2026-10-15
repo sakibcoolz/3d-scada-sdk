@@ -500,3 +500,10 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Tests: core regression test (failed before the fix); e2e on a fixture of the owner's plant with 10 of 11 joints connected, which now shows only "Connected 1 touching port pair."
 - Verification (Node v22.23.2, pnpm 9.15.4): `pnpm typecheck` PASS; `pnpm test` PASS (641 tests); `pnpm build` PASS; `pnpm test:e2e` PASS (64 tests). GitHub Actions CI not awaited (owner direction).
 
+
+## 2026-10-15 — Editor UI review (owner request), T-042 added
+- Branch: `feat/T-041-copy-paste` (docs-only commit). PR #39 merged, so this branch now targets `develop` directly.
+- Reviewed the owner's running playground (`?demo`, valve selected) in Chrome; no console errors.
+- Findings: unrounded position display (`0.6349999999`), default light browser controls on the dark theme, near-unreadable disabled buttons, weak Move/Rotate active state, Remove not set apart, one long ungrouped properties column ("Valve open" reads as part of Assembly), wrapping tag-binding labels, clipped scene list.
+- T-038, T-039, T-040 marked DONE (PRs #37, #38, #39 merged).
+- Recorded as T-042 (post-MVP, P2, visual only). Not started; T-024 remains the next MVP task.
