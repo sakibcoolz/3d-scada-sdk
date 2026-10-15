@@ -20,6 +20,14 @@ export function createPartGeometry(part: GeometryPart): BufferGeometry {
       return new TorusGeometry(part.bendRadius, part.tubeRadius, 16, 24, Math.PI / 2)
         .rotateZ(part.startAngle)
         .translate(...part.center);
+    case 'cone': {
+      // Three's top is +Y; turning to X puts the top at -X, turning to Z puts it at +Z.
+      const [top, bottom] = part.axis === 'x' ? [part.radiusStart, part.radiusEnd] : [part.radiusEnd, part.radiusStart];
+      const geometry = new CylinderGeometry(top, bottom, part.length, 32, 1, false);
+      if (part.axis === 'x') geometry.rotateZ(Math.PI / 2);
+      if (part.axis === 'z') geometry.rotateX(Math.PI / 2);
+      return geometry.translate(...part.center);
+    }
   }
 }
 

@@ -23,7 +23,7 @@ export interface ConnectionPort {
   direction: Vector3Tuple; // outward unit normal
   nominalSize?: number; // metres
 }
-export const componentKinds = ['tank', 'pipe', 'elbow', 'tee', 'valve', 'pump', 'sensor', 'motor'] as const;
+export const componentKinds = ['tank', 'pipe', 'elbow', 'tee', 'valve', 'reducer', 'coupler', 'pump', 'sensor', 'motor'] as const;
 export type ComponentKind = (typeof componentKinds)[number];
 export interface ComponentDefinition {
   type: ComponentKind;

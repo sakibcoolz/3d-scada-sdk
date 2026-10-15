@@ -63,7 +63,7 @@ function seat(type: ComponentKind, port: ConnectionPort, target: { position: num
 const teeAtOrigin = instance('tee', 'tee');
 const cases = tee.ports.flatMap((teePort) =>
   (Object.keys(componentCatalog) as ComponentKind[]).flatMap((type) =>
-    componentCatalog[type].ports.filter((p) => p.kind === 'fluid').map((port) => [`tee "${teePort.id}" ↔ ${type} "${port.id}"`, teePort, type, port] as const),
+    componentCatalog[type].ports.filter((p) => p.kind === 'fluid' && p.nominalSize === teePort.nominalSize).map((port) => [`tee "${teePort.id}" ↔ ${type} "${port.id}"`, teePort, type, port] as const),
   ),
 );
 
@@ -76,9 +76,17 @@ describe('T-junction cross-check', () => {
     }
   });
 
-  it('covers every fluid port of every component on each of its three nodes', () => {
-    const fluidPorts = Object.values(componentCatalog).flatMap((d) => d.ports.filter((p) => p.kind === 'fluid'));
+  it('covers every same-size fluid port of every component on each of its three nodes', () => {
+    const fluidPorts = Object.values(componentCatalog).flatMap((d) => d.ports.filter((p) => p.kind === 'fluid' && p.nominalSize === tee.ports[0].nominalSize));
     expect(cases).toHaveLength(3 * fluidPorts.length);
+  });
+
+  it('refuses a port of another size, e.g. the default reducer outlet (DN100)', () => {
+    const out = componentCatalog.reducer.ports.find((p) => p.id === 'out')!;
+    const other = seat('reducer', out, portToWorld(teeAtOrigin, tee.ports[0]));
+    const placed: ScadaScene = { schemaVersion: 3, units: 'm', components: [teeAtOrigin, other], connections: [] };
+    expect(findTouchingPorts(placed, catalogResolvers).rejected).toEqual([expect.objectContaining({ reason: 'incompatible' })]);
+    expect(connect(placed, { id: 'j', from: { instanceId: 'tee', portId: 'left' }, to: { instanceId: 'other', portId: 'out' } }, catalogResolvers).ok).toBe(false);
   });
 
   it.each(cases)('%s: same size, seats flush and connects', (_, teePort, type, port) => {

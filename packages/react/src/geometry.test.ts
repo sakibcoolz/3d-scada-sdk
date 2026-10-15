@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Box3, Vector3, type BufferGeometry } from 'three';
 import type { PipeRoute } from '@scada3d/core';
-import { componentCatalog, pipeOuterRadius } from '@scada3d/components';
-import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
+import { componentCatalog, outerRadiusFor, pipeOuterRadius, sizeOfPort } from '@scada3d/components';
+import { createEquipmentGeometries, createPartGeometry, createRouteGeometries, disposeGeometries } from './geometry';
 
 const definitions = Object.values(componentCatalog);
 
@@ -42,7 +42,7 @@ describe('createEquipmentGeometries', () => {
         }
       }
       expect(radial.length).toBeGreaterThan(0);
-      expect(Math.max(...radial)).toBeCloseTo(pipeOuterRadius, 6);
+      expect(Math.max(...radial)).toBeCloseTo(outerRadiusFor(sizeOfPort(port)!), 6);
       disposeGeometries(geometries);
     },
   );
@@ -165,5 +165,23 @@ describe('parametric pipe geometry', () => {
     expect(box.min.x).toBeCloseTo(-2.5, 6);
     expect(box.max.x).toBeCloseTo(2.5, 6);
     disposeGeometries(geometries);
+  });
+});
+
+describe('cone parts', () => {
+  it.each(['x', 'y', 'z'] as const)('puts radiusStart at the -%s end and radiusEnd at the + end', (axis) => {
+    const geometry = createPartGeometry({ shape: 'cone', role: 'shell', center: [1, 2, 3], axis, radiusStart: 0.1, radiusEnd: 0.05, length: 0.2 });
+    const position = geometry.getAttribute('position');
+    const i = 'xyz'.indexOf(axis);
+    const centre = [1, 2, 3];
+    const reach = { start: 0, end: 0 };
+    for (let v = 0; v < position.count; v++) {
+      const p = [position.getX(v), position.getY(v), position.getZ(v)];
+      const radial = Math.hypot(...p.map((n, k) => (k === i ? 0 : n - centre[k])));
+      if (Math.abs(p[i] - (centre[i] - 0.1)) < 1e-6) reach.start = Math.max(reach.start, radial);
+      if (Math.abs(p[i] - (centre[i] + 0.1)) < 1e-6) reach.end = Math.max(reach.end, radial);
+    }
+    expect(reach.start).toBeCloseTo(0.1, 6);
+    expect(reach.end).toBeCloseTo(0.05, 6);
   });
 });

@@ -14,7 +14,9 @@ export type GeometryPart =
   | { shape: 'sphere'; role: PartRole; center: Vector3Tuple; radius: number }
   | { shape: 'box'; role: PartRole; center: Vector3Tuple; size: Vector3Tuple }
   /** Quarter torus in the XY plane, sweeping from startAngle to startAngle + π/2 about center. */
-  | { shape: 'bend'; role: PartRole; center: Vector3Tuple; bendRadius: number; tubeRadius: number; startAngle: number };
+  | { shape: 'bend'; role: PartRole; center: Vector3Tuple; bendRadius: number; tubeRadius: number; startAngle: number }
+  /** Frustum along an axis: `radiusStart` at the −axis end, `radiusEnd` at the +axis end. */
+  | { shape: 'cone'; role: PartRole; center: Vector3Tuple; axis: Axis; radiusStart: number; radiusEnd: number; length: number };
 
 export interface Bounds {
   min: Vector3Tuple;
@@ -22,7 +24,7 @@ export interface Bounds {
 }
 
 /** A numeric property that changes a component's shape, e.g. pipe length. */
-export interface ParameterSpec {
+export interface NumberParameterSpec {
   label: string;
   unit: string;
   default: number;
@@ -30,6 +32,17 @@ export interface ParameterSpec {
   max: number;
   step: number;
 }
+
+/** A property chosen from a fixed list, e.g. pipe size. */
+export interface ChoiceParameterSpec {
+  label: string;
+  choices: readonly string[];
+  default: string;
+}
+
+export type ParameterSpec = NumberParameterSpec | ChoiceParameterSpec;
+
+export const isChoiceParameter = (spec: ParameterSpec): spec is ChoiceParameterSpec => 'choices' in spec;
 
 export interface IndustrialComponentDefinition extends ComponentDefinition {
   /** Axis-aligned local bounds of all parts in the default (open) state. */

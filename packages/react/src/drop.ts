@@ -12,7 +12,7 @@ import {
   type Vector3Like,
   type Vector3Tuple,
 } from '@scada3d/core';
-import { catalogResolvers, componentCatalog, definitionFor, type IndustrialComponentDefinition } from '@scada3d/components';
+import { catalogResolvers, componentCatalog, definitionFor, sizeOfPort, type IndustrialComponentDefinition } from '@scada3d/components';
 
 
 export interface ScreenRect {
@@ -66,7 +66,30 @@ export function planDrop(scene: ScadaScene, type: ComponentKind, hit: Vector3Tup
     properties: { ...options.properties },
   };
   const snap = snapComponent(scene, placed, catalogResolvers);
-  return { component: snap.ok ? { ...placed, position: snap.position, rotation: snap.rotation } : placed, snap };
+  if (snap.ok) return { component: { ...placed, position: snap.position, rotation: snap.rotation }, snap };
+  // A part with a size choice takes the size of the port it would snap to (ADR-0009).
+  const resized = matchTargetSize(scene, placed, snap);
+  if (resized) {
+    const again = snapComponent(scene, resized, catalogResolvers);
+    if (again.ok) return { component: { ...resized, position: again.position, rotation: again.rotation }, snap: again };
+  }
+  return { component: placed, snap };
+}
+
+/** `placed` with its moving port resized to the nearest target port's size, if that is a valid choice. */
+function matchTargetSize(scene: ScadaScene, placed: ComponentInstance, snap: SnapResult): ComponentInstance | undefined {
+  const nearest = !snap.ok ? snap.nearest : undefined;
+  if (!nearest || nearest.status !== 'incompatible') return undefined;
+  const target = scene.components.find((c) => c.id === nearest.target.instanceId);
+  const port = target && catalogResolvers.resolvePorts(target.type, target.properties)?.find((p) => p.id === nearest.target.portId);
+  const size = port && sizeOfPort(port);
+  const parameters = componentCatalog[placed.type].parameters ?? {};
+  // The reducer's outlet has its own size; every other sized part has one size for all ports.
+  const name = placed.type === 'reducer' && nearest.movingPortId === 'out' ? 'outletSize' : 'size';
+  if (!size || !parameters[name]) return undefined;
+  const properties = { ...placed.properties, [name]: size };
+  if (catalogResolvers.validateProperties(placed.type, properties).length > 0) return undefined;
+  return { ...placed, properties };
 }
 
 /** Adds the planned component and, when it snapped, its connection, validated as one change. */

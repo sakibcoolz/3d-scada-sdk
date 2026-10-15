@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { componentKinds, quaternionFromEuler, snapComponent, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@scada3d/core';
-import { componentCatalog, definitionFor, pipeOuterRadius, type GeometryPart } from './index';
+import { componentCatalog, definitionFor, outerRadiusFor, pipeOuterRadius, sizeOfPort, type GeometryPart } from './index';
 
 const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
 
@@ -105,10 +105,10 @@ describe('componentCatalog definitions', () => {
     },
   );
 
-  it('uses one nominal bore for every fluid port, matched by the pipe radius', () => {
-    const fluid = definitions.flatMap((d) => d.ports).filter((p) => p.kind === 'fluid');
+  it('uses DN150 for every default fluid port except the reducer outlet, matched by the pipe radius', () => {
+    const fluid = definitions.flatMap((d) => d.ports.map((p) => [d.type, p] as const)).filter(([, p]) => p.kind === 'fluid');
     expect(fluid.length).toBeGreaterThan(0);
-    for (const port of fluid) expect(port.nominalSize).toBe(0.15);
+    for (const [type, port] of fluid) expect(port.nominalSize).toBe(type === 'reducer' && port.id === 'out' ? 0.1 : 0.15);
     expect(pipeOuterRadius).toBeGreaterThan(0.15 / 2);
   });
 
@@ -126,6 +126,9 @@ describe('componentCatalog definitions', () => {
       if (part.shape === 'cylinder' && 'xyz'.indexOf(part.axis) === axis) {
         return [-1, 1].map((s) => ({ at: part.center.map((n, i) => (i === axis ? n + (s * part.length) / 2 : n)), radius: part.radius }));
       }
+      if (part.shape === 'cone' && 'xyz'.indexOf(part.axis) === axis) {
+        return [-1, 1].map((s) => ({ at: part.center.map((n, i) => (i === axis ? n + (s * part.length) / 2 : n)), radius: s < 0 ? part.radiusStart : part.radiusEnd }));
+      }
       if (part.shape === 'bend') {
         return [part.startAngle, part.startAngle + Math.PI / 2].map((a) => ({
           at: [part.center[0] + part.bendRadius * Math.cos(a), part.center[1] + part.bendRadius * Math.sin(a), part.center[2]],
@@ -136,7 +139,7 @@ describe('componentCatalog definitions', () => {
     });
     const atPort = ends.filter((e) => close(e.at, port.position));
     expect(atPort.length).toBeGreaterThan(0);
-    for (const e of atPort) expect(e.radius).toBe(pipeOuterRadius);
+    for (const e of atPort) expect(e.radius).toBeCloseTo(outerRadiusFor(sizeOfPort(port)!), 12);
   });
 
   it('gives the tee three genuine fluid ports', () => {

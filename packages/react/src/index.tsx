@@ -2,8 +2,8 @@ import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState
 import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
-import { catalogResolvers, componentCatalog, definitionFor, pipeOuterRadius, type ParameterSpec } from '@scada3d/components';
+import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { catalogResolvers, componentCatalog, definitionFor, isChoiceParameter, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
 import { componentNames, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice';
@@ -86,10 +86,24 @@ function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown
   </group>;
 }
 
-function RoutePipe({ route, viewMode }: { route: PipeRoute; viewMode: ViewMode }) {
+/** Drawn outer radius for a port: its catalog size, DN150 if it has none. */
+function portRadius(port: ConnectionPort): number {
+  const size = sizeOfPort(port);
+  return size ? outerRadiusFor(size) : pipeOuterRadius;
+}
+
+/** Routed runs are as wide as the ports they join (validation keeps both ends the same size). */
+function routeRadius(scene: ScadaScene, connectionId: string): number {
+  const c = scene.connections.find((x) => x.id === connectionId);
+  const component = c && scene.components.find((x) => x.id === c.from.instanceId);
+  const port = component && catalogResolvers.resolvePorts(component.type, component.properties)?.find((p) => p.id === c!.from.portId);
+  return port ? portRadius(port) : pipeOuterRadius;
+}
+
+function RoutePipe({ route, viewMode, radius }: { route: PipeRoute; viewMode: ViewMode; /** Outer radius of the connected ports' size. */ radius: number }) {
   // Rebuild geometry only when the routed centreline changes, not on every scene update.
   const shape = route.status === 'ok' ? route.points.flat().join(',') : '';
-  const geometries = useMemo(() => (route.status === 'ok' ? createRouteGeometries(route, pipeOuterRadius) : []), [shape]);
+  const geometries = useMemo(() => (route.status === 'ok' ? createRouteGeometries(route, radius) : []), [shape, radius]);
   useEffect(() => () => disposeGeometries(geometries), [geometries]);
   if (route.status !== 'ok') {
     // Invalid route: dashed red line between the ports so the problem is visible, no pipe drawn.
@@ -107,7 +121,7 @@ const markerDummy = new Object3DImpl();
  * Flow along one routed pipe: beads slightly wider than the pipe that travel from→to or to→from,
  * sit still when stopped, or a dashed overlay when the flow is unknown. Motion uses frame delta.
  */
-function FlowMarkers({ route, state }: { route: Extract<PipeRoute, { status: 'ok' }>; state: FlowState }) {
+function FlowMarkers({ route, state, radius }: { route: Extract<PipeRoute, { status: 'ok' }>; state: FlowState; radius: number }) {
   const shape = route.points.flat().join(',');
   const centerline = useMemo(() => sampleRouteCenterline(route), [shape]);
   const lengths = useMemo(() => pathLengths(centerline), [centerline]);
@@ -133,7 +147,7 @@ function FlowMarkers({ route, state }: { route: Extract<PipeRoute, { status: 'ok
     return <Line points={centerline} color={appearance.color} dashed dashSize={0.15} gapSize={0.1} lineWidth={3} transparent opacity={appearance.opacity} depthTest={false} renderOrder={10}/>;
   }
   return <instancedMesh key={`${count}:${appearance.color}:${appearance.opacity}`} ref={mesh} args={[undefined, undefined, count]} frustumCulled={false}>
-    <sphereGeometry args={[pipeOuterRadius * 1.25, 12, 8]}/>
+    <sphereGeometry args={[radius * 1.25, 12, 8]}/>
     <meshBasicMaterial color={appearance.color} transparent={appearance.opacity < 1} opacity={appearance.opacity}/>
   </instancedMesh>;
 }
@@ -268,9 +282,9 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     {onTransform && transformMode && selectedId && selectedObject && <GizmoControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
       onMouseDown={()=>{gesture.current++;}}
       onObjectChange={()=>{const {position:p,quaternion:q}=selectedObject;onTransform(selectedId,{x:p.x,y:p.y,z:p.z},{x:q.x,y:q.y,z:q.z,w:q.w},`transform:${selectedId}:${gesture.current}`);}}/>}
-    {routes.map(route=><RoutePipe key={route.connectionId} route={route} viewMode={viewMode}/>)}
+    {routes.map(route=><RoutePipe key={route.connectionId} route={route} viewMode={viewMode} radius={routeRadius(scene,route.connectionId)}/>)}
     {open.map(o=><OpenJointMarkers key={`open:${o.connectionId}`} scene={scene} open={o}/>)}
-    {flowStates && routes.map(route=>{const state=stateById.get(route.connectionId);return route.status==='ok'&&state?<FlowMarkers key={`flow:${route.connectionId}`} route={route} state={state}/>:null;})}
+    {flowStates && routes.map(route=>{const state=stateById.get(route.connectionId);return route.status==='ok'&&state?<FlowMarkers key={`flow:${route.connectionId}`} route={route} state={state} radius={routeRadius(scene,route.connectionId)}/>:null;})}
     {preview && <DropPreview scene={scene} plan={preview} colliding={previewCollides}/>}
     {onCamera && <CameraBridge onCamera={onCamera}/>}
     <OrbitControls makeDefault/><GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport/></GizmoHelper>
@@ -294,7 +308,8 @@ function defaultProperties(type: ComponentKind): ComponentInstance['properties']
   if (type === 'tank') return { level: 45 };
   if (type === 'valve') return { open: true };
   const parameters = componentCatalog[type].parameters ?? {};
-  return Object.fromEntries(Object.entries(parameters).map(([name, spec]) => [name, spec.default]));
+  // Choices (size) are left out: absent means the default, so files only record a deliberate size.
+  return Object.fromEntries(Object.entries(parameters).flatMap(([name, spec]) => (isChoiceParameter(spec) ? [] : [[name, spec.default]])));
 }
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -368,9 +383,9 @@ function OpenJointMarkers({ scene, open }: { scene: ScadaScene; open: OpenJoint 
   const ends = [open.from, open.to].flatMap((e) => {
     const c = scene.components.find((x) => x.id === e.instanceId);
     const port = c && catalogResolvers.resolvePorts(c.type, c.properties)?.find((p) => p.id === e.portId);
-    return c && port ? [portToWorld(c, port).position] : [];
+    return c && port ? [{ at: portToWorld(c, port).position, radius: portRadius(port) }] : [];
   });
-  return <>{ends.map((at, i) => <mesh key={i} position={at} userData={{ componentId: open.connectionId, role: 'open-joint' }}><sphereGeometry args={[pipeOuterRadius * 1.35, 16, 12]}/><meshBasicMaterial color={OPEN_JOINT_COLOR} transparent opacity={0.7} depthWrite={false}/></mesh>)}</>;
+  return <>{ends.map(({ at, radius }, i) => <mesh key={i} position={at} userData={{ componentId: open.connectionId, role: 'open-joint' }}><sphereGeometry args={[radius * 1.35, 16, 12]}/><meshBasicMaterial color={OPEN_JOINT_COLOR} transparent opacity={0.7} depthWrite={false}/></mesh>)}</>;
 }
 
 /** Keyboard-reachable list of everything in the scene; selecting here equals clicking in the canvas. */
@@ -429,7 +444,7 @@ function RotationFields({ rotation, onChange }: { rotation: QuaternionLike; onCh
  * otherwise the first port (a pipe's inlet). So a component joined at the fixed end stays joined.
  */
 function ParameterField({ name, spec, component, connectedPorts, onChange }: {
-  name: string; spec: ParameterSpec; component: ComponentInstance; connectedPorts: ReadonlySet<string>;
+  name: string; spec: NumberParameterSpec; component: ComponentInstance; connectedPorts: ReadonlySet<string>;
   onChange: (changes: Pick<ComponentInstance, 'position' | 'properties'>) => void;
 }) {
   const current = typeof component.properties[name] === 'number' ? component.properties[name] as number : spec.default;
@@ -457,6 +472,47 @@ function ParameterField({ name, spec, component, connectedPorts, onChange }: {
       onChange={e=>{setDraft(e.target.value);const v=Number(e.target.value);if(e.target.value.trim()!==''&&Number.isFinite(v)&&v>=spec.min&&v<=spec.max)apply(v);}}/>
     {!valid&&<small role="alert" style={{display:'block',color:'#ff9aa2'}}>{spec.label} must be between {spec.min} and {spec.max} {spec.unit}.</small>}
   </label>;
+}
+
+/**
+ * A fixed-choice shape parameter (pipe size). Ports stay where they are, so only the size changes;
+ * a change that would join different sizes is refused with the reason (ADR-0009).
+ */
+function ChoiceField({ name, spec, component, scene, onChange }: {
+  name: string; spec: ChoiceParameterSpec; component: ComponentInstance; scene: ScadaScene;
+  onChange: (changes: Pick<ComponentInstance, 'properties'>) => void;
+}) {
+  const [problem, setProblem] = useState('');
+  const current = typeof component.properties[name] === 'string' ? component.properties[name] as string : spec.default;
+  function choose(value: string) {
+    const { [name]: _, ...rest } = component.properties;
+    const properties = value === spec.default ? rest : { ...rest, [name]: value };
+    const invalid = catalogResolvers.validateProperties(component.type, properties)[0];
+    if (invalid) { setProblem(`${spec.label} ${invalid.message.replace('must differ from size', 'must differ from the inlet size')}.`); return; }
+    const mismatch = sizeMismatch(scene, component, properties);
+    if (mismatch) { setProblem(mismatch); return; }
+    setProblem('');
+    onChange({ properties });
+  }
+  return <label style={{display:'block',marginTop:10}}>{spec.label} <select aria-label={spec.label} value={current} onChange={e=>choose(e.target.value)}>{spec.choices.map(c=><option key={c} value={c}>{c}</option>)}</select>
+    {problem&&<small role="alert" style={{display:'block',color:'#ff9aa2'}}>{problem}</small>}
+  </label>;
+}
+
+/** Why `properties` would leave one of the component's connections between different sizes, if so. */
+function sizeMismatch(scene: ScadaScene, component: ComponentInstance, properties: ComponentInstance['properties']): string | undefined {
+  const names = componentNames(scene);
+  const ports = catalogResolvers.resolvePorts(component.type, properties) ?? [];
+  for (const c of connectionsOf(scene, component.id)) {
+    const [own, other] = c.from.instanceId === component.id ? [c.from, c.to] : [c.to, c.from];
+    const partner = scene.components.find((x) => x.id === other.instanceId);
+    const theirs = partner && catalogResolvers.resolvePorts(partner.type, partner.properties)?.find((p) => p.id === other.portId);
+    const mine = ports.find((p) => p.id === own.portId);
+    if (mine && theirs && !portsCompatible(mine, theirs)) {
+      return `"${own.portId}" is connected to ${names.get(other.instanceId)} "${other.portId}" (${sizeOfPort(theirs) ?? 'another size'}). Disconnect it or put a reducer between them.`;
+    }
+  }
+  return undefined;
 }
 
 /** Parent/child locks for the selected component (ADR-0008). */
@@ -727,7 +783,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
         <RotationFields rotation={component.rotation} onChange={(rotation,mergeKey)=>moveMember(component.id,component.position,rotation,mergeKey&&`rotation:${component.id}:${mergeKey}`)}/>
         <AssemblyControls component={component} scene={scene} onChange={next=>update(next)} onNotice={setNotice}/>
         <SeatControls component={component} scene={scene} onSeat={connectionId=>{const r=seatOnConnection(scene,connectionId,component.id,catalogResolvers);if(r.ok){update(r.scene);setNotice([describeSeat(scene,connectionId,component.id,r.moved)]);}}}/>
-        {Object.entries(componentCatalog[component.type].parameters??{}).map(([name,spec])=><ParameterField key={`${component.id}:${name}`} name={name} spec={spec} component={component} connectedPorts={new Set(connectionsOf(scene,component.id).flatMap(c=>[c.from,c.to]).filter(e=>e.instanceId===component.id).map(e=>e.portId))} onChange={(changes)=>patch(changes,`parameter:${component.id}:${name}`)}/>)}
+        {Object.entries(componentCatalog[component.type].parameters??{}).map(([name,spec])=>isChoiceParameter(spec)?<ChoiceField key={`${component.id}:${name}`} name={name} spec={spec} component={component} scene={scene} onChange={(changes)=>patch(changes)}/>:<ParameterField key={`${component.id}:${name}`} name={name} spec={spec} component={component} connectedPorts={new Set(connectionsOf(scene,component.id).flatMap(c=>[c.from,c.to]).filter(e=>e.instanceId===component.id).map(e=>e.portId))} onChange={(changes)=>patch(changes,`parameter:${component.id}:${name}`)}/>)}
         {component.type==='tank'&&<>
           <label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Math.round((liquidFill(component.properties.level).fraction??0)*100)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>
           <LevelNote level={component.properties.level}/>

@@ -13,7 +13,7 @@ const pipe = (id: string, x: number, length?: number): ComponentInstance => ({
 
 describe('pipe length parameter', () => {
   it('declares length in metres with a default and a range', () => {
-    expect(componentCatalog.pipe.parameters).toEqual({ length: { label: 'Length', unit: 'm', default: 2, min: 0.2, max: 20, step: 0.1 } });
+    expect(componentCatalog.pipe.parameters?.length).toEqual({ label: 'Length', unit: 'm', default: 2, min: 0.2, max: 20, step: 0.1 });
   });
 
   it('builds ports, bounds and geometry from the length', () => {
