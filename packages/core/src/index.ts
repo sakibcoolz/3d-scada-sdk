@@ -39,6 +39,10 @@ export type { GraphError, GraphErrorCode, GraphOptions, GraphResult } from './gr
 export { routeConnection, routeScene, sampleRouteCenterline } from './routing';
 export type { PipeRoute, RouteBend, RouteFailure, RouteKind, RoutingOptions } from './routing';
 
+// Turning exactly touching ports into explicit connections (user-triggered)
+export { connectTouchingPorts, findTouchingPorts } from './touching';
+export type { ConnectTouchingResult, TouchingMatch, TouchingOptions, TouchingRejection, TouchingResult } from './touching';
+
 // Solid-body overlap (display only)
 export { findCollisions } from './collision';
 export type { CollisionOptions, CollisionPair, CollisionResult } from './collision';

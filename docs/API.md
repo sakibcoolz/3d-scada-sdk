@@ -15,6 +15,7 @@ All geometry is right-handed, Y-up, metres. Scene components use named vectors (
 | Snapping | `findSnapCandidates`, `snapComponent` | `SnapCandidate`, `SnapOptions`, `SnapResult`, `SnapStatus` |
 | Graph | `connect`, `disconnect`, `removeComponent`, `connectionsOf`, `reachableComponents`, `connectedGroups` | `GraphResult`, `GraphError`, `GraphErrorCode`, `GraphOptions` |
 | Routing | `routeConnection`, `routeScene`, `sampleRouteCenterline` | `PipeRoute`, `RouteBend`, `RouteKind`, `RouteFailure`, `RoutingOptions` |
+| Touching ports | `findTouchingPorts`, `connectTouchingPorts` | `TouchingOptions`, `TouchingMatch`, `TouchingRejection`, `TouchingResult`, `ConnectTouchingResult` |
 | Collisions | `findCollisions` | `CollisionOptions`, `CollisionPair`, `CollisionResult` |
 | Flow | `resolveFlow` | `FlowReading`, `FlowState`, `FlowDirection`, `FlowUnknownReason`, `FlowOptions`, `FlowResolution`, `Quality`, `ValueSource` |
 | Telemetry | `resolveTelemetry`, `displayScene` | `Observation`, `PropertyState`, `TelemetryOptions`, `TelemetryResolution`, `TelemetryUnknownReason`, `FreshnessOptions` |

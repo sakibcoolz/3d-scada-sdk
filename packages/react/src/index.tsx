@@ -2,7 +2,7 @@ import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState
 import { DoubleSide, Object3D as Object3DImpl, Plane, Vector3, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { connectProvider, connectionsOf, createEmptyScene, findCollisions, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { connectProvider, connectionsOf, connectTouchingPorts, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type PipeRoute, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
 import { catalogResolvers, componentCatalog, definitionFor, pipeOuterRadius, type ParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
@@ -566,6 +566,17 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     setTimeout(()=>URL.revokeObjectURL(url),0);
   }
   const serialized=useMemo(()=>serializeScene(scene),[scene]);
+  // Explicit, user-triggered: ports at the same point facing each other become connections (ADR-0002).
+  const touching=useMemo(()=>findTouchingPorts(scene,catalogResolvers),[scene]);
+  const [touchingNote,setTouchingNote]=useState('');
+  function connectTouching(){
+    const result=connectTouchingPorts(scene,{...catalogResolvers,createId:newId});
+    if(!result.ok){setTouchingNote(`Could not connect: ${result.error.message}`);return;}
+    update(result.scene);
+    const names=componentNames(scene);
+    const skipped=result.rejected.map(r=>`${names.get(r.from.instanceId)} "${r.from.portId}" / ${names.get(r.to.instanceId)} "${r.to.portId}" (${r.reason})`);
+    setTouchingNote(`Connected ${result.added} touching port pair${result.added===1?'':'s'}.${skipped.length?` Not joined: ${skipped.join('; ')}.`:''}`);
+  }
   const now=useNow(1000);
   const live=useTelemetry(scene,telemetry,now);
   /** Sets or clears the tag for one target; each committed edit is its own undo step. */
@@ -588,6 +599,8 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
         <button onClick={()=>travel(redo)} disabled={!canRedo(history)} title="Redo (Ctrl+Shift+Z / Ctrl+Y)">Redo</button>
       </div>
       <div role="group" aria-label="Transform tool" style={{display:'flex',gap:6}}>{toolButton('translate','Move')}{toolButton('rotate','Rotate')}</div>
+      <button onClick={connectTouching} disabled={touching.matches.length===0} title="Join ports that sit at the same point and face each other" style={{display:'block',width:'100%',marginTop:8}}>Connect touching ports ({touching.matches.length})</button>
+      <p aria-live="polite" style={{fontSize:12,margin:'4px 0 0'}}>{touchingNote}</p>
       <h3>Components</h3>{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)} style={{display:'block',width:'100%',marginBottom:8,padding:9,cursor:'grab'}}>{componentCatalog[k].label} +</button>)}
       </fieldset>
       <SceneList scene={scene} selected={selected} onSelect={setSelected} locked={isLocked}/>

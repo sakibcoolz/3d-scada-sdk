@@ -448,3 +448,18 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-038 REVIEW until PR is merged (after #35, #36).
 
+## 2026-10-15 — T-039 connect touching ports
+- Branch: `feat/T-039-connect-touching` (from `feat/T-038-edit-lock` @ `1348023`, T-038 committed locally, not pushed; targets `develop`).
+- Owner request: the owner pasted an exported scene with 12 parts placed port-to-port and an empty `connections` list, and asked for components to be connected where positions match. Kept ADR-0002 (topology is never inferred implicitly) by making this an explicit, user-triggered action.
+- Analysis of the owner's scene with the SDK's port maths: 11 port pairs at 0.000 m and 0.0° from facing; several near pairs at 0.42 m and 90° (elbow ends) that must not be joined; no collisions. The scene is kept as test fixture `packages/components/src/fixtures/unconnected-plant.json`.
+- Scope: core `findTouchingPorts` (1 mm, 1°, spatial hash; `incompatible`/`occupied`/`ambiguous` rejections; stable order) and `connectTouchingPorts` (validated, idempotent); editor "Connect touching ports (N)" button with result note, disabled when locked; API snapshot and docs.
+- Tests written first: 11 core tests and 2 fixture tests failed before implementation; 2 e2e (one-click connect + undo on the owner's scene; disabled while locked). One e2e fix: Playwright compiles specs as CommonJS, so the fixture path uses `__dirname`, not `import.meta`.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (618 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (54 tests).
+  - Owner's scene: 11 connections added, all routes `direct`.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-039 REVIEW until PR is merged.
+
