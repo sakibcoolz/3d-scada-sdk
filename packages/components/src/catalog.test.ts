@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { componentKinds, quaternionFromEuler, snapComponent, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@scada3d/core';
-import { componentCatalog, pipeOuterRadius, type GeometryPart } from './index';
+import { componentCatalog, definitionFor, pipeOuterRadius, type GeometryPart } from './index';
 
 const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
 
@@ -110,6 +110,33 @@ describe('componentCatalog definitions', () => {
     expect(fluid.length).toBeGreaterThan(0);
     for (const port of fluid) expect(port.nominalSize).toBe(0.15);
     expect(pipeOuterRadius).toBeGreaterThan(0.15 / 2);
+  });
+
+  // Every joint looks the same from the outside: whatever part ends at a fluid port is pipe-sized,
+  // so a valve, tee, elbow, tank nozzle, pump stub and pipe meet flush.
+  it.each(
+    [...definitions, definitionFor('pipe', { length: 0.2 }), definitionFor('pipe', { length: 7.3 })].flatMap((d) =>
+      d.ports.filter((p) => p.kind === 'fluid').map((p) => [`${d.type} "${p.id}"`, d, p] as const),
+    ),
+  )('draws %s with a pipe-sized part ending exactly at the port', (_, definition, port) => {
+    const axis = axisIndex(port.direction);
+    const close = (a: readonly number[], b: readonly number[]) => a.every((n, i) => Math.abs(n - b[i]) < 1e-9);
+    const ends = definition.parts.flatMap((part): { at: number[]; radius: number }[] => {
+      if (part.role !== 'shell') return [];
+      if (part.shape === 'cylinder' && 'xyz'.indexOf(part.axis) === axis) {
+        return [-1, 1].map((s) => ({ at: part.center.map((n, i) => (i === axis ? n + (s * part.length) / 2 : n)), radius: part.radius }));
+      }
+      if (part.shape === 'bend') {
+        return [part.startAngle, part.startAngle + Math.PI / 2].map((a) => ({
+          at: [part.center[0] + part.bendRadius * Math.cos(a), part.center[1] + part.bendRadius * Math.sin(a), part.center[2]],
+          radius: part.tubeRadius,
+        }));
+      }
+      return [];
+    });
+    const atPort = ends.filter((e) => close(e.at, port.position));
+    expect(atPort.length).toBeGreaterThan(0);
+    for (const e of atPort) expect(e.radius).toBe(pipeOuterRadius);
   });
 
   it('gives the tee three genuine fluid ports', () => {

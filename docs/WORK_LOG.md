@@ -507,3 +507,33 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Findings: unrounded position display (`0.6349999999`), default light browser controls on the dark theme, near-unreadable disabled buttons, weak Move/Rotate active state, Remove not set apart, one long ungrouped properties column ("Valve open" reads as part of Assembly), wrapping tag-binding labels, clipped scene list.
 - T-038, T-039, T-040 marked DONE (PRs #37, #38, #39 merged).
 - Recorded as T-042 (post-MVP, P2, visual only). Not started; T-024 remains the next MVP task.
+
+## 2026-10-15 — T-043 on-screen message when parts and assemblies connect
+- Branch: `feat/T-043-connection-notice` (from `feat/T-041-copy-paste` @ PR #40, open; targets `develop`).
+- Owner request: "show msg to screen if component and assembly is connected together". It came straight after a report of a tee branch that looked joined but was not: valve B was rotated −90° instead of +90° about Z, leaving its ports 15 mm and 1.2 m from the tee branch. Diagnosed and the corrected pose given to the owner; the tee geometry is correct.
+- Defaults chosen: message at the bottom centre of the canvas, at most five lines, dismiss button, clears after 6 s; it reports only the user's own connect actions (snap drop, Connect touching ports) and assembly locks; it says when a loose part is not yet locked to an assembly, or when two assemblies are joined; nothing is locked automatically (ADR-0008 unchanged).
+- Graphify: index NOT built. Fallback: read the editor, drop and assembly code directly.
+- Scope: `packages/react/src/connectionNotice.ts` (`describeNewConnections`, `describeLock`, shared `componentNames`; internal, no public API change); editor `ConnectionNotice` overlay.
+- Tests written first: 8 unit tests (failed: module missing) and 5 e2e tests in `connection-notice.spec.ts`. Two e2e expectations had the joint order backwards (a snap stores moving part → target); the wording was kept and the tests corrected. `assembly.spec.ts` now matches "Parent of 2 components" exactly, since the new message contains the same words.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (649 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (69 tests).
+  - Screenshot checked: the message shows over the canvas without covering the axis widget.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-043 REVIEW until PR is merged (after #40).
+
+## 2026-10-15 — Guard: every joint is drawn pipe-sized
+- Branch: `feat/T-043-connection-notice` (same PR as T-043).
+- Owner report (screenshot): a tee and ball valve looked different sizes where they meet; asked that the pipe size be the same for all components.
+- Finding: already the same. Every fluid port is DN150 and every part ending at a port (pipe at any length, valve body, tee run and branch, elbow tube, tank nozzles, pump stubs) uses `pipeOuterRadius` 0.084 m. Measured the owner's scene: four joints have a 0 mm gap and face each other; only `tee-b` is open (valve B upside down, 1.215 m apart). The size step in the screenshot is consistent with a very close perspective camera and the selection tint, not a geometry mismatch. A close-up render of the scene with valve B corrected shows flush, equal joints.
+- Added a catalog test that every fluid port has a shell part ending exactly at it with radius `pipeOuterRadius` (also checks 0.2 m and 7.3 m pipes). Mutation check: a 0.12 m valve body makes both valve port cases fail.
+- Verification: `pnpm typecheck` PASS; `pnpm test` PASS (666 tests). GitHub Actions CI not awaited (owner direction).
+
+## 2026-10-15 — T-junction cross-check against every component
+- Branch: `feat/T-043-connection-notice` (same PR).
+- Owner request: check that every tee node is the same size and connects to every component.
+- Added `packages/components/src/tee.test.ts` (41 cases). It checks the size of the three tee ports (DN150, shell radius `pipeOuterRadius`). Then, for each tee port × each of the 13 fluid ports in the catalog (tank, pipe, elbow, tee, valve, pump), it checks: same nominal size and drawn radius; seated exactly (same point, opposite direction); found by `findTouchingPorts`; accepted by `connect`; routed as a direct joint; and a part dropped 6 cm off snaps onto the same tee node.
+- Visual check: a tee with a ball valve on left, right and branch renders flush and equal.
+- Verification: `pnpm test` PASS (707 tests). GitHub Actions CI not awaited (owner direction).

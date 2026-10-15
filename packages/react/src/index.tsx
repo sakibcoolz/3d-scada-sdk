@@ -6,6 +6,7 @@ import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteCompo
 import { catalogResolvers, componentCatalog, definitionFor, pipeOuterRadius, type ParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop';
+import { componentNames, describeLock, describeNewConnections } from './connectionNotice';
 
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
 import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile';
@@ -333,15 +334,6 @@ function BindingsEditor({ component, scene, live, onSet }: {
 }
 
 /** Display names such as "Ball Valve 2": catalog label plus a per-type counter in scene order. */
-function componentNames(scene: ScadaScene): Map<string, string> {
-  const seen = new Map<ComponentKind, number>();
-  return new Map(scene.components.map((c) => {
-    const n = (seen.get(c.type) ?? 0) + 1;
-    seen.set(c.type, n);
-    return [c.id, `${componentCatalog[c.type].label} ${n}`];
-  }));
-}
-
 /** Ids of the components that `id` overlaps. */
 function collidingWith(scene: ScadaScene, id: string): string[] {
   return findCollisions(scene, { resolveBounds }).pairs.flatMap((p) => (p.a === id ? [p.b] : p.b === id ? [p.a] : []));
@@ -446,7 +438,7 @@ function ParameterField({ name, spec, component, connectedPorts, onChange }: {
 }
 
 /** Parent/child locks for the selected component (ADR-0008). */
-function AssemblyControls({ component, scene, onChange }: { component: ComponentInstance; scene: ScadaScene; onChange: (next: ScadaScene) => void }) {
+function AssemblyControls({ component, scene, onChange, onNotice }: { component: ComponentInstance; scene: ScadaScene; onChange: (next: ScadaScene) => void; onNotice: (lines: string[]) => void }) {
   const names = componentNames(scene);
   const children = scene.components.filter((c) => c.parentId === component.id).length;
   const assemblySize = assemblyOf(scene, component.id).length;
@@ -457,7 +449,7 @@ function AssemblyControls({ component, scene, onChange }: { component: Component
     {children > 0 && <p style={{fontSize:12,margin:'4px 0'}}>Parent of {children} component{children === 1 ? '' : 's'}</p>}
     {assemblySize === 1 && <p style={{fontSize:12,margin:'4px 0'}}>Not in an assembly. Moving it moves only this component.</p>}
     <button disabled={!hasConnections} title="Make this the parent of everything connected to it; then they all move together"
-      onClick={() => { const r = lockConnectedAsChildren(scene, component.id); if (r.ok) onChange(r.scene); }}>Lock connected as children</button>
+      onClick={() => { const r = lockConnectedAsChildren(scene, component.id); if (r.ok) { onChange(r.scene); onNotice([describeLock(r.scene, component.id)]); } }}>Lock connected as children</button>
     {component.parentId && <button onClick={() => onChange(unlockFromParent(scene, component.id))}>Unlock from parent</button>}
     {children > 0 && <button onClick={() => onChange(unlockFromParent(scene, component.id))}>Unlock assembly</button>}
   </div>;
@@ -471,6 +463,16 @@ function LevelNote({ level }: { level: unknown }) {
   if (fill.status === 'ok') return null;
   const text = fill.status === 'clamped' ? `Level ${level} % is outside 0–100 %; shown as ${fill.fraction * 100} %.` : fill.status === 'missing' ? 'No level set: liquid not shown.' : 'Level is not a number: liquid not shown.';
   return <small style={{display:'block',color:'#ffd166'}}>{text}</small>;
+}
+
+const NOTICE_MS = 6000;
+
+/** Bottom-centre canvas message for connections the user just made; dismissable, clears itself. */
+function ConnectionNotice({ lines, onDismiss }: { lines: string[]; onDismiss: () => void }) {
+  return <div role="status" aria-label="Connection message" aria-live="polite" style={{position:'absolute',bottom:44,left:'50%',transform:'translateX(-50%)',maxWidth:'min(640px, 90%)',display:'flex',gap:10,alignItems:'flex-start',padding:'6px 10px',borderRadius:4,background:'#0d2a1ee6',color:'#d6f5e3',border:'1px solid #3ccf7e',fontSize:12}}>
+    <div style={{whiteSpace:'pre-line'}}>{lines.join('\n')}</div>
+    <button aria-label="Dismiss connection message" onClick={onDismiss} style={{flex:'none',lineHeight:1,padding:'0 4px'}}>×</button>
+  </div>;
 }
 
 function isTextEntry(target: EventTarget | null): boolean {
@@ -533,6 +535,10 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     setSelected(undefined);
     root.current?.focus();
   }
+  /** Short-lived canvas message after the user connects parts or locks an assembly. */
+  const [notice,setNotice]=useState<string[]>([]);
+  useEffect(()=>{if(notice.length===0)return;const t=setTimeout(()=>setNotice([]),NOTICE_MS);return()=>clearTimeout(t);},[notice]);
+  function announceConnections(before:ScadaScene,after:ScadaScene){const lines=describeNewConnections(before,after);if(lines.length)setNotice(lines);}
   const camera=useRef<Camera|undefined>(undefined);
   const dragKind=useRef<ComponentKind|undefined>(undefined);
   const [preview,setPreview]=useState<DropPlan>();
@@ -565,7 +571,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     if(!plan) return;
     // Component and its snapped connection land as one undo step.
     const result=applyDrop(scene,plan,newId);
-    if(result.ok){update(result.scene);setSelected(plan.component.id);}
+    if(result.ok){update(result.scene);setSelected(plan.component.id);announceConnections(scene,result.scene);}
   }
   const component=scene.components.find(c=>c.id===selected);
   function patch(changes:Partial<ComponentInstance>, mergeKey?:string) {
@@ -629,6 +635,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     const result=connectTouchingPorts(scene,{...catalogResolvers,createId:newId});
     if(!result.ok){setTouchingNote(`Could not connect: ${result.error.message}`);return;}
     update(result.scene);
+    announceConnections(scene,result.scene);
     const names=componentNames(scene);
     const skipped=result.rejected.map(r=>`${names.get(r.from.instanceId)} "${r.from.portId}" / ${names.get(r.to.instanceId)} "${r.to.portId}" (${r.reason})`);
     // Show at most five problems so a big scene cannot flood the panel.
@@ -671,6 +678,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
       <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} collisions={collisions}/>
       {isLocked&&<div style={{position:'absolute',bottom:10,right:110,padding:'4px 10px',borderRadius:4,background:'#0b1725e6',border:'1px solid #ffd166',color:'#ffd166',fontSize:12,pointerEvents:'none'}}>🔒 Editing locked</div>}
+      {notice.length>0&&<ConnectionNotice lines={notice} onDismiss={()=>setNotice([])}/>}
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene)+previewOverlap:''}</div>
     </main>
     <aside style={{padding:14,borderLeft:'1px solid #3c5366',overflowY:'auto',minHeight:0}}>
@@ -681,7 +689,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
         <small>Position (metres)</small>
         {(['x','y','z'] as const).map(axis=><label key={axis} style={{display:'block',marginTop:8}}>{axis.toUpperCase()} <input type="number" step=".1" style={{width:100}} value={component.position[axis]} onChange={e=>moveMember(component.id,{...component.position,[axis]:Number(e.target.value)},component.rotation,`position:${component.id}:${axis}`)}/></label>)}
         <RotationFields rotation={component.rotation} onChange={(rotation,mergeKey)=>moveMember(component.id,component.position,rotation,mergeKey&&`rotation:${component.id}:${mergeKey}`)}/>
-        <AssemblyControls component={component} scene={scene} onChange={next=>update(next)}/>
+        <AssemblyControls component={component} scene={scene} onChange={next=>update(next)} onNotice={setNotice}/>
         {Object.entries(componentCatalog[component.type].parameters??{}).map(([name,spec])=><ParameterField key={`${component.id}:${name}`} name={name} spec={spec} component={component} connectedPorts={new Set(connectionsOf(scene,component.id).flatMap(c=>[c.from,c.to]).filter(e=>e.instanceId===component.id).map(e=>e.portId))} onChange={(changes)=>patch(changes,`parameter:${component.id}:${name}`)}/>)}
         {component.type==='tank'&&<>
           <label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Math.round((liquidFill(component.properties.level).fraction??0)*100)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>

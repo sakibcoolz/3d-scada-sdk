@@ -35,7 +35,7 @@ test('locking connected parts to a parent saves parentId and lists children unde
     [valve.id, tank.id],
     [pipe.id, tank.id],
   ]);
-  await expect(page.getByText('Parent of 2 components')).toBeVisible();
+  await expect(page.getByText('Parent of 2 components', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Scene JSON')).toHaveValue(new RegExp(`"parentId": "${tank.id}"`));
 });
 
