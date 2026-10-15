@@ -6,6 +6,7 @@ import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteCompo
 import { catalogResolvers, componentCatalog, definitionFor, isChoiceParameter, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometries, disposeGeometries } from './geometry.js';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop.js';
+import { EDITOR_CSS, formatMetres } from './editorStyles.js';
 import { componentNames, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice.js';
 
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history.js';
@@ -317,7 +318,7 @@ const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.r
 function CommitField({ label, value, onCommit }: { label: string; value: string; onCommit: (value: string) => void }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
-  return <label style={{display:'block',marginTop:4,fontSize:12}}>{label} <input aria-label={label} value={draft} placeholder="tag id" style={{width:96}}
+  return <label className="s3-stack" style={{fontSize:12}}>{label} <input aria-label={label} value={draft} placeholder="tag id"
     onChange={e=>setDraft(e.target.value)} onBlur={()=>onCommit(draft)} onKeyDown={e=>{if(e.key==='Enter')onCommit(draft);}}/></label>;
 }
 
@@ -335,8 +336,7 @@ function BindingsEditor({ component, scene, live, onSet }: {
   };
   const states = live?.filter(p => p.instanceId === component.id) ?? [];
   if (Object.keys(bindable).length === 0 && connections.length === 0) return null;
-  return <div style={{marginTop:10}}>
-    <small>Tag bindings</small>
+  return <div>
     {Object.keys(bindable).map(property => {
       const match = (b: TagBinding) => b.kind === 'property' && b.instanceId === component.id && b.property === property;
       return <CommitField key={property} label={`Tag for ${property}`} value={scene.tagBindings?.find(match)?.tagId ?? ''}
@@ -406,7 +406,7 @@ function SceneList({ scene, selected, onSelect, locked }: { scene: ScadaScene; s
     <small>{locked ? 'In scene (editing locked)' : 'In scene (arrows move, R turns, Delete removes)'}</small>
     <div style={{maxHeight:160,overflowY:'auto'}}>
       {entries.map(e => <button key={e.id} aria-pressed={selected === e.id} onClick={() => onSelect(e.id)}
-        style={{display:'block',width:`calc(100% - ${e.depth*14}px)`,marginLeft:e.depth*14,textAlign:'left',marginTop:3,fontWeight:selected===e.id?700:400}}>{e.name}</button>)}
+        style={{display:'block',width:`calc(100% - ${e.depth*14}px)`,marginLeft:e.depth*14,textAlign:'left',marginTop:3}}>{e.name}</button>)}
     </div>
   </nav>;
 }
@@ -423,6 +423,14 @@ function DegreeField({ label, value, onValue }: { label: string; value: number; 
  * Rotation as Euler XYZ degrees (applied X, then Y, then Z, like Three.js), with quick ±90° turns
  * about world axes and a reset. Typing in one field is one undo step (merge key per axis).
  */
+/** A position in metres, shown to the millimetre; the typed value is kept exactly while editing. */
+function MetreField({ label, value, onValue }: { label: string; value: number; onValue: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | undefined>(undefined);
+  return <label className="s3-field">{label} <input type="number" step=".1" value={draft ?? formatMetres(value)}
+    onFocus={()=>setDraft(formatMetres(value))} onBlur={()=>setDraft(undefined)}
+    onChange={e=>{setDraft(e.target.value);const n=Number(e.target.value);if(e.target.value.trim()!==''&&Number.isFinite(n))onValue(n);}}/></label>;
+}
+
 function RotationFields({ rotation, onChange }: { rotation: QuaternionLike; onChange: (rotation: QuaternionLike, mergeKey?: string) => void }) {
   const degrees = degreesFromRotation(rotation);
   const axes = ['x', 'y', 'z'] as const;
@@ -467,7 +475,7 @@ function ParameterField({ name, spec, component, connectedPorts, onChange }: {
     onChange({ position, properties });
   }
   const label = `${spec.label} (${spec.unit})`;
-  return <label style={{display:'block',marginTop:10}}>{label} <input aria-label={label} type="number" min={spec.min} max={spec.max} step={spec.step} style={{width:80}} value={value}
+  return <label className="s3-stack">{label} <input aria-label={label} type="number" min={spec.min} max={spec.max} step={spec.step} value={value}
       onFocus={()=>setDraft(String(current))} onBlur={()=>setDraft(undefined)}
       onChange={e=>{setDraft(e.target.value);const v=Number(e.target.value);if(e.target.value.trim()!==''&&Number.isFinite(v)&&v>=spec.min&&v<=spec.max)apply(v);}}/>
     {!valid&&<small role="alert" style={{display:'block',color:'#ff9aa2'}}>{spec.label} must be between {spec.min} and {spec.max} {spec.unit}.</small>}
@@ -494,7 +502,7 @@ function ChoiceField({ name, spec, component, scene, onChange }: {
     setProblem('');
     onChange({ properties });
   }
-  return <label style={{display:'block',marginTop:10}}>{spec.label} <select aria-label={spec.label} value={current} onChange={e=>choose(e.target.value)}>{spec.choices.map(c=><option key={c} value={c}>{c}</option>)}</select>
+  return <label className="s3-stack">{spec.label} <select aria-label={spec.label} value={current} onChange={e=>choose(e.target.value)}>{spec.choices.map(c=><option key={c} value={c}>{c}</option>)}</select>
     {problem&&<small role="alert" style={{display:'block',color:'#ff9aa2'}}>{problem}</small>}
   </label>;
 }
@@ -521,15 +529,17 @@ function AssemblyControls({ component, scene, onChange, onNotice }: { component:
   const children = scene.components.filter((c) => c.parentId === component.id).length;
   const assemblySize = assemblyOf(scene, component.id).length;
   const hasConnections = connectionsOf(scene, component.id).length > 0;
-  return <div style={{marginTop:10}}>
+  return <div>
     <small>Assembly</small>
     {component.parentId && <p style={{fontSize:12,margin:'4px 0'}}>Locked to {names.get(component.parentId)}</p>}
     {children > 0 && <p style={{fontSize:12,margin:'4px 0'}}>Parent of {children} component{children === 1 ? '' : 's'}</p>}
     {assemblySize === 1 && <p style={{fontSize:12,margin:'4px 0'}}>Not in an assembly. Moving it moves only this component.</p>}
+    <div className="s3-row">
     <button disabled={!hasConnections} title="Make this the parent of everything connected to it; then they all move together"
       onClick={() => { const r = lockConnectedAsChildren(scene, component.id); if (r.ok) { onChange(r.scene); onNotice([describeLock(r.scene, component.id)]); } }}>Lock connected as children</button>
     {component.parentId && <button onClick={() => onChange(unlockFromParent(scene, component.id))}>Unlock from parent</button>}
     {children > 0 && <button onClick={() => onChange(unlockFromParent(scene, component.id))}>Unlock assembly</button>}
+    </div>
   </div>;
 }
 
@@ -746,24 +756,45 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     const {tagBindings:_,...rest}=scene;
     update(tagBindings.length?{...rest,tagBindings}:rest);
   }
-  const toolButton=(mode:TransformMode,label:string)=><button aria-pressed={transformMode===mode} onClick={()=>setTransformMode(mode)} style={{fontWeight:transformMode===mode?700:400}}>{label}</button>;
-  return <div ref={root} tabIndex={-1} onKeyDown={onKeyDown} style={{display:'grid',gridTemplateColumns:'190px minmax(0,1fr) 245px',gridTemplateRows:'minmax(0,1fr)',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
+  const toolButton=(mode:TransformMode,label:string)=><button aria-pressed={transformMode===mode} onClick={()=>setTransformMode(mode)}>{label}</button>;
+  /** Folded section titles, remembered while switching between components. */
+  const [folded,setFolded]=useState<ReadonlySet<string>>(()=>new Set());
+  const section=(title:string,children:React.ReactNode,disabled=false)=><details className="s3-section" open={!folded.has(title)}
+    onToggle={e=>{const open=e.currentTarget.open;setFolded(f=>{if(open===!f.has(title))return f;const next=new Set(f);if(open)next.delete(title);else next.add(title);return next;});}}>
+    <summary>{title}</summary>{disabled?<fieldset disabled>{children}</fieldset>:children}
+  </details>;
+  const connectedPorts=(c:ComponentInstance)=>new Set(connectionsOf(scene,c.id).flatMap(x=>[x.from,x.to]).filter(e=>e.instanceId===c.id).map(e=>e.portId));
+  const hasSettings=(c:ComponentInstance)=>Object.keys(componentCatalog[c.type].parameters??{}).length>0||c.type==='tank'||c.type==='valve';
+  const hasBindings=(c:ComponentInstance)=>Object.keys(componentCatalog[c.type].bindable??{}).length>0||connectionsOf(scene,c.id).length>0;
+  return <div ref={root} tabIndex={-1} onKeyDown={onKeyDown} className="scada3d-editor" style={{display:'grid',gridTemplateColumns:'220px minmax(0,1fr) 260px',gridTemplateRows:'minmax(0,1fr)',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
+    <style>{EDITOR_CSS}</style>
     <aside style={{padding:14,borderRight:'1px solid #3c5366',overflowY:'auto',minHeight:0}}>
-      <button aria-pressed={isLocked} onClick={()=>setLocked(!isLocked)} style={{display:'block',width:'100%',marginBottom:8,padding:6,fontWeight:isLocked?700:400}}>{isLocked?'Unlock editing':'Lock editing'}</button>
-      <fieldset disabled={isLocked} style={{border:'none',padding:0,margin:0}}>
-      <div style={{display:'flex',gap:6,marginBottom:8}}>
+      <button aria-pressed={isLocked} onClick={()=>setLocked(!isLocked)} className="s3-block" style={{marginTop:0}}>{isLocked?'Unlock editing':'Lock editing'}</button>
+      <fieldset disabled={isLocked}>
+      <div className="s3-row">
         <button onClick={()=>travel(undo)} disabled={!canUndo(history)} title="Undo (Ctrl+Z)">Undo</button>
         <button onClick={()=>travel(redo)} disabled={!canRedo(history)} title="Redo (Ctrl+Shift+Z / Ctrl+Y)">Redo</button>
       </div>
-      <div role="group" aria-label="Transform tool" style={{display:'flex',gap:6}}>{toolButton('translate','Move')}{toolButton('rotate','Rotate')}</div>
-      <button onClick={connectTouching} disabled={touching.matches.length===0} title="Join ports that sit at the same point and face each other" style={{display:'block',width:'100%',marginTop:8}}>Connect touching ports ({touching.matches.length})</button>
+      <div role="group" aria-label="Transform tool" className="s3-row">{toolButton('translate','Move')}{toolButton('rotate','Rotate')}</div>
+      <button onClick={connectTouching} disabled={touching.matches.length===0} title="Join ports that sit at the same point and face each other" className="s3-block">Connect touching ports ({touching.matches.length})</button>
       <p aria-live="polite" style={{fontSize:12,margin:'4px 0 0'}}>{touchingNote}</p>
-      <button onClick={paste} disabled={!clipboard} title="Paste (Ctrl+V)" style={{display:'block',width:'100%',marginTop:6}}>Paste ({clipboard?.components.length??0})</button>
-      <p aria-live="polite" style={{fontSize:12,margin:'4px 0 0'}}>{clipNote}</p>
-      <h3>Components</h3>{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)} style={{display:'block',width:'100%',marginBottom:8,padding:9,cursor:'grab'}}>{componentCatalog[k].label} +</button>)}
+      <button onClick={paste} disabled={!clipboard} title="Paste (Ctrl+V)" className="s3-block">Paste ({clipboard?.components.length??0})</button>
+      <p aria-live="polite" style={{fontSize:12,margin:'4px 0 8px'}}>{clipNote}</p>
+      {section('Components',<div className="s3-palette">{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)}>{componentCatalog[k].label} +</button>)}</div>)}
       </fieldset>
       <SceneList scene={scene} selected={selected} onSelect={setSelected} locked={isLocked}/>
-      <label style={{display:'block'}}>View <select aria-label="View mode" value={viewMode} onChange={e=>setViewMode(e.target.value as ViewMode)}>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
+      <label className="s3-stack">View <select aria-label="View mode" value={viewMode} onChange={e=>setViewMode(e.target.value as ViewMode)}>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
+      <div style={{marginTop:12}}>{section('Scene file',<>
+        <small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={serialized} style={{height:150}}/>
+        <div className="s3-row">
+          <button onClick={exportScene}>Export JSON</button>
+          <input type="file" accept=".json,application/json" aria-label="Import scene file" disabled={isLocked} onChange={importFile} style={{fontSize:12,maxWidth:'100%'}}/>
+        </div>
+        <textarea aria-label="Import JSON text" placeholder="Paste scene JSON to import" disabled={isLocked} value={importText} onChange={e=>setImportText(e.target.value)} style={{height:60,marginTop:6}}/>
+        <button onClick={()=>loadScene(importText)} disabled={isLocked||!importText.trim()} style={{marginTop:6}}>Load text</button>
+        <p aria-live="polite" style={{fontSize:12,margin:'6px 0'}}>{importNote}</p>
+        {importErrors.length>0&&<ul role="alert" aria-label="Import errors" style={{fontSize:12,color:'#ff9aa2',paddingLeft:16,margin:0}}>{importErrors.map((line,i)=><li key={i}>{line}</li>)}</ul>}
+      </>)}</div>
     </aside>
     <main onDragOver={e=>{if(!dragKind.current||isLocked)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
@@ -776,38 +807,35 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     <aside style={{padding:14,borderLeft:'1px solid #3c5366',overflowY:'auto',minHeight:0}}>
       <h3>Properties</h3>
       {component ? <>
-        <p>{componentCatalog[component.type].label}</p>
-        <fieldset disabled={isLocked} style={{border:'none',padding:0,margin:0}}>
-        <small>Position (metres)</small>
-        {(['x','y','z'] as const).map(axis=><label key={axis} style={{display:'block',marginTop:8}}>{axis.toUpperCase()} <input type="number" step=".1" style={{width:100}} value={component.position[axis]} onChange={e=>moveMember(component.id,{...component.position,[axis]:Number(e.target.value)},component.rotation,`position:${component.id}:${axis}`)}/></label>)}
-        <RotationFields rotation={component.rotation} onChange={(rotation,mergeKey)=>moveMember(component.id,component.position,rotation,mergeKey&&`rotation:${component.id}:${mergeKey}`)}/>
-        <AssemblyControls component={component} scene={scene} onChange={next=>update(next)} onNotice={setNotice}/>
-        <SeatControls component={component} scene={scene} onSeat={connectionId=>{const r=seatOnConnection(scene,connectionId,component.id,catalogResolvers);if(r.ok){update(r.scene);setNotice([describeSeat(scene,connectionId,component.id,r.moved)]);}}}/>
-        {Object.entries(componentCatalog[component.type].parameters??{}).map(([name,spec])=>isChoiceParameter(spec)?<ChoiceField key={`${component.id}:${name}`} name={name} spec={spec} component={component} scene={scene} onChange={(changes)=>patch(changes)}/>:<ParameterField key={`${component.id}:${name}`} name={name} spec={spec} component={component} connectedPorts={new Set(connectionsOf(scene,component.id).flatMap(c=>[c.from,c.to]).filter(e=>e.instanceId===component.id).map(e=>e.portId))} onChange={(changes)=>patch(changes,`parameter:${component.id}:${name}`)}/>)}
-        {component.type==='tank'&&<>
-          <label style={{display:'block',marginTop:14}}>Liquid level % <input type="range" min="0" max="100" value={Math.round((liquidFill(component.properties.level).fraction??0)*100)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>
-          <LevelNote level={component.properties.level}/>
-          <label style={{display:'block',marginTop:8}}>Temperature °C <input type="number" step="1" style={{width:70}} value={typeof component.properties.temperature==='number'?component.properties.temperature:''} onChange={e=>{const {temperature:_,...rest}=component.properties;patch({properties:e.target.value===''?rest:{...rest,temperature:Number(e.target.value)}},`temperature:${component.id}`);}}/></label>
-        </>}
-        {component.type==='valve'&&<label><input type="checkbox" checked={component.properties.open!==false} onChange={e=>patch({properties:{...component.properties,open:e.target.checked}})}/> Valve open</label>}
-        <BindingsEditor component={component} scene={scene} live={live?.properties} onSet={setBinding}/>
-        </fieldset>
-        <label style={{display:'block',marginTop:8}}>Component view <select aria-label="Component view" value={viewOverrides[component.id]??''} onChange={e=>{const value=e.target.value as ViewMode|'';setViewOverrides(({[component.id]:_,...rest})=>value?{...rest,[component.id]:value}:rest);}}><option value="">Use global</option>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
-        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:10}}>
-          <button onClick={()=>copyIds([component.id])} title="Copy (Ctrl+C)">Copy component</button>
-          {assemblyOf(scene,component.id).length>1&&<button onClick={()=>copyIds(assemblyOf(scene,component.id))} title="Copy the parent and all its children (Ctrl+Shift+C)">Copy assembly</button>}
-        </div>
-        <p><button onClick={()=>removeSelected(component.id)} disabled={isLocked}>Remove</button></p>
+        <h4>{componentCatalog[component.type].label}</h4>
+        {section('Transform',<>
+          <small>Position (metres)</small>
+          {(['x','y','z'] as const).map(axis=><MetreField key={axis} label={axis.toUpperCase()} value={component.position[axis]} onValue={n=>moveMember(component.id,{...component.position,[axis]:n},component.rotation,`position:${component.id}:${axis}`)}/>)}
+          <RotationFields rotation={component.rotation} onChange={(rotation,mergeKey)=>moveMember(component.id,component.position,rotation,mergeKey&&`rotation:${component.id}:${mergeKey}`)}/>
+        </>,isLocked)}
+        {hasSettings(component)&&section('Settings',<>
+          {Object.entries(componentCatalog[component.type].parameters??{}).map(([name,spec])=>isChoiceParameter(spec)?<ChoiceField key={`${component.id}:${name}`} name={name} spec={spec} component={component} scene={scene} onChange={(changes)=>patch(changes)}/>:<ParameterField key={`${component.id}:${name}`} name={name} spec={spec} component={component} connectedPorts={connectedPorts(component)} onChange={(changes)=>patch(changes,`parameter:${component.id}:${name}`)}/>)}
+          {component.type==='tank'&&<>
+            <label className="s3-stack">Liquid level % <input type="range" min="0" max="100" value={Math.round((liquidFill(component.properties.level).fraction??0)*100)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>
+            <LevelNote level={component.properties.level}/>
+            <label className="s3-stack">Temperature °C <input type="number" step="1" value={typeof component.properties.temperature==='number'?component.properties.temperature:''} onChange={e=>{const {temperature:_,...rest}=component.properties;patch({properties:e.target.value===''?rest:{...rest,temperature:Number(e.target.value)}},`temperature:${component.id}`);}}/></label>
+          </>}
+          {component.type==='valve'&&<label className="s3-row"><input type="checkbox" checked={component.properties.open!==false} onChange={e=>patch({properties:{...component.properties,open:e.target.checked}})}/> Valve open</label>}
+        </>,isLocked)}
+        {section('Connections',<>
+          <AssemblyControls component={component} scene={scene} onChange={next=>update(next)} onNotice={setNotice}/>
+          <SeatControls component={component} scene={scene} onSeat={connectionId=>{const r=seatOnConnection(scene,connectionId,component.id,catalogResolvers);if(r.ok){update(r.scene);setNotice([describeSeat(scene,connectionId,component.id,r.moved)]);}}}/>
+        </>,isLocked)}
+        {hasBindings(component)&&section('Tag bindings',<BindingsEditor component={component} scene={scene} live={live?.properties} onSet={setBinding}/>,isLocked)}
+        {section('View',<label className="s3-stack">Component view <select aria-label="Component view" value={viewOverrides[component.id]??''} onChange={e=>{const value=e.target.value as ViewMode|'';setViewOverrides(({[component.id]:_,...rest})=>value?{...rest,[component.id]:value}:rest);}}><option value="">Use global</option>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>)}
+        {section('Actions',<>
+          <div className="s3-row">
+            <button onClick={()=>copyIds([component.id])} title="Copy (Ctrl+C)">Copy component</button>
+            {assemblyOf(scene,component.id).length>1&&<button onClick={()=>copyIds(assemblyOf(scene,component.id))} title="Copy the parent and all its children (Ctrl+Shift+C)">Copy assembly</button>}
+          </div>
+          <button className="s3-danger s3-block" onClick={()=>removeSelected(component.id)} disabled={isLocked} style={{marginTop:10}}>Remove</button>
+        </>)}
       </>:<p>Select equipment in the canvas.</p>}
-      <hr/><small>Scene JSON</small><textarea aria-label="Scene JSON" readOnly value={serialized} style={{width:'100%',height:170,boxSizing:'border-box'}}/>
-      <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:6}}>
-        <button onClick={exportScene}>Export JSON</button>
-        <input type="file" accept=".json,application/json" aria-label="Import scene file" disabled={isLocked} onChange={importFile} style={{fontSize:12,maxWidth:'100%'}}/>
-      </div>
-      <textarea aria-label="Import JSON text" placeholder="Paste scene JSON to import" disabled={isLocked} value={importText} onChange={e=>setImportText(e.target.value)} style={{width:'100%',height:60,marginTop:6,boxSizing:'border-box'}}/>
-      <button onClick={()=>loadScene(importText)} disabled={isLocked||!importText.trim()}>Load text</button>
-      <p aria-live="polite" style={{fontSize:12,margin:'6px 0'}}>{importNote}</p>
-      {importErrors.length>0&&<ul role="alert" aria-label="Import errors" style={{fontSize:12,color:'#ff9aa2',paddingLeft:16,margin:0}}>{importErrors.map((line,i)=><li key={i}>{line}</li>)}</ul>}
     </aside>
   </div>;
 }

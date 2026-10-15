@@ -636,3 +636,36 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-024 REVIEW until merged. This is the last MVP release-gate task; MVP sign-off is the owner's call.
+
+## 2026-10-15 — T-042 editor look
+- Branch: `feat/T-042-editor-look` (from `develop` @ `9180504`, after #44). T-024 marked DONE (#44 merged).
+- Owner request: "yes" to starting T-042, after the UI review recorded on 2026-10-15. Visual only: no behaviour, API-signature or schema change. Every accessible name and label the tests use is unchanged.
+- Graphify: index NOT built. Fallback: read the editor JSX and e2e selectors directly.
+- Scope:
+  - `packages/react/src/editorStyles.ts`: one scoped stylesheet (`.scada3d-editor`), with colour tokens as CSS custom properties. It covers button hover, focus, disabled, pressed (`aria-pressed`) and danger states, plus dark inputs, selects and textareas, file-picker button, section headings and stacked fields.
+  - `formatMetres`: millimetre display.
+  - Editor layout:
+    - property sections in `<details>` (Transform, Settings, Connections, Tag bindings, View, Actions), with folding remembered across selections;
+    - the scene file (Scene JSON, export, file and text import) moved to a "Scene file" section in the left panel;
+    - the palette as a "Components" section;
+    - `MetreField` shows positions to the millimetre and keeps typed values exactly;
+    - Remove is styled as destructive;
+    - labels sit above inputs (tag bindings, parameters);
+    - columns are 220 / flexible / 260 px.
+- Tests written first and run red: 5 e2e tests in `editor-look.spec.ts`, all failing before the change.
+  - Millimetre display while typing still works.
+  - Disabled-button contrast ≥ 4.5:1, measured from computed styles.
+  - Pressed and danger states differ.
+  - Section names, folding, and folding remembered across components.
+  - Scene file in the left panel.
+  - Unit tests for `formatMetres` and for the stylesheet staying scoped. That unit test's selector split first broke on `:is(a, b)`; fixed in the test.
+- Not changed: the playground's demo tag bar (playground-only, not SDK).
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (894 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (85 tests).
+  - Screenshots of the demo with a valve selected, and scrolled to the bottom of both panels, checked by eye.
+  - `pnpm verify:consumer` 0 and `pnpm test:consumer` 0 (1 test): the packed editor renders with the scoped stylesheet.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-042 REVIEW until merged.
