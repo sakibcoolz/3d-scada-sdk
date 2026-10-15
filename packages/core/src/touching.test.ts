@@ -72,6 +72,18 @@ describe('findTouchingPorts', () => {
     });
   });
 
+  it('skips a pair that is already connected to each other instead of reporting it', () => {
+    const s: ScadaScene = {
+      ...scene(at('a', 'pipe', [0, 0, 0]), at('b', 'valve', [1.6, 0, 0]), at('c', 'pipe', [3.2, 0, 0])),
+      // a–b already joined (written either way round); b–c touching but not yet joined.
+      connections: [{ id: 'e', from: { instanceId: 'b', portId: 'in' }, to: { instanceId: 'a', portId: 'out' } }],
+    };
+    expect(findTouchingPorts(s, options)).toEqual({
+      matches: [{ from: { instanceId: 'b', portId: 'out' }, to: { instanceId: 'c', portId: 'in' } }],
+      rejected: [],
+    });
+  });
+
   it('reports a port that touches two candidates as ambiguous and joins neither', () => {
     // Two valves both put an inlet on the pipe outlet.
     const result = findTouchingPorts(scene(at('a', 'pipe', [0, 0, 0]), at('b', 'valve', [1.6, 0, 0]), at('c', 'valve', [1.6, 0, 0])), options);

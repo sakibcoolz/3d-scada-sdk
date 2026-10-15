@@ -493,3 +493,10 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-041 REVIEW until PR is merged (after #39).
 
+## 2026-10-15 — Fix: Connect touching ports reported joined pairs as problems
+- Branch: `feat/T-041-copy-paste` (separate commit after T-041 @ `86e9cac`).
+- Reported by the owner with a screenshot: after copying and pasting assemblies into a large plant, "Connect touching ports" listed every already-connected pair as "occupied", flooding the panel.
+- Cause: `findTouchingPorts` treated any connected port as occupied, including ports connected to the very partner they touch. Fix: pairs already joined to each other (either direction) are skipped; `occupied` now means used by a different connection. The editor note lists at most five problems, then "…and N more".
+- Tests: core regression test (failed before the fix); e2e on a fixture of the owner's plant with 10 of 11 joints connected, which now shows only "Connected 1 touching port pair."
+- Verification (Node v22.23.2, pnpm 9.15.4): `pnpm typecheck` PASS; `pnpm test` PASS (641 tests); `pnpm build` PASS; `pnpm test:e2e` PASS (64 tests). GitHub Actions CI not awaited (owner direction).
+

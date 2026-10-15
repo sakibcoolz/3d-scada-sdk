@@ -33,13 +33,16 @@ const key = (e: Endpoint) => JSON.stringify([e.instanceId, e.portId]);
 /**
  * Ports of different components that sit at the same point and face each other: candidates for
  * explicit connections (ADR-0002 still holds: nothing is connected until `connectTouchingPorts`
- * or the user writes the edge). Pairs with a type/bore mismatch, an already-used port, or a port
- * that touches more than one candidate are reported in `rejected`, never matched.
+ * or the user writes the edge). Pairs already connected to each other are skipped. Pairs with a
+ * type/bore mismatch, a port used by another connection, or a port that touches more than one
+ * candidate are reported in `rejected`, never matched.
  */
 export function findTouchingPorts(scene: ScadaScene, options: TouchingOptions): TouchingResult {
   const tolerance = options.tolerance ?? 0.001;
   const minOpposition = Math.cos(options.maxAngle ?? Math.PI / 180);
   const occupied = new Set(scene.connections.flatMap((c) => [key(c.from), key(c.to)]));
+  // Pairs that are already joined to each other (either way round) are done, not problems.
+  const joined = new Set(scene.connections.flatMap((c) => [`${key(c.from)}|${key(c.to)}`, `${key(c.to)}|${key(c.from)}`]));
 
   type Entry = { endpoint: Endpoint; port: ConnectionPort; world: WorldPort };
   const entries: Entry[] = scene.components.flatMap((c) =>
@@ -75,6 +78,7 @@ export function findTouchingPorts(scene: ScadaScene, options: TouchingOptions): 
   const rejected: TouchingRejection[] = [];
   for (const { a, b } of pairs) {
     const pair = { from: a.endpoint, to: b.endpoint };
+    if (joined.has(`${key(a.endpoint)}|${key(b.endpoint)}`)) continue;
     if (touches.get(key(a.endpoint))! > 1 || touches.get(key(b.endpoint))! > 1) rejected.push({ ...pair, reason: 'ambiguous' });
     else if (!portsCompatible(a.port, b.port)) rejected.push({ ...pair, reason: 'incompatible' });
     else if (occupied.has(key(a.endpoint)) || occupied.has(key(b.endpoint))) rejected.push({ ...pair, reason: 'occupied' });

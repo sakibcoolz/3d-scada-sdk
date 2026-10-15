@@ -631,7 +631,9 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     update(result.scene);
     const names=componentNames(scene);
     const skipped=result.rejected.map(r=>`${names.get(r.from.instanceId)} "${r.from.portId}" / ${names.get(r.to.instanceId)} "${r.to.portId}" (${r.reason})`);
-    setTouchingNote(`Connected ${result.added} touching port pair${result.added===1?'':'s'}.${skipped.length?` Not joined: ${skipped.join('; ')}.`:''}`);
+    // Show at most five problems so a big scene cannot flood the panel.
+    const listed=skipped.length>5?[...skipped.slice(0,5),`…and ${skipped.length-5} more`]:skipped;
+    setTouchingNote(`Connected ${result.added} touching port pair${result.added===1?'':'s'}.${listed.length?` Not joined: ${listed.join('; ')}.`:''}`);
   }
   const now=useNow(1000);
   const live=useTelemetry(scene,telemetry,now);
