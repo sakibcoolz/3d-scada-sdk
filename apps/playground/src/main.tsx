@@ -14,6 +14,8 @@ const demo = params.has('demo') || generated !== undefined;
 const collisions = params.get('collisions') !== 'off';
 // `?locked` starts the editor in view-only mode.
 const defaultLocked = params.has('locked');
+// `?instancing=off|always` overrides the automatic equipment instancing (T-046).
+const instancing = (['off', 'always'] as const).find((m) => m === params.get('instancing')) ?? 'auto';
 
 // `?demo` opens the MVP demo network, validated like any imported scene, with a demo tag feed.
 function initialScene(): ScadaScene | undefined {
@@ -56,6 +58,7 @@ function App() {
             telemetry={demo ? telemetry : undefined}
             collisions={collisions}
             defaultLocked={defaultLocked}
+            instancing={instancing}
           />
         )}
       </div>

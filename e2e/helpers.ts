@@ -71,15 +71,40 @@ export interface PartInfo {
   scaleY: number;
 }
 
-/** Rendered parts tagged by the viewer with `userData.componentId` and `userData.role`. */
+/**
+ * Rendered parts tagged by the viewer with `userData.componentId` and `userData.role`. Instanced
+ * equipment (`userData.componentIds`, one per instance) is expanded to one entry per instance.
+ */
 export async function renderedParts(page: Page): Promise<PartInfo[]> {
   return page.evaluate(() => {
     const parts: PartInfo[] = [];
-    type Node = { userData: Record<string, string>; visible: boolean; material?: Record<string, unknown>; scale: { y: number }; traverse(f: (o: Node) => void): void };
+    type Node = {
+      userData: Record<string, any>; visible: boolean; material?: Record<string, unknown>; scale: { y: number };
+      isInstancedMesh?: boolean; count?: number; instanceColor?: unknown;
+      traverse(f: (o: Node) => void): void;
+    };
+    const hex = (n: number) => Math.round(Math.min(1, Math.max(0, n)) * 255).toString(16).padStart(2, '0');
     for (const scene of (window as unknown as { __scenes: Node[] }).__scenes) {
       scene.traverse((o) => {
-        if (!o.userData?.componentId || !o.material) return;
-        const m = o.material as { opacity: number; transparent: boolean; clippingPlanes: unknown[] | null; color?: { getHexString(): string } };
+        if (!o.material) return;
+        const m = o.material as { opacity: number; transparent: boolean; clippingPlanes: unknown[] | null; color?: { r: number; g: number; b: number; getHexString(): string } };
+        if (o.isInstancedMesh && Array.isArray(o.userData?.componentIds)) {
+          const ids = o.userData.componentIds as string[];
+          for (let i = 0; i < Math.min(ids.length, o.count ?? 0); i++) {
+            const e = (o as unknown as { instanceMatrix: { array: ArrayLike<number> } }).instanceMatrix.array;
+            const scaleY = Math.hypot(e[i * 16 + 4], e[i * 16 + 5], e[i * 16 + 6]);
+            let color = m.color ? `#${m.color.getHexString()}` : '';
+            if (o.instanceColor && m.color) {
+              // Instance and material colours are linear; report sRGB like Color.getHexString().
+              const a = (o.instanceColor as { array: ArrayLike<number> }).array;
+              const srgb = (v: number) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
+              color = `#${hex(srgb(a[i * 3] * m.color.r))}${hex(srgb(a[i * 3 + 1] * m.color.g))}${hex(srgb(a[i * 3 + 2] * m.color.b))}`;
+            }
+            parts.push({ componentId: ids[i], role: o.userData.role, visible: o.visible && scaleY > 1e-6, opacity: m.opacity, transparent: m.transparent, clippingPlanes: m.clippingPlanes?.length ?? 0, color, scaleY });
+          }
+          return;
+        }
+        if (!o.userData?.componentId) return;
         parts.push({
           componentId: o.userData.componentId,
           role: o.userData.role,
