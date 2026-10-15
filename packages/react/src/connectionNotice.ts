@@ -1,4 +1,4 @@
-import { assemblyOf, type ComponentKind, type ScadaScene } from '@scada3d/core';
+import { assemblyOf, type ComponentKind, type OpenJoint, type ScadaScene } from '@scada3d/core';
 import { componentCatalog } from '@scada3d/components';
 
 /** Display names in scene order: "Ball Valve 1", "Ball Valve 2", … */
@@ -47,4 +47,32 @@ export function describeLock(after: ScadaScene, parentId: string): string {
   const names = componentNames(after);
   const children = after.components.filter((c) => c.parentId === parentId).length;
   return `${names.get(parentId)} is now the parent of ${children} component${children === 1 ? '' : 's'}; moving any of them moves the whole assembly.`;
+}
+
+/** "15 mm" below a metre, "2.00 m" from there on. */
+export function formatDistance(metres: number): string {
+  return metres < 1 ? `${Math.round(metres * 1000)} mm` : `${metres.toFixed(2)} m`;
+}
+
+/** One line for a connection whose ports do not meet (see `findOpenJoints`). */
+export function describeOpenJoint(open: OpenJoint, names: Map<string, string>): string {
+  const ends = `${names.get(open.from.instanceId)} "${open.from.portId}" → ${names.get(open.to.instanceId)} "${open.to.portId}"`;
+  const apart = formatDistance(open.distance);
+  if (open.angle > (3 * Math.PI) / 4) return `${ends}: ports face the wrong way (${apart} apart)`;
+  if (open.angle > Math.PI / 180) return `${ends}: ports do not face each other (${apart} apart)`;
+  return open.problem === 'too-short' ? `${ends}: ${apart} apart, too short for a pipe` : `${ends}: ${apart} apart, no pipe can be drawn`;
+}
+
+/** At most five open-joint lines, then a count of the rest. */
+export function describeOpenJoints(open: readonly OpenJoint[], names: Map<string, string>): string[] {
+  const lines = open.map((o) => describeOpenJoint(o, names));
+  return lines.length > MAX_LINES ? [...lines.slice(0, MAX_LINES), `…and ${lines.length - MAX_LINES} more`] : lines;
+}
+
+/** What "Seat on …" did. */
+export function describeSeat(scene: ScadaScene, connectionId: string, instanceId: string, moved: number): string {
+  const names = componentNames(scene);
+  const c = scene.connections.find((x) => x.id === connectionId)!;
+  const [own, partner] = c.from.instanceId === instanceId ? [c.from, c.to] : [c.to, c.from];
+  return `Seated ${names.get(own.instanceId)} "${own.portId}" on ${names.get(partner.instanceId)} "${partner.portId}" (moved ${formatDistance(moved)}).`;
 }

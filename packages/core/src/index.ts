@@ -51,6 +51,10 @@ export type { ComponentClipboard } from './clipboard';
 export { connectTouchingPorts, findTouchingPorts } from './touching';
 export type { ConnectTouchingResult, TouchingMatch, TouchingOptions, TouchingRejection, TouchingResult } from './touching';
 
+// Connections whose ports do not meet, and seating a part back onto its partner
+export { findOpenJoints, seatOnConnection } from './joints';
+export type { JointOptions, OpenJoint, SeatResult } from './joints';
+
 // Solid-body overlap (display only)
 export { findCollisions } from './collision';
 export type { CollisionOptions, CollisionPair, CollisionResult } from './collision';
