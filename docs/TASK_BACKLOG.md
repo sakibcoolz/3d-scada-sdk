@@ -42,6 +42,7 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-040 | M7 (MVP) | P1 | T-008,T-039 | DONE | assemblies: parent/child locks from connections, rigid moves, saved `parentId` (ADR-0008, owner request); editor layout overflow fix |
 | T-041 | M7 (MVP) | P1 | T-040 | REVIEW | copy and paste of a component or a whole assembly: internal connections and parent links remapped, tag bindings not copied, offset beside original (owner request) |
 | T-042 | post-MVP | P2 | T-041 | TODO | editor look (owner UI review 2026-10-15): themed controls with clear hover/disabled/active states, distinct destructive actions, grouped collapsible properties sections, position fields rounded to 1 mm for display, scene JSON/import moved out of the properties column, scene list fits without clipping; visual only, no behaviour or schema change; after T-024 unless owner reprioritises |
+| T-043 | M7 (MVP) | P1 | T-040 | REVIEW | connection message: on-canvas notice naming each joint the user just made (snap drop, connect touching) and whether it joins or leaves out an assembly; notice when an assembly is locked; dismissable, auto-clears, silent on undo/redo/import/paste (owner request) |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.
