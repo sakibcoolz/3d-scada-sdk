@@ -11,7 +11,7 @@ import {
   type ScadaScene,
   type SnapOptions,
   type Vector3Tuple,
-} from './index';
+} from './index.js';
 
 const { PI } = Math;
 

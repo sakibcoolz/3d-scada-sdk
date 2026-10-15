@@ -1,6 +1,6 @@
 # Public API reference (MVP)
 
-**Status:** current public surface of the three SDK packages, enforced by `api.test.ts` in each package (runtime exports) and the explicit `index` export lists (types). Anything not listed is internal and may change without notice. Packages are not published yet (T-024).
+**Status:** current public surface of the three SDK packages, enforced by `api.test.ts` in each package (runtime exports) and the explicit `index` export lists (types). Anything not listed is internal and may change without notice. Packages are built to `dist/` (ES modules and declarations) and verified from packed tarballs in a stand-alone app (T-024, [RELEASE.md](RELEASE.md)); they are not published to a registry.
 
 All geometry is right-handed, Y-up, metres. Scene components use named vectors (ADR-0007): `position`/`scale` are `Vector3Like` `{ x, y, z }` and `rotation` is a unit `QuaternionLike` `{ x, y, z, w }`; `THREE.Vector3`/`THREE.Quaternion` satisfy these types. Derived geometry (catalog ports, world ports, routes) uses tuples `[x, y, z]`. The SDK is read-only: it never writes tags or opens network connections (ADR-0003).
 

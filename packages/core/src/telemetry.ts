@@ -1,7 +1,7 @@
-import type { FlowReading, Quality, ValueSource } from './flow';
-import { assessObservation, isNewer, type FreshnessOptions } from './observation';
-import type { ComponentKind, Quantity, ScadaScene } from './scene';
-import { isKnownUnit, toCanonical } from './units';
+import type { FlowReading, Quality, ValueSource } from './flow.js';
+import { assessObservation, isNewer, type FreshnessOptions } from './observation.js';
+import type { ComponentKind, Quantity, ScadaScene } from './scene.js';
+import { isKnownUnit, toCanonical } from './units.js';
 
 /** One value for a host tag. Read-only: the SDK never writes tags (ADR-0003). */
 export interface Observation {

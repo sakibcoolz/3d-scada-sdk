@@ -12,10 +12,10 @@ import {
   type TagBinding,
   type SceneConnection,
   type Vector3Tuple,
-} from './scene';
-import { quaternionFromEuler } from './quaternion';
-import { isKnownUnit } from './units';
-import { tupleToQuaternion, tupleToVector } from './vectors';
+} from './scene.js';
+import { quaternionFromEuler } from './quaternion.js';
+import { isKnownUnit } from './units.js';
+import { tupleToQuaternion, tupleToVector } from './vectors.js';
 
 export type SceneValidationErrorCode =
   | 'NOT_AN_OBJECT'

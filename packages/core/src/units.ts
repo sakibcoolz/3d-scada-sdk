@@ -1,4 +1,4 @@
-import type { Quantity } from './scene';
+import type { Quantity } from './scene.js';
 
 /** Canonical unit per quantity. Displayed and resolved values always use these. */
 export const canonicalUnits: Readonly<Record<Quantity, string>> = { percent: '%', temperature: '°C', boolean: '', flow: 'm³/s' };

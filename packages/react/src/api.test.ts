@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import * as react from './index';
+import * as react from './index.js';
 
 // Editor internals (drop planning, history, visual helpers) are deliberately not exported.
 describe('@scada3d/react public API', () => {

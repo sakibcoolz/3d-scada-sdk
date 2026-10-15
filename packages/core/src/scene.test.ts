@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEmptyScene, portsCompatible, type ConnectionPort } from './index';
+import { createEmptyScene, portsCompatible, type ConnectionPort } from './index.js';
 
 const fluid = (nominalSize?: number): ConnectionPort => ({
   id: 'out',

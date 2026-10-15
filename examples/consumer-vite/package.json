@@ -1,0 +1,28 @@
+{
+  "name": "scada3d-consumer-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Stand-alone app that installs the packed @scada3d tarballs, outside the workspace (T-024).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --strictPort",
+    "typecheck": "tsc --noEmit",
+    "node-check": "node node-check.mjs"
+  },
+  "dependencies": {
+    "@scada3d/core": "0.1.0",
+    "@scada3d/components": "0.1.0",
+    "@scada3d/react": "0.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.6"
+  }
+}

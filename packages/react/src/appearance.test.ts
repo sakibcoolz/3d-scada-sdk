@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes } from './appearance';
+import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes } from './appearance.js';
 
 describe('view modes', () => {
   it('lists the four modes in menu order', () => {

@@ -1,5 +1,5 @@
-import { isNewer } from './observation';
-import type { Observation } from './telemetry';
+import { isNewer } from './observation.js';
+import type { Observation } from './telemetry.js';
 
 /**
  * Optional host-implemented source of observations. The SDK never opens a connection itself:

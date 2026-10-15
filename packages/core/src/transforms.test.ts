@@ -9,10 +9,10 @@ import {
   type ConnectionPort,
   type QuaternionTuple,
   type Vector3Tuple,
-} from './index';
+} from './index.js';
 // The maths below is written with the internal tuple helpers; the public object API is checked against them.
-import { quaternionFromEuler as euler, quaternionFromUnitVectors, quaternionToEuler, rotateVector } from './quaternion';
-import { quaternionToTuple, tupleToQuaternion, tupleToVector, vectorToTuple } from './vectors';
+import { quaternionFromEuler as euler, quaternionFromUnitVectors, quaternionToEuler, rotateVector } from './quaternion.js';
+import { quaternionToTuple, tupleToQuaternion, tupleToVector, vectorToTuple } from './vectors.js';
 
 const { PI } = Math;
 const identity: QuaternionTuple = [0, 0, 0, 1];

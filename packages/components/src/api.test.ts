@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import * as components from './index';
+import * as components from './index.js';
 
 describe('@scada3d/components public API', () => {
   it('exports exactly the documented runtime names', () => {

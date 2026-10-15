@@ -1,4 +1,4 @@
-import type { Quality } from './flow';
+import type { Quality } from './flow.js';
 
 /** Quality and timestamp rules shared by flow readings and tag observations. */
 export const qualities: readonly Quality[] = ['GOOD', 'BAD', 'UNCERTAIN', 'STALE'];

@@ -1,5 +1,5 @@
 import type { ConnectionPort } from '@scada3d/core';
-import type { ChoiceParameterSpec } from './geometry';
+import type { ChoiceParameterSpec } from './geometry.js';
 
 /**
  * Pipe sizes offered by the catalog (ADR-0009). `bore` is the nominal bore in metres, used as the

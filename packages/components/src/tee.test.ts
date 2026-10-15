@@ -12,7 +12,7 @@ import {
   type ConnectionPort,
   type ScadaScene,
 } from '@scada3d/core';
-import { catalogResolvers, componentCatalog, definitionFor, pipeOuterRadius } from './index';
+import { catalogResolvers, componentCatalog, definitionFor, pipeOuterRadius } from './index.js';
 
 // Cross-check of the T-junction against every fluid port in the catalog: same size at every
 // node, and every component can be seated on every tee port and connected there.

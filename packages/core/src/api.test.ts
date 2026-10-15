@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import * as core from './index';
+import * as core from './index.js';
 
 // The public runtime surface of @scada3d/core. Changing it is an API change: update docs/API.md
 // and the changelog together with this list.

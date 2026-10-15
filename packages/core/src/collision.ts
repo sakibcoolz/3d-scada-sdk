@@ -1,6 +1,6 @@
-import { rotateVector } from './quaternion';
-import type { ComponentInstance, ComponentKind, ScadaScene, Vector3Tuple } from './scene';
-import { quaternionToTuple } from './vectors';
+import { rotateVector } from './quaternion.js';
+import type { ComponentInstance, ComponentKind, ScadaScene, Vector3Tuple } from './scene.js';
+import { quaternionToTuple } from './vectors.js';
 
 /**
  * Solid-body overlap between components. Each component is treated as its catalog bounding box,

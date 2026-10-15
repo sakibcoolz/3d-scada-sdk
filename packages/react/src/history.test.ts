@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyScene, type ScadaScene } from '@scada3d/core';
-import { canRedo, canUndo, commit, createHistory, redo, undo } from './history';
+import { canRedo, canUndo, commit, createHistory, redo, undo } from './history.js';
 
 /** Distinct scenes, told apart by how many components they have. */
 function scene(n: number): ScadaScene {

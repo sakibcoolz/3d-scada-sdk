@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { findOpenJoints, seatOnConnection } from './joints';
-import { portToWorld } from './transforms';
-import { quaternionFromEuler } from './rotation';
-import type { ComponentInstance, ConnectionPort, ScadaScene, SceneConnection } from './scene';
+import { findOpenJoints, seatOnConnection } from './joints.js';
+import { portToWorld } from './transforms.js';
+import { quaternionFromEuler } from './rotation.js';
+import type { ComponentInstance, ConnectionPort, ScadaScene, SceneConnection } from './scene.js';
 
 // Minimal catalog: a 1 m straight "pipe" (in at -X, out at +X) and a "tee" with an up branch.
 const fluid = (id: string, position: [number, number, number], direction: [number, number, number]): ConnectionPort => ({ id, kind: 'fluid', position, direction, nominalSize: 0.15 });

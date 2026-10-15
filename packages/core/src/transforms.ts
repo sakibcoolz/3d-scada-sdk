@@ -1,6 +1,6 @@
-import { rotateVector } from './quaternion';
-import type { ComponentInstance, ConnectionPort, Vector3Tuple } from './scene';
-import { quaternionToTuple } from './vectors';
+import { rotateVector } from './quaternion.js';
+import type { ComponentInstance, ConnectionPort, Vector3Tuple } from './scene.js';
+import { quaternionToTuple } from './vectors.js';
 
 /** A port expressed in scene (world) coordinates: metres, right-handed, Y up. */
 export interface WorldPort {

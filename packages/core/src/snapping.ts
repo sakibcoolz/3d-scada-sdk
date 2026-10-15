@@ -8,10 +8,10 @@ import {
   type ScadaScene,
   type SceneConnection,
   type Vector3Tuple,
-} from './scene';
-import { multiplyQuaternions, normalizeQuaternion, quaternionFromUnitVectors } from './quaternion';
-import { portToWorld, type WorldPort } from './transforms';
-import { quaternionToTuple, tupleToQuaternion, tupleToVector } from './vectors';
+} from './scene.js';
+import { multiplyQuaternions, normalizeQuaternion, quaternionFromUnitVectors } from './quaternion.js';
+import { portToWorld, type WorldPort } from './transforms.js';
+import { quaternionToTuple, tupleToQuaternion, tupleToVector } from './vectors.js';
 
 export type SnapStatus = 'ok' | 'incompatible' | 'occupied' | 'misaligned';
 

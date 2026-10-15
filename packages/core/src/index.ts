@@ -2,7 +2,7 @@
 // `api.test.ts` fails when the runtime surface changes.
 
 // Scene model and units
-export { SCENE_SCHEMA_VERSION, componentKinds, createEmptyScene, portsCompatible } from './scene';
+export { SCENE_SCHEMA_VERSION, componentKinds, createEmptyScene, portsCompatible } from './scene.js';
 export type {
   ComponentDefinition,
   ComponentInstance,
@@ -17,53 +17,53 @@ export type {
   TagBinding,
   Vector3Like,
   Vector3Tuple,
-} from './scene';
-export { canonicalUnits, isKnownUnit, toCanonical } from './units';
+} from './scene.js';
+export { canonicalUnits, isKnownUnit, toCanonical } from './units.js';
 
 // Validation, persistence and migration
-export { defaultSceneLimits, validateScene } from './validation';
-export type { SceneLimits, SceneValidationError, SceneValidationErrorCode, SceneValidationOptions, SceneValidationResult } from './validation';
-export { parseScene, serializeScene } from './serialization';
-export type { ParseSceneOptions } from './serialization';
+export { defaultSceneLimits, validateScene } from './validation.js';
+export type { SceneLimits, SceneValidationError, SceneValidationErrorCode, SceneValidationOptions, SceneValidationResult } from './validation.js';
+export { parseScene, serializeScene } from './serialization.js';
+export type { ParseSceneOptions } from './serialization.js';
 
 // Transforms
-export { identityQuaternion, quaternionFromEuler, quaternionToEuler, rotateVector } from './rotation';
-export { portToWorld } from './transforms';
-export type { ComponentTransform, WorldPort } from './transforms';
+export { identityQuaternion, quaternionFromEuler, quaternionToEuler, rotateVector } from './rotation.js';
+export { portToWorld } from './transforms.js';
+export type { ComponentTransform, WorldPort } from './transforms.js';
 
 // Connections: snapping, graph, routing
-export { findSnapCandidates, snapComponent } from './snapping';
-export type { SnapCandidate, SnapOptions, SnapResult, SnapStatus } from './snapping';
-export { connect, connectedGroups, connectionsOf, disconnect, reachableComponents, removeComponent } from './graph';
-export type { GraphError, GraphErrorCode, GraphOptions, GraphResult } from './graph';
-export { routeConnection, routeScene, sampleRouteCenterline } from './routing';
-export type { PipeRoute, RouteBend, RouteFailure, RouteKind, RoutingOptions } from './routing';
+export { findSnapCandidates, snapComponent } from './snapping.js';
+export type { SnapCandidate, SnapOptions, SnapResult, SnapStatus } from './snapping.js';
+export { connect, connectedGroups, connectionsOf, disconnect, reachableComponents, removeComponent } from './graph.js';
+export type { GraphError, GraphErrorCode, GraphOptions, GraphResult } from './graph.js';
+export { routeConnection, routeScene, sampleRouteCenterline } from './routing.js';
+export type { PipeRoute, RouteBend, RouteFailure, RouteKind, RoutingOptions } from './routing.js';
 
 // Assemblies: parent/child locks for rigid editing (ADR-0008)
-export { assemblyOf, lockConnectedAsChildren, moveAssembly, unlockFromParent } from './assembly';
-export type { AssemblyResult } from './assembly';
+export { assemblyOf, lockConnectedAsChildren, moveAssembly, unlockFromParent } from './assembly.js';
+export type { AssemblyResult } from './assembly.js';
 
 // Copy and paste of components and assemblies
-export { clipboardWidth, copyComponents, pasteComponents } from './clipboard';
-export type { ComponentClipboard } from './clipboard';
+export { clipboardWidth, copyComponents, pasteComponents } from './clipboard.js';
+export type { ComponentClipboard } from './clipboard.js';
 
 // Turning exactly touching ports into explicit connections (user-triggered)
-export { connectTouchingPorts, findTouchingPorts } from './touching';
-export type { ConnectTouchingResult, TouchingMatch, TouchingOptions, TouchingRejection, TouchingResult } from './touching';
+export { connectTouchingPorts, findTouchingPorts } from './touching.js';
+export type { ConnectTouchingResult, TouchingMatch, TouchingOptions, TouchingRejection, TouchingResult } from './touching.js';
 
 // Connections whose ports do not meet, and seating a part back onto its partner
-export { findOpenJoints, seatOnConnection } from './joints';
-export type { JointOptions, OpenJoint, SeatResult } from './joints';
+export { findOpenJoints, seatOnConnection } from './joints.js';
+export type { JointOptions, OpenJoint, SeatResult } from './joints.js';
 
 // Solid-body overlap (display only)
-export { findCollisions } from './collision';
-export type { CollisionOptions, CollisionPair, CollisionResult } from './collision';
+export { findCollisions } from './collision.js';
+export type { CollisionOptions, CollisionPair, CollisionResult } from './collision.js';
 
 // Read-only observations: flow, telemetry, host data input
-export { resolveFlow } from './flow';
-export type { FlowDirection, FlowOptions, FlowReading, FlowResolution, FlowState, FlowUnknownReason, Quality, ValueSource } from './flow';
-export type { FreshnessOptions } from './observation';
-export { displayScene, resolveTelemetry } from './telemetry';
-export type { Observation, PropertyState, TelemetryOptions, TelemetryResolution, TelemetryUnknownReason } from './telemetry';
-export { connectProvider, createObservationStore } from './dataInput';
-export type { DataProvider, ObservationStore } from './dataInput';
+export { resolveFlow } from './flow.js';
+export type { FlowDirection, FlowOptions, FlowReading, FlowResolution, FlowState, FlowUnknownReason, Quality, ValueSource } from './flow.js';
+export type { FreshnessOptions } from './observation.js';
+export { displayScene, resolveTelemetry } from './telemetry.js';
+export type { Observation, PropertyState, TelemetryOptions, TelemetryResolution, TelemetryUnknownReason } from './telemetry.js';
+export { connectProvider, createObservationStore } from './dataInput.js';
+export type { DataProvider, ObservationStore } from './dataInput.js';

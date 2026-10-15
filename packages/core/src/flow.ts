@@ -1,5 +1,5 @@
-import { assessObservation, isNewer, qualities } from './observation';
-import type { ScadaScene } from './scene';
+import { assessObservation, isNewer, qualities } from './observation.js';
+import type { ScadaScene } from './scene.js';
 
 export type Quality = 'GOOD' | 'BAD' | 'UNCERTAIN' | 'STALE';
 export type ValueSource = 'MEASURED' | 'SIMULATED';

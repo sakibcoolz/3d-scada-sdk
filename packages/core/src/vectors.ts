@@ -1,4 +1,4 @@
-import type { QuaternionLike, QuaternionTuple, Vector3Like, Vector3Tuple } from './scene';
+import type { QuaternionLike, QuaternionTuple, Vector3Like, Vector3Tuple } from './scene.js';
 
 // Conversions between the named scene form and the tuple form used internally by the maths.
 export const vectorToTuple = (v: Vector3Like): Vector3Tuple => [v.x, v.y, v.z];

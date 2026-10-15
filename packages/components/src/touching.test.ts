@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { connectTouchingPorts, findTouchingPorts, parseScene, routeScene } from '@scada3d/core';
-import { catalogResolvers } from './index';
+import { catalogResolvers } from './index.js';
 
 // A real plant layout exported from the playground with every part placed port-to-port but no connections.
 const text = readFileSync(new URL('./fixtures/unconnected-plant.json', import.meta.url), 'utf8');

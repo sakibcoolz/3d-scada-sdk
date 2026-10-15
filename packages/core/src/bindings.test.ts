@@ -13,7 +13,7 @@ import {
   type SceneValidationErrorCode,
   type SceneValidationOptions,
   type TagBinding,
-} from './index';
+} from './index.js';
 
 const fluid = (id: string): ConnectionPort => ({ id, kind: 'fluid', position: [0, 0, 0], direction: [1, 0, 0], nominalSize: 0.15 });
 const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = { tank: [fluid('inlet'), fluid('outlet')], valve: [fluid('in'), fluid('out')] };

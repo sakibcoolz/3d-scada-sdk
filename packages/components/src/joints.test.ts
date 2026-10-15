@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { findOpenJoints, parseScene, routeScene, seatOnConnection } from '@scada3d/core';
-import { catalogResolvers } from './index';
-import { demoScene } from '../../../apps/playground/src/demo';
+import { catalogResolvers } from './index.js';
+import { demoScene } from '../../../apps/playground/src/demo.js';
 
 // The owner's plant: valve B 15 mm above the tee branch, and the tee turned end for end so
 // "left" and "right" point the wrong way.

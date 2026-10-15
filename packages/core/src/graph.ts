@@ -1,5 +1,5 @@
-import type { ScadaScene, SceneConnection } from './scene';
-import { validateScene, type SceneValidationErrorCode, type SceneValidationOptions } from './validation';
+import type { ScadaScene, SceneConnection } from './scene.js';
+import { validateScene, type SceneValidationErrorCode, type SceneValidationOptions } from './validation.js';
 
 export type GraphErrorCode = SceneValidationErrorCode | 'UNKNOWN_CONNECTION';
 

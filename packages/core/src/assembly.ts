@@ -1,7 +1,7 @@
-import { reachableComponents } from './graph';
-import { multiplyQuaternions, normalizeQuaternion, rotateVector } from './quaternion';
-import type { ComponentInstance, QuaternionLike, ScadaScene, Vector3Like } from './scene';
-import { quaternionToTuple, tupleToQuaternion } from './vectors';
+import { reachableComponents } from './graph.js';
+import { multiplyQuaternions, normalizeQuaternion, rotateVector } from './quaternion.js';
+import type { ComponentInstance, QuaternionLike, ScadaScene, Vector3Like } from './scene.js';
+import { quaternionToTuple, tupleToQuaternion } from './vectors.js';
 
 // Assemblies (ADR-0008): children carry `parentId`; a root and all its descendants move rigidly.
 

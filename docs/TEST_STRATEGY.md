@@ -15,7 +15,7 @@ pnpm typecheck
 pnpm build
 pnpm dev
 ```
-`pnpm typecheck` runs `tsc --noEmit` in `@scada3d/core`, `@scada3d/components`, `@scada3d/react`, and `@scada3d/playground`, then typechecks the test projects. `pnpm test` runs Vitest. `pnpm test:e2e` runs Playwright against the playground production preview. `pnpm build` produces the playground Vite bundle. CI runs these in `.github/workflows/ci.yml`. `pnpm bench` runs the core benchmarks and `pnpm perf` the browser frame-time baseline (recorded in [PERFORMANCE.md](PERFORMANCE.md), not asserted; not part of CI). `pnpm lint` is not available yet.
+`pnpm typecheck` runs `tsc --noEmit` in `@scada3d/core`, `@scada3d/components`, `@scada3d/react`, and `@scada3d/playground`, then typechecks the test projects. `pnpm test` runs Vitest. `pnpm test:e2e` runs Playwright against the playground production preview. `pnpm build` produces the playground Vite bundle. CI runs these in `.github/workflows/ci.yml`. `pnpm bench` runs the core benchmarks and `pnpm perf` the browser frame-time baseline (recorded in [PERFORMANCE.md](PERFORMANCE.md), not asserted; not part of CI). `pnpm verify:consumer` builds and packs the SDK, installs the tarballs into a copy of `examples/consumer-vite` outside the workspace and typechecks, builds and runs a plain-Node check there; `CONSUMER_APP=<dir> pnpm test:consumer` browser-tests that app (see [RELEASE.md](RELEASE.md)). `pnpm lint` is not available yet.
 
 ## Future standard commands
 ```sh

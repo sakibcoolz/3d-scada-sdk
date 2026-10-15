@@ -7,7 +7,7 @@ import {
   type FlowReading,
   type ScadaScene,
   type SceneConnection,
-} from './index';
+} from './index.js';
 
 const NOW = Date.parse('2026-10-15T12:00:00.000Z');
 const at = (msAgo: number) => new Date(NOW - msAgo).toISOString();
