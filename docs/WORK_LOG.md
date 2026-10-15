@@ -537,3 +537,30 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Added `packages/components/src/tee.test.ts` (41 cases). It checks the size of the three tee ports (DN150, shell radius `pipeOuterRadius`). Then, for each tee port × each of the 13 fluid ports in the catalog (tank, pipe, elbow, tee, valve, pump), it checks: same nominal size and drawn radius; seated exactly (same point, opposite direction); found by `findTouchingPorts`; accepted by `connect`; routed as a direct joint; and a part dropped 6 cm off snaps onto the same tee node.
 - Visual check: a tee with a ball valve on left, right and branch renders flush and equal.
 - Verification: `pnpm test` PASS (707 tests). GitHub Actions CI not awaited (owner direction).
+
+## 2026-10-15 — T-044 open joints: find and seat connections whose ports do not meet
+- Branch: `feat/T-044-open-joints` (from `feat/T-043-connection-notice` @ `a5657a4`, committed locally, not pushed; T-043 itself is stacked on PR #40).
+- Owner request: approved after their plant was diagnosed by measuring every joint:
+  - valve B was 15 mm above the tee branch;
+  - the tee was turned end for end, so `left`/`right` faced the wrong way 2 m from their partners;
+  - a pump and a spare valve sat 35 mm and 15 mm off nearby ports.
+  - Every part was the right size.
+- Policy: a connection is "open" only when its ports are not joined (1 mm / 1°) **and** the router cannot draw it (`unroutable`) or the run is shorter than the shortest pipe, 0.2 m (`too-short`). Deliberate routed runs, as in the demo plant, are not flagged. Display only; nothing is moved automatically (ADR-0002, ADR-0008 unchanged).
+- Graphify: index NOT built. Fallback: read the routing, snapping, assembly and editor code directly.
+- Scope:
+  - Core `findOpenJoints` and `seatOnConnection`: seating uses the smallest turn, then the quarter-turn roll that best fits the part's other connections. Only the part moves if the partner is in the same assembly; otherwise the whole assembly moves. API snapshot updated.
+  - Viewer/editor `openJoints` prop (default on): amber markers at both ends and a top-centre list stacked under collisions. The collision list no longer positions itself.
+  - Editor "Seat on …" buttons in Properties, with a "Seated … (moved 15 mm)" message.
+  - Fixture `open-joints-plant.json` (the owner's scene).
+- Tests: 12 core unit tests, 3 component tests on the owner's plant (three open joints; seating the tee then valve B leaves none, all routes direct; the demo plant is clean), 4 wording tests and 5 e2e tests.
+  - The e2e tests ran red before the UI work: 4 failed; the demo case passed trivially.
+  - The core unit tests were written before the implementation but **not run red first**.
+- Verification (Node v22.23.2, pnpm 9.15.4):
+  - `pnpm typecheck` PASS.
+  - `pnpm test` PASS (726 tests).
+  - `pnpm build` PASS.
+  - `pnpm test:e2e` PASS (74 tests).
+  - Screenshot checked: list, amber markers and the Seat button on the owner's plant.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-044 REVIEW until merged (after #40 and T-043).
+- Not covered: two *unconnected* parts 15–35 mm apart (the pump and spare valve case) are neither connections nor exact touching pairs, so neither check reports them. A "near miss" hint for Connect touching ports would be a separate task.
