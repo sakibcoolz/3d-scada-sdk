@@ -1,5 +1,6 @@
 import { parseScene, type ScadaScene, type SceneValidationError } from '@scada3d/core';
 import { catalogResolvers } from '@scada3d/components';
+import { sanitizeSvg } from '@scada3d/asset-import';
 
 /** Largest scene file the editor will read (bytes for files, characters for pasted text). */
 export const MAX_SCENE_FILE_BYTES = 10_000_000;
@@ -17,9 +18,15 @@ export function formatSceneErrors(errors: readonly SceneValidationError[]): stri
   return lines;
 }
 
+/** Rejects an underlay that the SVG sanitizer would not accept (ADR-0012). */
+export function underlayProblem(svg: string): string | undefined {
+  const r = sanitizeSvg(svg);
+  return r.ok ? undefined : `Unsafe or unreadable SVG: ${r.errors[0].message}`;
+}
+
 /** Parses, validates and (for version 1) migrates scene text against the built-in catalog. */
 export function importSceneText(text: string): SceneImport {
-  const result = parseScene(text, { ...catalogResolvers, maxLength: MAX_SCENE_FILE_BYTES });
+  const result = parseScene(text, { ...catalogResolvers, validateUnderlay: underlayProblem, maxLength: MAX_SCENE_FILE_BYTES });
   if (!result.ok) return { ok: false, errors: formatSceneErrors(result.errors) };
   const { components, connections } = result.scene;
   const migrated = result.migratedFrom ? ` (migrated from version ${result.migratedFrom})` : '';

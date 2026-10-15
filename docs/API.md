@@ -32,6 +32,18 @@ Pure functions take the current time (`now`) and the catalog lookups (`resolvePo
 |---|---|
 | `componentCatalog` (tank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
 
+### `@scada3d/asset-import` (ADR-0012)
+| Runtime | Types |
+|---|---|
+| `sanitizeSvg(text, limits?)` → `{ ok, svg, markup, notes }` or `{ ok: false, errors }`; `toSvgMarkup(model)`; `defaultSvgLimits` (512 KiB, 5,000 elements, depth 32, 20,000 path commands) | `SanitizedSvg`, `SvgShape`, `SvgMatrix`, `SanitizeResult`, `SvgError`, `SvgErrorCode`, `SvgNote`, `SvgLimits` |
+
+It needs no DOM and runs in Node and browsers. It is an allow-list:
+- **Kept:** shapes, paths, groups, transforms and presentation styles.
+- **Dropped, with notes:** text, metadata, unknown elements and attributes.
+- **Rejected:** scripts, event handlers, `href`, `url()`/`data:`/`javascript:` values, `image`/`use`/`foreignObject`, DOCTYPE and entities, malformed XML or paths, and anything over the limits.
+
+`toSvgMarkup` writes clean markup from the model only.
+
 ### `@scada3d/simulation` (optional, ADR-0010)
 | Runtime | Types |
 |---|---|
@@ -73,6 +85,10 @@ handle.current?.setTagValues([{ tagId: 'LT-101', value: 62, quality: 'GOOD', sou
 
 - `Scada3DViewer` props: `scene`, `viewMode?`, `viewOverrides?`, `selectedId?`, `onSelect?`, `collisions?` (default `true`: overlapping solid components are shown in red and listed), `openJoints?` (default `true`: connections whose ports do not meet get amber markers at both ends and are listed), `flow?` (`FlowInput`: readings keyed by connection), `telemetry?` (`TelemetryInput`: `observations?`, `provider?`, `source?`, `staleAfterMs?`), `ref?` (`ScadaHandle`). Editor-only props (`preview`, `onCamera`, `transformMode`, `onTransform`) are used by `Scada3DEditor` and are not part of the supported viewer contract.
 - `Scada3DEditor` props: `initialScene?`, `onChange?`, `flow?`, `telemetry?`, `collisions?` (default `true`), `openJoints?` (default `true`), `defaultLocked?` (default `false`) or controlled `locked?` + `onLockedChange?` (view-only mode), `ref?`.
+- Underlay (T-019a, ADR-0012):
+  - `ScadaScene.underlay` (`SceneUnderlay`) is drawn by the viewer flat on the ground, sanitized again and painted through an `<img>` onto a texture. It cannot be picked.
+  - The editor's **Underlay** section imports an `.svg` (≤ 512 KiB), sets width, X/Z, rotation and opacity, and removes it. Each change is undoable, and the section is disabled when locked.
+  - `importSceneText` rejects unsafe underlays. `SceneValidationOptions.validateUnderlay` is the core hook.
 - Simulation (T-021, ADR-0010): `Scada3DViewer` and `Scada3DEditor` take `simulation?: SimulationInput`, with `{ levels?, flows?, model? }`. While it is set:
   - tank levels and connection flows come only from it (telemetry and `flow` are not mixed in for those values);
   - flows are drawn as SIMULATED (violet);

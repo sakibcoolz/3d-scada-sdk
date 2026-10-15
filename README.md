@@ -14,6 +14,7 @@ Reusable industrial 3D visualization SDK for Three.js, with a React editor/viewe
 - `@scada3d/core`: definitions, ports, registry and scene data
 - `@scada3d/components`: procedural industrial geometry
 - `@scada3d/react`: React Three Fiber rendering and editor
+- `@scada3d/asset-import`: SVG sanitizer for reference underlays (no DOM; shapes and paths only)
 - `@scada3d/simulation`: optional deterministic mass-balance simulation (always labelled SIMULATED; playground `?simulate`)
 - `apps/playground`: Vite research playground
 - `examples/consumer-vite`: stand-alone app that installs the packed SDK tarballs (see [release packaging](docs/RELEASE.md))

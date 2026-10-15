@@ -2,6 +2,7 @@
 import { parseScene, serializeScene, findOpenJoints } from '@scada3d/core';
 import { catalogResolvers, pipeSizes } from '@scada3d/components';
 import { createSimulation } from '@scada3d/simulation';
+import { sanitizeSvg } from '@scada3d/asset-import';
 
 const scene = {
   schemaVersion: 3,
@@ -24,4 +25,7 @@ const simulated = createSimulation(plant).step(30);
 const hydraulic = createSimulation(plant, { model: 'hydraulic' }).step(30);
 if (!(hydraulic.levels.t < 80 && hydraulic.levels.t > simulated.levels.t)) throw new Error('hydraulic model should drain more slowly than the frictionless one');
 if (!(simulated.levels.t < 80) || simulated.flows.some((f) => f.source !== 'SIMULATED')) throw new Error('simulation did not drain the tank');
-console.log(`node-check ok: ${Object.keys(pipeSizes).length} sizes, ${serializeScene(result.scene).length} bytes of canonical JSON, simulated level ${simulated.levels.t.toFixed(1)} % (mass-balance) / ${hydraulic.levels.t.toFixed(1)} % (hydraulic) after 30 s`);
+// The SVG sanitizer needs no DOM: it runs in plain Node and refuses scripts.
+if (!sanitizeSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><path d="M0 0L1 1"/></svg>').ok) throw new Error('sanitizer refused a clean SVG');
+if (sanitizeSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><script>x</script></svg>').ok) throw new Error('sanitizer accepted a script');
+console.log(`node-check ok: SVG sanitizer ok, ${Object.keys(pipeSizes).length} sizes, ${serializeScene(result.scene).length} bytes of canonical JSON, simulated level ${simulated.levels.t.toFixed(1)} % (mass-balance) / ${hydraulic.levels.t.toFixed(1)} % (hydraulic) after 30 s`);

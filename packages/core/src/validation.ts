@@ -5,6 +5,7 @@ import {
   type ComponentKind,
   type ConnectionPort,
   type Quantity,
+  type SceneUnderlay,
   type QuaternionLike,
   type QuaternionTuple,
   type Vector3Like,
@@ -41,7 +42,8 @@ export type SceneValidationErrorCode =
   | 'DUPLICATE_BINDING_TARGET'
   | 'INVALID_PROPERTY'
   | 'UNKNOWN_PARENT'
-  | 'PARENT_CYCLE';
+  | 'PARENT_CYCLE'
+  | 'INVALID_UNDERLAY';
 
 export interface SceneValidationError {
   code: SceneValidationErrorCode;
@@ -62,6 +64,8 @@ export interface SceneLimits {
   maxIdLength: number;
   maxProperties: number;
   maxStringLength: number;
+  /** UTF-8 bytes of `underlay.svg`. */
+  maxUnderlayBytes: number;
 }
 
 export const defaultSceneLimits: Readonly<SceneLimits> = {
@@ -71,6 +75,7 @@ export const defaultSceneLimits: Readonly<SceneLimits> = {
   maxIdLength: 128,
   maxProperties: 64,
   maxStringLength: 1024,
+  maxUnderlayBytes: 512 * 1024,
 };
 
 export interface SceneValidationOptions {
@@ -90,6 +95,11 @@ export interface SceneValidationOptions {
    */
   validateProperties?: (type: ComponentKind, properties: ComponentInstance['properties']) => readonly { property: string; message: string }[];
   limits?: Partial<SceneLimits>;
+  /**
+   * Checks the content of `underlay.svg` (e.g. `sanitizeSvg` from @scada3d/asset-import) and returns a
+   * reason to reject it, or undefined. Core checks only structure and size. Optional.
+   */
+  validateUnderlay?: (svg: string) => string | undefined;
 }
 
 type Errors = SceneValidationError[];
@@ -99,8 +109,9 @@ type SchemaVersion = 1 | 2 | 3;
 const sceneKeys: Record<SchemaVersion, string[]> = {
   1: ['version', 'components', 'connections'],
   2: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings'],
-  3: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings'],
+  3: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings', 'underlay'],
 };
+const underlayKeys = ['svg', 'position', 'width', 'rotation', 'opacity'];
 const componentKeys: Record<SchemaVersion, string[]> = {
   1: ['id', 'kind', 'position', 'rotation', 'properties'],
   2: ['id', 'type', 'position', 'rotation', 'scale', 'properties'],
@@ -540,6 +551,38 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
  * compatibility, occupancy, scale policy) run only once the structure is valid. Each port accepts
  * one connection.
  */
+function readUnderlay(value: unknown, limits: SceneLimits, options: SceneValidationOptions, errors: Errors): SceneUnderlay | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path: 'underlay', message: 'Expected an underlay object.' });
+    return undefined;
+  }
+  checkKeys(value, underlayKeys, 'underlay', errors);
+  const before = errors.length;
+  const finite = (v: unknown, path: string, ok: (n: number) => boolean, rule: string): number => {
+    if (typeof v !== 'number' || !Number.isFinite(v) || !ok(v)) errors.push({ code: 'INVALID_FIELD', path, message: `Expected ${rule}.` });
+    return v as number;
+  };
+  let svg = '';
+  if (typeof value.svg !== 'string') errors.push({ code: 'INVALID_FIELD', path: 'underlay.svg', message: 'Expected SVG markup as a string.' });
+  else if (new TextEncoder().encode(value.svg).length > limits.maxUnderlayBytes) errors.push({ code: 'LIMIT_EXCEEDED', path: 'underlay.svg', message: `Underlay larger than ${limits.maxUnderlayBytes} bytes.` });
+  else svg = value.svg;
+  const position = isObject(value.position) ? value.position : undefined;
+  if (!position) errors.push({ code: 'INVALID_FIELD', path: 'underlay.position', message: 'Expected { x, z } in metres.' });
+  else checkKeys(position, ['x', 'z'], 'underlay.position', errors);
+  const x = position ? finite(position.x, 'underlay.position.x', () => true, 'a finite number of metres') : 0;
+  const z = position ? finite(position.z, 'underlay.position.z', () => true, 'a finite number of metres') : 0;
+  const width = finite(value.width, 'underlay.width', (n) => n > 0 && n <= 1000, 'a width in metres above 0 and at most 1000');
+  const rotation = finite(value.rotation, 'underlay.rotation', () => true, 'a finite angle in degrees');
+  const opacity = finite(value.opacity, 'underlay.opacity', (n) => n >= 0 && n <= 1, 'an opacity from 0 to 1');
+  if (errors.length > before) return undefined;
+  const reason = options.validateUnderlay?.(svg);
+  if (reason !== undefined) {
+    errors.push({ code: 'INVALID_UNDERLAY', path: 'underlay.svg', message: reason });
+    return undefined;
+  }
+  return { svg, position: { x, z }, width, rotation, opacity };
+}
+
 export function validateScene(input: unknown, options: SceneValidationOptions): SceneValidationResult {
   const limits: SceneLimits = { ...defaultSceneLimits, ...options.limits };
   const errors: Errors = [];
@@ -573,9 +616,10 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
     version !== 1 && input.tagBindings !== undefined
       ? readList(input.tagBindings, 'tagBindings', limits.maxBindings, errors, (item, path) => readBinding(item, path, limits, errors))
       : undefined;
+  const underlay = version === 3 && input.underlay !== undefined ? readUnderlay(input.underlay, limits, options, errors) : undefined;
   if (errors.length > 0 || !components || !connections) return { ok: false, errors };
 
-  const scene: ScadaScene = { schemaVersion: 3, units: 'm', components, connections, ...(tagBindings ? { tagBindings } : {}) };
+  const scene: ScadaScene = { schemaVersion: 3, units: 'm', components, connections, ...(tagBindings ? { tagBindings } : {}), ...(underlay ? { underlay } : {}) };
   checkReferences(scene, options, errors);
   checkBindings(scene, options, errors);
   if (errors.length > 0) return { ok: false, errors };

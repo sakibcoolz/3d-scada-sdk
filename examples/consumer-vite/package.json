@@ -12,6 +12,7 @@
     "node-check": "node node-check.mjs"
   },
   "dependencies": {
+    "@scada3d/asset-import": "0.1.0",
     "@scada3d/components": "0.1.0",
     "@scada3d/core": "0.1.0",
     "@scada3d/react": "0.1.0",

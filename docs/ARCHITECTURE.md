@@ -126,6 +126,13 @@ Examples:
 
 Procedural Three.js geometry and GLB/glTF assets are primary 3D paths. SVGs may be used for reference, selected path extrusion or template-assisted revolution, subject to sanitization and licensing. An SVG alone cannot automatically reveal internal geometry or mechanical connectivity.
 
+**Implemented (T-019a, ADR-0012):** `packages/asset-import` (`@scada3d/asset-import`):
+- an allow-list SVG sanitizer with its own XML tokenizer (no DOM, no entity expansion);
+- a flat shape model and `toSvgMarkup`;
+- a scene `underlay` drawn on the ground plane as a tracing reference.
+
+Extrusion into custom parts is T-047 (part b).
+
 ## 6. Connection graph and world-space snapping
 
 A **logical connection** always connects `instanceId + portId` to another compatible endpoint, independent of displayed pipes.

@@ -7,7 +7,8 @@ The three SDK packages ship as compiled ES modules with type declarations. They 
 |---|---|---|
 | `@scada3d/core` | nothing | `dist/` (JS, `.d.ts`, source maps with inlined sources), `LICENSE`, `package.json` |
 | `@scada3d/components` | `@scada3d/core` | same layout |
-| `@scada3d/react` | core, components, `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`; peers `react`/`react-dom` 19 | same layout |
+| `@scada3d/react` | core, components, asset-import, `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`; peers `react`/`react-dom` 19 | same layout |
+| `@scada3d/asset-import` | nothing | same layout |
 | `@scada3d/simulation` (optional) | core, components | same layout |
 
 - Inside the workspace, `exports` still points at `src/` so the playground, Vitest and Playwright use source directly. `pnpm pack` applies `publishConfig`, so the tarball's `exports`/`types`/`main` point at `dist/`, and `workspace:*` becomes the exact version.
@@ -27,7 +28,7 @@ CONSUMER_APP=<printed dir> pnpm test:consumer   # browser check of that app's pr
 4. runs `npm install` (plain npm, no pnpm workspace; needs the npm registry for React, three and Vite);
 5. lists the installed SDK packages (one copy each), then runs `npm run typecheck`, `npm run build` and `npm run node-check`.
 
-`node-check.mjs` imports core, components and simulation in plain Node. It validates a scene, checks it has no open joints, checks that a DN150 → DN100 joint is refused, and simulates a tank draining.
+`node-check.mjs` imports core, components, simulation and asset-import in plain Node. It validates a scene, checks it has no open joints, checks that a DN150 → DN100 joint is refused, simulates a tank draining with both models, and checks that the SVG sanitizer accepts a clean drawing and refuses a script.
 
 `e2e-consumer/consumer.spec.ts` serves the app's production build and checks:
 - the viewer renders the tank → valve → reducer → DN100 pipe scene with no open joints;

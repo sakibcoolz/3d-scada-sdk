@@ -1,0 +1,30 @@
+{
+  "name": "@scada3d/asset-import",
+  "version": "0.1.0",
+  "description": "Optional allow-list SVG sanitizer and shape model for @scada3d (no DOM dependency).",
+  "license": "UNLICENSED",
+  "type": "module",
+  "private": true,
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "types": "./dist/index.d.ts",
+    "main": "./dist/index.js"
+  }
+}
