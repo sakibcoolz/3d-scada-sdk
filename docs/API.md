@@ -15,6 +15,7 @@ All geometry is right-handed, Y-up, metres. Scene components use named vectors (
 | Snapping | `findSnapCandidates`, `snapComponent` | `SnapCandidate`, `SnapOptions`, `SnapResult`, `SnapStatus` |
 | Graph | `connect`, `disconnect`, `removeComponent`, `connectionsOf`, `reachableComponents`, `connectedGroups` | `GraphResult`, `GraphError`, `GraphErrorCode`, `GraphOptions` |
 | Routing | `routeConnection`, `routeScene`, `sampleRouteCenterline` | `PipeRoute`, `RouteBend`, `RouteKind`, `RouteFailure`, `RoutingOptions` |
+| Attach | `attachComponents` | `AttachOptions`, `AttachResult` |
 | Assemblies | `assemblyOf`, `moveAssembly`, `lockConnectedAsChildren`, `unlockFromParent` | `AssemblyResult` (`ComponentInstance.parentId`) |
 | Copy and paste | `copyComponents`, `pasteComponents`, `clipboardWidth` | `ComponentClipboard` |
 | Touching ports | `findTouchingPorts`, `connectTouchingPorts` | `TouchingOptions`, `TouchingMatch`, `TouchingRejection`, `TouchingResult`, `ConnectTouchingResult` |
@@ -30,7 +31,7 @@ Pure functions take the current time (`now`) and the catalog lookups (`resolvePo
 
 | Runtime exports | Types |
 |---|---|
-| `componentCatalog` (tank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
+| `componentCatalog` (tank, conicalTank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `liquidProfile`, `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
 
 ### `@scada3d/asset-import` (ADR-0012)
 | Runtime | Types |
@@ -47,7 +48,7 @@ It needs no DOM and runs in Node and browsers. It is an allow-list:
 ### `@scada3d/simulation` (optional, ADR-0010)
 | Runtime | Types |
 |---|---|
-| `createSimulation(scene, { model?, feeds?, pumps?, dt?, clock? })` → `{ state(), step(seconds), update(scene), configure({ feeds, pumps }), reset() }`, `MODEL` (mass-balance constants), `HYDRAULIC` (hydraulic constants: fluid, roughness, K-factors, lengths), `frictionFactor(re, ε/D)`, `TANK` (radius, height, port heights) | `Simulation`, `SimulationOptions`, `SimulationState`, `SimulationNote`, `Feed`, `PumpCurve` |
+| `createSimulation(scene, { model?, feeds?, pumps?, dt?, clock? })` → `{ state(), step(seconds), update(scene), configure({ feeds, pumps }), reset() }`, `MODEL` (mass-balance constants), `vesselOf(type)` (vessel shape from the catalog: `volumeAt`, `heightAt`, `portHeight`, `percentAt`, `volumeAtPercent`), `HYDRAULIC` (hydraulic constants: fluid, roughness, K-factors, lengths), `frictionFactor(re, ε/D)`, `TANK` (radius, height, port heights) | `Simulation`, `SimulationOptions`, `SimulationState`, `SimulationNote`, `Feed`, `PumpCurve`, `Vessel` |
 
 The model is deterministic, and the host owns the clock.
 - **Gravity drain:** q = Cd·A·√(2 g Δh) through open paths, discharging to atmosphere.
@@ -85,6 +86,7 @@ handle.current?.setTagValues([{ tagId: 'LT-101', value: 62, quality: 'GOOD', sou
 
 - `Scada3DViewer` props: `scene`, `viewMode?`, `viewOverrides?`, `selectedId?`, `onSelect?`, `collisions?` (default `true`: overlapping solid components are shown in red and listed), `openJoints?` (default `true`: connections whose ports do not meet get amber markers at both ends and are listed), `flow?` (`FlowInput`: readings keyed by connection), `telemetry?` (`TelemetryInput`: `observations?`, `provider?`, `source?`, `staleAfterMs?`), `ref?` (`ScadaHandle`). Editor-only props (`preview`, `onCamera`, `transformMode`, `onTransform`) are used by `Scada3DEditor` and are not part of the supported viewer contract.
 - `Scada3DEditor` props: `initialScene?`, `onChange?`, `flow?`, `telemetry?`, `collisions?` (default `true`), `openJoints?` (default `true`), `defaultLocked?` (default `false`) or controlled `locked?` + `onLockedChange?` (view-only mode), `ref?`.
+- Selection (T-049): `Scada3DViewer.onSelect?: SelectHandler`, i.e. `(id, { additive }?) => void`; `additive` is true when Shift was held. The editor attaches the Shift-clicked part to the selected one with `attachComponents`. Hosts using a one-argument handler are unaffected.
 - Underlay (T-019a, ADR-0012):
   - `ScadaScene.underlay` (`SceneUnderlay`) is drawn by the viewer flat on the ground, sanitized again and painted through an `<img>` onto a texture. It cannot be picked.
   - The editor's **Underlay** section imports an `.svg` (≤ 512 KiB), sets width, X/Z, rotation and opacity, and removes it. Each change is undoable, and the section is disabled when locked.

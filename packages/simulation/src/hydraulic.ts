@@ -1,6 +1,6 @@
 import { portToWorld, routeScene, type ComponentInstance, type ScadaScene } from '@scada3d/core';
 import { catalogResolvers, definitionFor } from '@scada3d/components';
-import { TANK, type Endpoint, type Feed, type PumpCurve, type Simulation, type SimulationNote, type SimulationOptions, type SimulationState } from './shared.js';
+import { type Endpoint, type Feed, type PumpCurve, type Simulation, type SimulationNote, type SimulationOptions, type SimulationState } from './shared.js';
 
 /** Constants of the `hydraulic` v1 model (ADR-0011): water at 20 °C in commercial steel pipe. */
 export const HYDRAULIC = {
@@ -21,10 +21,11 @@ export const HYDRAULIC = {
   lengths: { valve: 1.2, elbow: (Math.PI / 2) * 0.3, teeLeg: 1 },
 } as const;
 
+import { vesselOf } from './vessels.js';
+
 const NU = HYDRAULIC.viscosity / HYDRAULIC.density;
+const isVessel = (c: ComponentInstance) => vesselOf(c.type) !== undefined;
 const G = HYDRAULIC.gravity;
-const TANK_AREA = Math.PI * TANK.radius ** 2;
-const TANK_VOLUME = TANK_AREA * TANK.height;
 
 /**
  * Darcy friction factor: 64/Re when laminar (Re < 2000), Swamee–Jain when turbulent (Re > 4000),
@@ -219,7 +220,7 @@ class HydraulicNetwork {
         const e = { instanceId: c.id, portId: p };
         const connected = this.peers.has(key(e));
         if (c.type === 'tee') starts.push({ terminal: this.terminal('node', e), segments: [{ length: HYDRAULIC.lengths.teeLeg, diameter: this.bore(e), k: p === 'branch' ? HYDRAULIC.K.teeBranch : HYDRAULIC.K.teeRun }], leaving: e });
-        else if (c.type === 'tank') { if (connected) starts.push({ terminal: this.terminal('tank', e), segments: [], leaving: e }); }
+        else if (isVessel(c)) { if (connected) starts.push({ terminal: this.terminal('tank', e), segments: [], leaving: e }); }
         else if (!connected) starts.push({ terminal: this.terminal(this.fedPorts.has(key(e)) ? 'node' : 'free', e), segments: [], leaving: e, through: c, entry: p });
       }
     }
@@ -244,7 +245,7 @@ class HydraulicNetwork {
         if (run.length > 0) link.segments.push({ length: run.length, diameter: this.bore(leaving), k: run.bends * HYDRAULIC.K.bend });
         link.connections.set(peer.connectionId, (link.connections.get(peer.connectionId) ?? 0) + peer.sign);
         const c = this.components.get(peer.other.instanceId)!;
-        if (c.type === 'tank') { this.finish(link, this.terminal('tank', peer.other), used, key(peer.other)); break; }
+        if (isVessel(c)) { this.finish(link, this.terminal('tank', peer.other), used, key(peer.other)); break; }
         if (c.type === 'tee') {
           link.segments.push({ length: HYDRAULIC.lengths.teeLeg, diameter: this.bore(peer.other), k: peer.other.portId === 'branch' ? HYDRAULIC.K.teeBranch : HYDRAULIC.K.teeRun });
           this.finish(link, this.terminal('node', peer.other), used, key(peer.other));
@@ -329,12 +330,13 @@ export function createHydraulicSimulation(initial: ScadaScene, options: Simulati
   let notes: SimulationNote[] = [];
 
   const components = () => new Map(scene.components.map((c) => [c.id, c]));
-  const tanks = () => scene.components.filter((c) => c.type === 'tank');
+  const tanks = () => scene.components.filter(isVessel);
+  const vessel = (id: string) => vesselOf(components().get(id)!.type)!;
   const authored = (c: ComponentInstance) => (typeof c.properties.level === 'number' && Number.isFinite(c.properties.level) ? Math.min(100, Math.max(0, c.properties.level)) : 0);
-  const bottomOf = (c: ComponentInstance) => c.position.y - TANK.height / 2;
+  const bottomOf = (c: ComponentInstance) => c.position.y + vesselOf(c.type)!.bottom;
 
   function rebuild() {
-    const fedPorts = new Set(feeds.filter((f) => components().get(f.at.instanceId)?.type !== 'tank').map((f) => key(f.at)));
+    const fedPorts = new Set(feeds.filter((f) => { const c = components().get(f.at.instanceId); return c && !isVessel(c); }).map((f) => key(f.at)));
     network = new HydraulicNetwork(scene, pumps, fedPorts);
   }
 
@@ -359,17 +361,19 @@ export function createHydraulicSimulation(initial: ScadaScene, options: Simulati
   /** Tank terminal head: its liquid surface; a port above the surface is "dry" (inflow only). */
   const surface = (componentId: string) => {
     const c = components().get(componentId)!;
-    return bottomOf(c) + (volumes.get(componentId) ?? 0) / TANK_AREA;
+    return bottomOf(c) + vessel(componentId).heightAt(volumes.get(componentId) ?? 0);
   };
-  const tankDry = (t: Terminal) => t.kind === 'tank' && surface(t.component) <= t.elevation + 1e-12;
-  const fixedHead = (t: Terminal) => (t.kind === 'tank' ? Math.max(surface(t.component), t.elevation) : t.elevation);
+  /** Where a vessel port meets the liquid: its height inside the vessel (a cone outlet drains at the tip). */
+  const portLevel = (t: Terminal) => bottomOf(components().get(t.component)!) + vessel(t.component).portHeight(t.port!);
+  const tankDry = (t: Terminal) => t.kind === 'tank' && surface(t.component) <= portLevel(t) + 1e-12;
+  const fixedHead = (t: Terminal) => (t.kind === 'tank' ? Math.max(surface(t.component), portLevel(t)) : t.elevation);
 
   /** Solves the junction heads (Gauss–Seidel bisection) and returns the flow of every link. */
   function solve(): { linkFlows: number[]; blockedFeeds: Set<string> } {
     const injection = new Map<string, number>();
     for (const f of feeds) {
       const c = components().get(f.at.instanceId)!;
-      if (c.type !== 'tank') injection.set(`node:${key(f.at)}`, (injection.get(`node:${key(f.at)}`) ?? 0) + f.rate);
+      if (!isVessel(c)) injection.set(`node:${key(f.at)}`, (injection.get(`node:${key(f.at)}`) ?? 0) + f.rate);
     }
     const nodes = [...network.terminals.values()].filter((t) => t.kind === 'node');
     const incident = new Map(nodes.map((n) => [n.id, network.links.filter((l) => l.a === n || l.b === n)]));
@@ -419,22 +423,24 @@ export function createHydraulicSimulation(initial: ScadaScene, options: Simulati
           if (t.kind === 'free' && sign * q > 0) spill += sign * q;
         }
       });
-      for (const f of feeds) if (components().get(f.at.instanceId)?.type === 'tank') into.set(f.at.instanceId, (into.get(f.at.instanceId) ?? 0) + f.rate);
-      const injected = feeds.filter((f) => components().get(f.at.instanceId)?.type !== 'tank' && !blockedFeeds.has(`node:${key(f.at)}`)).reduce((a, f) => a + f.rate, 0);
-      const tankFed = feeds.filter((f) => components().get(f.at.instanceId)?.type === 'tank').reduce((a, f) => a + f.rate, 0);
+      for (const f of feeds) if (isVessel(components().get(f.at.instanceId)!)) into.set(f.at.instanceId, (into.get(f.at.instanceId) ?? 0) + f.rate);
+      const injected = feeds.filter((f) => !isVessel(components().get(f.at.instanceId)!) && !blockedFeeds.has(`node:${key(f.at)}`)).reduce((a, f) => a + f.rate, 0);
+      const tankFed = feeds.filter((f) => isVessel(components().get(f.at.instanceId)!)).reduce((a, f) => a + f.rate, 0);
       // Shorten the step so no tank drops below its lowest connected port within it.
       let step = remaining;
       for (const [id, q] of into) {
         if (q >= 0) continue;
-        const lowest = Math.min(...network.links.flatMap((l) => [l.a, l.b]).filter((t) => t.kind === 'tank' && t.component === id).map((t) => t.elevation));
-        const above = Math.max(0, surface(id) - lowest) * TANK_AREA;
+        const lowest = Math.min(...network.links.flatMap((l) => [l.a, l.b]).filter((t) => t.kind === 'tank' && t.component === id).map(portLevel));
+        const bottom = bottomOf(components().get(id)!);
+        const above = Math.max(0, (volumes.get(id) ?? 0) - vessel(id).volumeAt(lowest - bottom));
         step = Math.min(step, Math.max(above / -q, 1e-6));
       }
       for (const [id, q] of into) {
         let v = (volumes.get(id) ?? 0) + q * step;
-        if (v > TANK_VOLUME) {
-          spilled += v - TANK_VOLUME;
-          v = TANK_VOLUME;
+        const max = vessel(id).maxVolume;
+        if (v > max) {
+          spilled += v - max;
+          v = max;
           stepNotes.push({ kind: 'overflow', instanceId: id });
         }
         volumes.set(id, Math.max(0, v));
@@ -456,7 +462,7 @@ export function createHydraulicSimulation(initial: ScadaScene, options: Simulati
     const unique = new Map([...assumed, ...notes].map((n) => [JSON.stringify(n), n]));
     return {
       time,
-      levels: Object.fromEntries([...volumes].map(([id, v]) => [id, Math.min(100, Math.max(0, (100 * v) / TANK_VOLUME))])),
+      levels: Object.fromEntries([...volumes].map(([id, v]) => [id, Math.min(100, Math.max(0, vessel(id).percentAt(v)))])),
       flows: scene.connections.map((c) => ({ connectionId: c.id, rate: flows.get(c.id) ?? 0, quality: 'GOOD', source: 'SIMULATED', sourceTimestamp: timestamp })),
       totals: { fed, spilled, stored: [...volumes.values()].reduce((a, b) => a + b, 0) },
       notes: [...unique.values()],
@@ -466,7 +472,7 @@ export function createHydraulicSimulation(initial: ScadaScene, options: Simulati
 
   function load(next: ScadaScene, keep: boolean) {
     scene = next;
-    volumes = new Map(tanks().map((c) => [c.id, keep && volumes.has(c.id) ? volumes.get(c.id)! : (authored(c) / 100) * TANK_VOLUME]));
+    volumes = new Map(tanks().map((c) => [c.id, keep && volumes.has(c.id) ? volumes.get(c.id)! : vesselOf(c.type)!.volumeAtPercent(authored(c))]));
     heads = new Map();
   }
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ScadaScene } from '@scada3d/core';
 import { createSimulation, type SimulationState } from '@scada3d/simulation';
+import { componentCatalog } from '@scada3d/components';
 
 const speeds = [1, 10, 60] as const;
 const models = ['mass-balance', 'hydraulic'] as const;
@@ -19,7 +20,8 @@ export function useSimulation(scene: ScadaScene, enabled: boolean, initialModel:
   const [running, setRunning] = useState(true);
   const [speed, setSpeed] = useState<(typeof speeds)[number]>(10);
   const [feed, setFeed] = useState(0);
-  const tank = scene.components.find((c) => c.type === 'tank');
+  // The first vessel (any tank shape) with a level gets the feed at its inlet.
+  const tank = scene.components.find((c) => componentCatalog[c.type].bindable?.level !== undefined);
   const inletFree = tank && !scene.connections.some((c) => [c.from, c.to].some((e) => e.instanceId === tank.id && e.portId === 'inlet'));
   const last = useRef(performance.now());
 

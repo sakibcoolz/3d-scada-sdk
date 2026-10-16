@@ -1,4 +1,4 @@
-import { assemblyOf, type ComponentKind, type OpenJoint, type ScadaScene } from '@scada3d/core';
+import { assemblyOf, type ComponentKind, type OpenJoint, type ScadaScene, type SceneConnection } from '@scada3d/core';
 import { componentCatalog } from '@scada3d/components';
 
 /** Display names in scene order: "Ball Valve 1", "Ball Valve 2", … */
@@ -75,4 +75,11 @@ export function describeSeat(scene: ScadaScene, connectionId: string, instanceId
   const c = scene.connections.find((x) => x.id === connectionId)!;
   const [own, partner] = c.from.instanceId === instanceId ? [c.from, c.to] : [c.to, c.from];
   return `Seated ${names.get(own.instanceId)} "${own.portId}" on ${names.get(partner.instanceId)} "${partner.portId}" (moved ${formatDistance(moved)}).`;
+}
+
+/** What Shift+click attach did: the moved part's port, the fixed part's port, and how far it moved. */
+export function describeAttach(scene: ScadaScene, connection: SceneConnection, moved: number): string {
+  const names = componentNames(scene);
+  const { from, to } = connection;
+  return `Attached ${names.get(from.instanceId)} "${from.portId}" to ${names.get(to.instanceId)} "${to.portId}" (moved ${formatDistance(moved)}).`;
 }

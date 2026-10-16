@@ -187,3 +187,27 @@ describe('planDrop with pipe sizes', () => {
     expect(plan.component.properties).toEqual({});
   });
 });
+
+describe('planDrop next to a raised port (snap in plan view)', () => {
+  // A tank on a 0.8 m stand: its outlet is 1.435 m up, far above a part dropped on the ground.
+  const raised = (): ScadaScene => ({
+    schemaVersion: 3,
+    units: 'm',
+    components: [{ id: 't', type: 'tank', position: { x: 0, y: 2.335, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { standHeight: 0.8 } }],
+    connections: [],
+  });
+
+  it('lifts a part dropped on the ground below the outlet and snaps it on', () => {
+    const plan = planDrop(raised(), 'valve', [1.85, 0, 0.1], { createId: () => 'v' });
+    expect(plan.snap.ok).toBe(true);
+    if (plan.snap.ok) expect(plan.snap.connection.to).toEqual({ instanceId: 't', portId: 'outlet' });
+    expect(plan.component.position.y).toBeCloseTo(1.435, 9);
+    expect(applyDrop(raised(), plan, () => 'c').ok).toBe(true);
+  });
+
+  it('does not reach a port that is far away in plan', () => {
+    const plan = planDrop(raised(), 'valve', [4, 0, 0], { createId: () => 'v' });
+    expect(plan.snap.ok).toBe(false);
+    expect(plan.component.position.y).toBeCloseTo(0.2, 9);
+  });
+});

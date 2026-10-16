@@ -1,13 +1,14 @@
 import type { ComponentInstance, ScadaScene } from '@scada3d/core';
 import { definitionFor } from '@scada3d/components';
-import { TANK, type Endpoint, type Feed, type Simulation, type SimulationNote, type SimulationOptions, type SimulationState } from './shared.js';
+import { type Endpoint, type Feed, type Simulation, type SimulationNote, type SimulationOptions, type SimulationState } from './shared.js';
 import { createHydraulicSimulation } from './hydraulic.js';
+import { vesselOf, type Vessel } from './vessels.js';
 
 /** Model constants (ADR-0010). Results are always SIMULATED: a teaching model, not plant data. */
 export const MODEL = { name: 'mass-balance', version: 1, gravity: 9.81, dischargeCoefficient: 0.62, step: 0.1 } as const;
 
-const TANK_AREA = Math.PI * TANK.radius ** 2;
-const TANK_VOLUME = TANK_AREA * TANK.height;
+/** Liquid-holding components (tanks of any shape) receive flow and drain by gravity. */
+const isVessel = (c: ComponentInstance) => vesselOf(c.type) !== undefined;
 
 const key = (e: Endpoint) => `${e.instanceId}\u0000${e.portId}`;
 
@@ -50,7 +51,7 @@ class Network {
   /** Ports liquid may leave by after entering `id` through `entry` (passive flow; pumps block). */
   private exits(id: string, entry: string): string[] {
     const c = this.components.get(id)!;
-    if (c.type === 'tank' || c.type === 'pump') return [];
+    if (isVessel(c) || c.type === 'pump') return [];
     if (c.type === 'valve' && c.properties.open === false) return [];
     return this.ports(id).filter((p) => p !== entry);
   }
@@ -59,7 +60,7 @@ class Network {
   private open(id: string, entry: string, path: ReadonlySet<string>): boolean {
     if (path.has(id)) return false;
     const c = this.components.get(id)!;
-    if (c.type === 'tank') return true;
+    if (isVessel(c)) return true;
     const next = new Set(path).add(id);
     return this.exits(id, entry).some((port) => {
       const link = this.link({ instanceId: id, portId: port });
@@ -71,7 +72,7 @@ class Network {
   enter(id: string, entry: string, path: ReadonlySet<string> = new Set()): Plan | undefined {
     if (path.has(id)) return undefined;
     const c = this.components.get(id)!;
-    if (c.type === 'tank') {
+    if (isVessel(c)) {
       const plan = emptyPlan();
       plan.tanks.set(id, 1);
       return plan;
@@ -109,7 +110,7 @@ class Network {
     if (path.has(instanceId)) return undefined;
     const c = this.components.get(instanceId)!;
     const found = (() => {
-      if (c.type === 'tank') return { tank: link.other, connections: new Map<string, number>() };
+      if (isVessel(c)) return { tank: link.other, connections: new Map<string, number>() };
       const next = new Set(path).add(instanceId);
       for (const port of this.exits(instanceId, portId)) {
         const up = this.supply({ instanceId, portId: port }, next);
@@ -151,7 +152,8 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
   let notes: SimulationNote[] = [];
 
   const authored = (c: ComponentInstance) => (typeof c.properties.level === 'number' && Number.isFinite(c.properties.level) ? Math.min(100, Math.max(0, c.properties.level)) : 0);
-  const tanks = () => scene.components.filter((c) => c.type === 'tank');
+  const tanks = () => scene.components.filter(isVessel);
+  const vessel = (id: string): Vessel => vesselOf(network.components.get(id)!.type)!;
   const staticNotes = (): SimulationNote[] => tanks().filter((c) => typeof c.properties.level !== 'number').map((c) => ({ kind: 'assumed-empty', instanceId: c.id }));
 
   function configure(next: Pick<SimulationOptions, 'feeds' | 'pumps'>, strict: boolean) {
@@ -176,9 +178,10 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
     const contributions: { from?: string; rate: number; plan: Plan }[] = [];
     // Gravity: each connected tank port below the surface drains through an open path.
     for (const [id, volume] of volumes) {
-      const level = volume / TANK_AREA;
+      const v = vessel(id);
+      const level = v.heightAt(volume);
       for (const portId of network.ports(id)) {
-        const head = level - (TANK.ports[portId] ?? 0);
+        const head = level - v.portHeight(portId);
         if (head <= 0 || !network.link({ instanceId: id, portId })) continue;
         const plan = network.leave({ instanceId: id, portId }, new Set([id]));
         if (!plan) continue;
@@ -190,7 +193,7 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
     for (const [id, { rate }] of Object.entries(pumps)) {
       if (rate <= 0) continue;
       const up = network.supply({ instanceId: id, portId: 'suction' });
-      const head = up ? (volumes.get(up.tank.instanceId) ?? 0) / TANK_AREA - (TANK.ports[up.tank.portId] ?? 0) : 0;
+      const head = up ? vessel(up.tank.instanceId).heightAt(volumes.get(up.tank.instanceId) ?? 0) - vessel(up.tank.instanceId).portHeight(up.tank.portId) : 0;
       if (!up || head <= 0) { stepNotes.push({ kind: 'dry', instanceId: id }); continue; }
       const down = network.leave({ instanceId: id, portId: 'discharge' }, new Set([id]));
       if (!down) { stepNotes.push({ kind: 'blocked', instanceId: id }); continue; }
@@ -201,7 +204,7 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
     for (const f of feeds) {
       if (f.rate <= 0) continue;
       const c = network.components.get(f.at.instanceId)!;
-      const plan = c.type === 'tank' ? { ...emptyPlan(), tanks: new Map([[c.id, 1]]) } : network.enter(c.id, f.at.portId);
+      const plan = isVessel(c) ? { ...emptyPlan(), tanks: new Map([[c.id, 1]]) } : network.enter(c.id, f.at.portId);
       if (!plan) { stepNotes.push({ kind: 'blocked', instanceId: f.at.instanceId, portId: f.at.portId }); continue; }
       contributions.push({ rate: f.rate, plan });
     }
@@ -210,8 +213,9 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
     for (const c of contributions) if (c.from) addInto(outflow, c.from, c.rate * h);
     const scale = new Map<string, number>();
     for (const [id, out] of outflow) {
-      const lowest = Math.min(...network.ports(id).map((p) => TANK.ports[p] ?? 0));
-      const available = Math.max(0, (volumes.get(id) ?? 0) - lowest * TANK_AREA);
+      const v = vessel(id);
+      const lowest = Math.min(...network.ports(id).map((p) => v.portHeight(p)));
+      const available = Math.max(0, (volumes.get(id) ?? 0) - v.volumeAt(lowest));
       scale.set(id, out > available ? available / out : 1);
     }
     const nextFlows = new Map<string, number>();
@@ -225,10 +229,11 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
       spilled += rate * c.plan.spill * h;
     }
     for (const [id, d] of delta) {
+      const max = vessel(id).maxVolume;
       let v = (volumes.get(id) ?? 0) + d;
-      if (v > TANK_VOLUME) {
-        spilled += v - TANK_VOLUME;
-        v = TANK_VOLUME;
+      if (v > max) {
+        spilled += v - max;
+        v = max;
         stepNotes.push({ kind: 'overflow', instanceId: id });
       }
       volumes.set(id, Math.max(0, v));
@@ -243,7 +248,8 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
     const unique = new Map([...staticNotes(), ...notes].map((n) => [JSON.stringify(n), n]));
     return {
       time,
-      levels: Object.fromEntries([...volumes].map(([id, v]) => [id, Math.min(100, Math.max(0, (100 * v) / TANK_VOLUME))])),
+      // Level is the liquid height as a percent of the vessel's height, as drawn.
+      levels: Object.fromEntries([...volumes].map(([id, v]) => [id, Math.min(100, Math.max(0, vessel(id).percentAt(v)))])),
       flows: network.scene.connections.map((c) => ({ connectionId: c.id, rate: flows.get(c.id) ?? 0, quality: 'GOOD', source: 'SIMULATED', sourceTimestamp: timestamp })),
       totals: { fed, spilled, stored: [...volumes.values()].reduce((a, b) => a + b, 0) },
       notes: [...unique.values()],
@@ -254,7 +260,7 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
   function load(next: ScadaScene, keep: boolean) {
     scene = next;
     network = new Network(next);
-    volumes = new Map(tanks().map((c) => [c.id, keep && volumes.has(c.id) ? volumes.get(c.id)! : (authored(c) / 100) * TANK_VOLUME]));
+    volumes = new Map(tanks().map((c) => [c.id, keep && volumes.has(c.id) ? volumes.get(c.id)! : vesselOf(c.type)!.volumeAtPercent(authored(c))]));
   }
 
   load(scene, false);

@@ -158,7 +158,8 @@ describe('componentCatalog definitions', () => {
   });
 
   it('gives the tank a liquid part inside its shell', () => {
-    const liquid = componentCatalog.tank.parts.filter((p): p is Extract<GeometryPart, { shape: 'cylinder' }> => p.role === 'liquid');
+    // The main liquid column; the sight gauge has its own thin one.
+    const liquid = componentCatalog.tank.parts.filter((p): p is Extract<GeometryPart, { shape: 'cylinder' }> => p.role === 'liquid' && p.shape === 'cylinder' && p.radius > 0.5);
     expect(liquid).toHaveLength(1);
     const { bounds } = componentCatalog.tank;
     expect(liquid[0].axis).toBe('y');

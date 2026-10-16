@@ -873,3 +873,92 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - GitHub Actions CI not awaited (owner direction).
 - Not included: extrusion into parts (T-047), text, gradients and patterns, and exact group opacity (group opacity is multiplied into each shape).
 - Status: T-019 part a REVIEW until merged.
+
+## 2026-10-16 — T-048 conical tank component (ADR-0013)
+- Branch: `feat/T-048-conical-tank` (from `develop` @ `5a2211c`, after #50).
+- Owner request: "create 3d component for sdk", with a reference image of a conical-bottom tank (cylindrical body, cone bottom with outlet, side sight glass, name plate). Defaults were stated in the session before building: dimensions, legs, port placement, blank plate, and simulation support.
+- Graphify: index NOT built. Fallback: read the catalog, geometry, viewer and simulation code directly.
+- Scope:
+  - **Core:** `conicalTank` in `componentKinds`.
+  - **Components:** `conicalTankDefinition`:
+    - body: open cylinder, cap, inlet nozzle, open cone, tip nozzle, bend, horizontal outlet stub, three legs;
+    - gauge glass (role `gauge`) and gauge liquid on the front right; plate (role `plate`) on the front;
+    - liquid as a `lathe` part 4 cm inside the walls.
+  - **Geometry:** cone `openEnded`; `lathe` shape; `liquidProfile`; `PartRole` gains `gauge` and `plate`.
+  - **React:**
+    - `LatheLiquid`, rebuilt per 0.1 % of level; glass gauge and matte plate materials;
+    - lathe vessels are kept out of instancing;
+    - tank-only editor logic (default level, the Settings level/temperature fields, simulated level override) is generalised to any kind with a `level` binding.
+  - **Simulation:** `vessels.ts` `vesselOf` (shapes from the catalog's open cylinder/cone shell parts; cone frustum volumes, height by bisection, port heights clamped to the liquid range, an exact path for plain cylinders); both models use it.
+  - **Playground:** the feed goes into the first vessel with a level.
+- Tests:
+  - Written first and run red: 8 catalog/profile tests and 7 simulation tests.
+    - Catalog: ports, legs, parts, `liquidProfile`.
+    - Simulation: vessel shapes, a complete drain where the flat tank stops at 20 %, faster fall near the tip, conservation, hydraulic drain.
+  - The generic catalog, geometry and tee tests passed for the new kind without changes. The only existing test change was the components API snapshot (`liquidProfile`).
+  - Two existing lifecycle tests first failed on 1-ulp level differences from bisection; fixed by keeping the exact percent ↔ volume path for single cylinders, with flat-tank results identical.
+  - `e2e/conical-tank.spec.ts` (3 tests), written after the code: palette and legs on the ground, liquid and gauge following the level, a valve snapping to the outlet, simulated drain to empty.
+- Visual check: renders in normal and glass views. The first version put the gauge on the back (−X), out of the default camera's view; it was moved to the front right to match the reference.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1041 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (104 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0.
+  - GitHub Actions CI not awaited (owner direction).
+- Not included: text on the name plate (needs a bundled, licence-checked font); size choices for the conical tank's nozzles.
+- Status: T-048 REVIEW until merged.
+- Follow-up in the same task (owner sent a cylindrical-tank image): both tanks now carry the shared front `levelGauge`:
+  - a glass tube with a liquid column following the level;
+  - 11 ticks (new part role `scale`) every 10 %, longer at 0/50/100 %;
+  - a blank name plate across the gauge.
+
+  The Vertical Tank was upgraded rather than a near-duplicate kind added. Its ports, main liquid, file format and simulation are unchanged; only its look changes.
+  - Tests: 7 gauge tests written first and run red.
+  - Updated: one catalog test (pick the main liquid by radius); four e2e expectations, because the tank now has two liquid parts (`instancing.spec.ts` liquid instance counts 1 → 2; `view-modes.spec.ts` unclipped liquids `[0]` → `[0, 0]`).
+  - The instanced-vs-classic pixel comparison still passes, with gauge, scale and plate materials added to the instanced path.
+  - Render checked with both tanks side by side.
+  - Re-verified with exit codes: `pnpm typecheck` 0; `pnpm test` 0 (1048 tests); `pnpm build` 0; `pnpm test:e2e` 0 (104 tests, after the four expectation updates); `pnpm verify:consumer` 0; `pnpm test:consumer` 0.
+- Follow-up in the same task: "all types tank should attached with stand".
+  - Owner decisions (asked): an adjustable stand defaulting to 0.8 m; older scenes kept as they are; snap in plan view.
+  - Vertical tank: `tankDefinition(standHeight)` with four legs and feet. `standHeight` is a parameter where absent = no stand; new tanks get `initial` 0.8 m; editing uses `keepsBottom`, so the feet stay on the floor. Ports are unchanged; the conical tank keeps its fixed legs.
+  - Editor drops gained snapping in plan view (`liftToRaisedPort` in `drop.ts`; core snapping unchanged).
+  - Tests:
+    - written first and run red: 5 stand tests and 2 plan-view drop tests;
+    - added after: `e2e/tank-stand.spec.ts` (2 tests: a new tank on a 0.8 m stand; a demo tank with no stand lifted by setting 1 m, then undo).
+  - Updated expectations: `canvas-drop.spec.ts` (tank body 0.8 m higher; the ground-dropped valve is now lifted onto the outlet at 1.435 m, so the test exercises plan-view snapping in the browser) and `view-modes.spec.ts` (13 shell parts and edges instead of 5).
+  - Render checked: a vertical tank on its stand with a valve snapped to the raised outlet, beside the conical tank.
+  - Re-verified with exit codes: `pnpm install --frozen-lockfile` 0; `pnpm typecheck` 0; `pnpm test` 0 (1055 tests); `pnpm build` 0; `pnpm test:e2e` 0 (106 tests); `pnpm verify:consumer` 0; `pnpm test:consumer` 0.
+
+## 2026-10-16 — T-049 Shift+click attach
+- Branch: `feat/T-048-conical-tank` (same uncommitted branch; the owner has not yet approved committing T-048, so both go in one PR).
+- Owner request: "if user press shift and select component then they should get attached port".
+- Defaults stated in the session:
+  - the Shift-clicked part moves to the selected one;
+  - it uses the closest pair of free, compatible ports;
+  - the moving part's assembly moves along;
+  - it works in the 3D view and the scene list;
+  - one undo step, refused when locked;
+  - a message describes the result.
+- Scope:
+  - **Core:** `attach.ts` `attachComponents` (picks pairs by world distance with a deterministic tie-break; `connect` validates; `seatOnConnection` seats).
+  - **React:**
+    - `SelectHandler` `(id, { additive })` from Shift on individual and instanced 3D clicks and on scene-list buttons;
+    - the editor's `select` attaches;
+    - `describeAttach` message.
+  - Docs: SCENE_AND_CONNECTIONS, API; backlog T-049.
+- Tests:
+  - Written first and run red: 6 core tests (module missing). Once the code was in, one assertion was over-specified (object identity of the unmoved part after `connect` revalidates) and now compares by value.
+  - Added with the UI: 1 message test; `e2e/attach.spec.ts` (4 tests: scene-list Shift+click with exact placement on the outlet, no open joints, selection change and one-step undo; Shift+click in the 3D view; no matching ports; locked).
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1062 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (110 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0.
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-049 REVIEW until merged (with T-048).

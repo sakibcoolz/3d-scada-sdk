@@ -52,6 +52,10 @@ export type { ComponentClipboard } from './clipboard.js';
 export { connectTouchingPorts, findTouchingPorts } from './touching.js';
 export type { ConnectTouchingResult, TouchingMatch, TouchingOptions, TouchingRejection, TouchingResult } from './touching.js';
 
+// Attaching one part to another at their closest free ports (editor Shift+click)
+export { attachComponents } from './attach.js';
+export type { AttachOptions, AttachResult } from './attach.js';
+
 // Connections whose ports do not meet, and seating a part back onto its partner
 export { findOpenJoints, seatOnConnection } from './joints.js';
 export type { JointOptions, OpenJoint, SeatResult } from './joints.js';
