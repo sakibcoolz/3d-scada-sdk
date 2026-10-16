@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { sceneJson, startDrag, waitForCanvas } from './helpers';
+import { sceneJson, startDrag, VALVE_FACE, waitForCanvas } from './helpers';
 
 const notice = (page: Page) => page.getByRole('status', { name: 'Connection message' });
 
@@ -12,7 +12,7 @@ async function tankWithValve(page: Page) {
   await page.mouse.up();
   await expect(notice(page)).toHaveCount(0);
   const tank = (await sceneJson(page)).components[0];
-  await startDrag(page, 'Ball Valve +', [tank.position.x + 1.8, 0, tank.position.z]);
+  await startDrag(page, 'Ball Valve +', [tank.position.x + 1.2 + VALVE_FACE / 2, 0, tank.position.z]);
   await page.mouse.up();
   expect((await sceneJson(page)).connections).toHaveLength(1);
   return tank;
@@ -38,7 +38,7 @@ test('locking an assembly and then connecting a loose part to it explains both',
   await expect(notice(page)).toHaveText(/Vertical Tank 1 is now the parent of 1 component; moving any of them moves the whole assembly\./);
 
   const valve = (await sceneJson(page)).components[1];
-  await startDrag(page, 'Ball Valve +', [valve.position.x + 1.2, 0, valve.position.z]);
+  await startDrag(page, 'Ball Valve +', [valve.position.x + VALVE_FACE, 0, valve.position.z]);
   await page.mouse.up();
   expect((await sceneJson(page)).connections).toHaveLength(2);
   await expect(notice(page)).toHaveText(/Ball Valve 2 "in" connected to Ball Valve 1 "out"\. Ball Valve 2 is not locked to the Vertical Tank 1 assembly yet/);

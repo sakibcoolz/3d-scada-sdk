@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { project, sceneJson, waitForCanvas } from './helpers';
+import { project, sceneJson, VALVE_FACE, waitForCanvas } from './helpers';
 
 // Shift+click attaches the clicked part to the selected one at their closest free ports.
 const notice = (page: Page) => page.getByRole('status', { name: 'Connection message' });
@@ -21,9 +21,9 @@ test('Shift+click in the scene list attaches the part to the selected one, as on
   await expect(notice(page)).toHaveText(/^Attached Ball Valve 1 "in" to Vertical Tank 1 "outlet" \(moved [\d.]+ (m|mm)\)\./);
   const scene = await sceneJson(page);
   expect(scene.connections).toEqual([{ id: expect.any(String), from: { instanceId: valve.id, portId: 'in' }, to: { instanceId: tank.id, portId: 'outlet' } }]);
-  // The valve now sits on the tank outlet: 0.6 m beyond it, at the outlet's height.
+  // The valve now sits on the tank outlet: half its face-to-face beyond it, at the outlet's height.
   const moved = scene.components[1];
-  expect(moved.position.x).toBeCloseTo(tank.position.x + 1.2 + 0.6, 9);
+  expect(moved.position.x).toBeCloseTo(tank.position.x + 1.2 + VALVE_FACE / 2, 9);
   expect(moved.position.y).toBeCloseTo(tank.position.y - 0.9, 9);
   expect(scene.components[0]).toEqual(tank);
   await expect(page.getByLabel('Open joints')).toHaveCount(0);

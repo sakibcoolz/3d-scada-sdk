@@ -1042,3 +1042,45 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-051 REVIEW until merged; T-050 DONE (#52 merged). Next: T-052 (valve face-to-face per B16.10, flanged pump and tank nozzles).
+
+## 2026-10-16 — T-052 ASME phase 3: valve face-to-face and nozzle sizes (ADR-0016)
+- Branch: `feat/T-052-valves-nozzles` from `develop` after #53. Graphify was not used; targeted search instead.
+- Backlog: T-051 DONE (#53 merged); T-052 REVIEW.
+- Changes:
+  - **Components:**
+    - `asme[size].valveFaceToFace` (B16.10 Class 150 short pattern: 178, 203, 229, 267 and 292 mm);
+    - the ball valve is rebuilt to it, with ball, stem and lever (0.9 F) inside F;
+    - `nozzleSize` on the vertical and conical tanks, and `suctionSize`/`dischargeSize` on the pump (`pumpDefinition`); defaults DN150, ports fixed;
+    - `sizeParameterFor(type, portId)`;
+    - `legacyCatalogResolvers` gains the 1.2 m valve.
+  - **Core:**
+    - `upgradeDimensions` lets each side of a joint be in either generation, and joints that already meet carry the parts after them along;
+    - `findTouchingPorts` counts a duplicate endpoint pair once.
+  - **React:**
+    - drop size matching uses `sizeParameterFor`, so pumps and tanks resize the snapping nozzle;
+    - the import message is now "Updated N parts to ASME dimensions."
+  - **Simulation:** valve flow length from geometry; `HYDRAULIC.lengths` removed.
+  - **Docs:** ADR-0016, DECISION_LOG, COMPONENT_STANDARD, SCENE_AND_CONNECTIONS, API and RELEASE (migration note).
+- Tests:
+  - Written first and run red: `valvesNozzles.test.ts` (B16.10 values, valve body fit, nozzle sizes, pump sizes, invalid choice, `sizeParameterFor`, and the catalog upgrade of a post-T-050 file with old valves); the mixed-generation upgrade in core; the pump drop resizing its suction.
+  - Added after: the scene-file import of an older file reports the upgrade.
+  - Not separately tested: the hydraulic valve length (covered by the existing hydraulic tests passing).
+- Existing tests changed, with reasons:
+  - sizes: valves now scale with size, like the ASME fittings;
+  - drop: valve positions use F/2, and it rests at the ball radius (0.12 m). The two occupied-port cases drop on a plane 8 cm up to keep the old 0.2 m centre within reach. The "tank cannot change size" case became "pump gets a DN100 suction";
+  - geometry: the lever was shortened to 0.9 F so its end face is not on the port plane;
+  - jointLayer and sceneFile: the valve is at F/2;
+  - e2e: a `VALVE_FACE` helper replaces the 1.8 m and 1.2 m drop offsets (assembly, attach, canvas-drop, copy-paste, connection-notice, import-export, undo-redo, sizes);
+  - open-joints: the upgrade now also closes up valve A, so the broken joints open further (2.08 m, 1.61 m, 1.32 m);
+  - asme-upgrade: the new message text.
+- Browser check: a screenshot shows compact valves between flange pairs, the lever along the pipe when open and across it when closed.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1112 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (113 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-052 REVIEW until merged. This completes the three ASME phases; next candidates are T-047 (SVG extrusion), T-020 (glTF) and T-028.

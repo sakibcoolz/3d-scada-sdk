@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { sceneJson, startDrag, waitForCanvas } from './helpers';
+import { sceneJson, startDrag, waitForCanvas, VALVE_FACE } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -35,7 +35,7 @@ test('a snapped drop undoes and redoes as one step with its connection', async (
   await startDrag(page, 'Vertical Tank +', [0, 0, 0]);
   await page.mouse.up();
   const { x, z } = (await sceneJson(page)).components[0].position;
-  await startDrag(page, 'Ball Valve +', [x + 1.8, 0, z]);
+  await startDrag(page, 'Ball Valve +', [x + 1.2 + VALVE_FACE / 2, 0, z]);
   await page.mouse.up();
   let scene = await sceneJson(page);
   expect(scene.components).toHaveLength(2);
@@ -56,7 +56,7 @@ test('removing a connected component undoes back to the exact earlier scene', as
   await startDrag(page, 'Vertical Tank +', [0, 0, 0]);
   await page.mouse.up();
   const { x, z } = (await sceneJson(page)).components[0].position;
-  await startDrag(page, 'Ball Valve +', [x + 1.8, 0, z]);
+  await startDrag(page, 'Ball Valve +', [x + 1.2 + VALVE_FACE / 2, 0, z]);
   await page.mouse.up();
   const before = await page.getByLabel('Scene JSON').inputValue();
 

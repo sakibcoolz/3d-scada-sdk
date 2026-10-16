@@ -13,7 +13,7 @@ import {
   type Vector3Like,
   type Vector3Tuple,
 } from '@scada3d/core';
-import { catalogResolvers, componentCatalog, definitionFor, sizeOfPort, type IndustrialComponentDefinition } from '@scada3d/components';
+import { catalogResolvers, componentCatalog, definitionFor, sizeOfPort, sizeParameterFor, type IndustrialComponentDefinition } from '@scada3d/components';
 
 
 export interface ScreenRect {
@@ -116,10 +116,9 @@ function matchTargetSize(scene: ScadaScene, placed: ComponentInstance, snap: Sna
   const target = scene.components.find((c) => c.id === nearest.target.instanceId);
   const port = target && catalogResolvers.resolvePorts(target.type, target.properties)?.find((p) => p.id === nearest.target.portId);
   const size = port && sizeOfPort(port);
-  const parameters = componentCatalog[placed.type].parameters ?? {};
-  // The reducer's outlet has its own size; every other sized part has one size for all ports.
-  const name = placed.type === 'reducer' && nearest.movingPortId === 'out' ? 'outletSize' : 'size';
-  if (!size || !parameters[name]) return undefined;
+  // Only the parameter sizing the moving port changes (the reducer outlet and pump nozzles have their own).
+  const name = sizeParameterFor(placed.type, nearest.movingPortId);
+  if (!size || !name) return undefined;
   const properties = { ...placed.properties, [name]: size };
   if (catalogResolvers.validateProperties(placed.type, properties).length > 0) return undefined;
   return { ...placed, properties };

@@ -17,8 +17,6 @@ export const HYDRAULIC = {
   step: 0.5,
   /** Minor-loss coefficients, h = K·v²/2g. */
   K: { valve: 0.05, elbow: 0.3, bend: 0.3, teeRun: 0.1, teeBranch: 1.0, reducer: 0.5, tankExit: 0.5, tankEntry: 1.0, freeExit: 1.0 },
-  /** Flow length of the valve body, m. Elbows and tees use their ASME geometry (ADR-0014). */
-  lengths: { valve: 1.2 },
 } as const;
 
 import { vesselOf } from './vessels.js';
@@ -206,8 +204,11 @@ class HydraulicNetwork {
         const bend = definitionFor(c.type, c.properties).parts.find((p) => p.shape === 'bend');
         return [{ length: bend && bend.shape === 'bend' ? (Math.PI / 2) * bend.bendRadius : 0, diameter: d(entry), k: HYDRAULIC.K.elbow }];
       }
-      case 'valve':
-        return [{ length: HYDRAULIC.lengths.valve, diameter: d(entry), k: HYDRAULIC.K.valve }];
+      case 'valve': {
+        // B16.10 face-to-face (ADR-0016).
+        const [p0, p1] = definitionFor(c.type, c.properties).ports;
+        return [{ length: Math.hypot(p1.position[0] - p0.position[0], p1.position[1] - p0.position[1], p1.position[2] - p0.position[2]), diameter: d(entry), k: HYDRAULIC.K.valve }];
+      }
       case 'reducer': {
         const [din, dout] = [d(entry), d(exit)];
         const small = Math.min(din, dout), large = Math.max(din, dout);

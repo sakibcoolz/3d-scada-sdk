@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { sceneJson, startDrag, waitForCanvas } from './helpers';
+import { sceneJson, startDrag, VALVE_FACE, waitForCanvas } from './helpers';
 
 type C = { id: string; type: string; parentId?: string; position: { x: number; y: number; z: number }; properties: Record<string, unknown> };
 const components = async (page: Page) => (await sceneJson(page)).components as C[];
@@ -19,7 +19,7 @@ test('copy and paste a single component beside the original, undoably', async ({
   expect(copy.id).not.toBe(original.id);
   expect(copy.type).toBe('valve');
   expect(copy.properties).toEqual(original.properties);
-  expect(copy.position.x).toBeCloseTo(original.position.x + 1.7, 9); // width 1.2 m + 0.5 m gap
+  expect(copy.position.x).toBeCloseTo(original.position.x + VALVE_FACE + 0.5, 9); // width F + 0.5 m gap
   await expect(page.getByRole('button', { name: /^Ball Valve 2/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByLabel('Collisions')).toHaveCount(0);
 
@@ -34,7 +34,7 @@ test('copy and paste a single component beside the original, undoably', async ({
   await page.keyboard.press('Control+v');
   await page.keyboard.press('Control+v');
   all = await components(page);
-  expect(all.map((c) => Math.round((c.position.x - original.position.x) * 10) / 10)).toEqual([0, 1.7, 3.4]);
+  all.map((c) => c.position.x - original.position.x).forEach((dx, i) => expect(dx).toBeCloseTo(i * (VALVE_FACE + 0.5), 9));
 });
 
 test('copy and paste a whole assembly with its connections and parent links', async ({ page }) => {
@@ -43,7 +43,7 @@ test('copy and paste a whole assembly with its connections and parent links', as
   await startDrag(page, 'Vertical Tank +', [0, 0, 0]);
   await page.mouse.up();
   const t = (await components(page))[0];
-  await startDrag(page, 'Ball Valve +', [t.position.x + 1.8, 0, t.position.z]);
+  await startDrag(page, 'Ball Valve +', [t.position.x + 1.2 + VALVE_FACE / 2, 0, t.position.z]);
   await page.mouse.up();
   await page.getByRole('button', { name: /^Vertical Tank 1/ }).click();
   await page.getByRole('button', { name: 'Lock connected as children' }).click();

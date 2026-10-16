@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { serializeScene, type ScadaScene, type SceneValidationError } from '@scada3d/core';
+import { asme } from '@scada3d/components';
 import { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile.js';
 
 const linked: ScadaScene = {
@@ -7,7 +8,7 @@ const linked: ScadaScene = {
   units: 'm',
   components: [
     { id: 'tank', type: 'tank', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { level: 60 } },
-    { id: 'valve', type: 'valve', position: { x: 1.8, y: 0.635, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { open: true } },
+    { id: 'valve', type: 'valve', position: { x: 1.2 + asme.DN150.valveFaceToFace / 2, y: 0.635, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { open: true } },
   ],
   connections: [{ id: 'e1', from: { instanceId: 'valve', portId: 'in' }, to: { instanceId: 'tank', portId: 'outlet' } }],
 };
@@ -15,6 +16,16 @@ const linked: ScadaScene = {
 describe('importSceneText', () => {
   it('loads a canonical version 3 file against the catalog ports', () => {
     expect(importSceneText(serializeScene(linked))).toEqual({ ok: true, scene: linked, message: 'Loaded 2 components and 1 connection.' });
+  });
+
+  it('closes up an older file written with the 1.2 m valve and says so', () => {
+    const older = { ...linked, components: linked.components.map((c) => (c.id === 'valve' ? { ...c, position: { ...c.position, x: 1.8 } } : c)) };
+    const result = importSceneText(serializeScene(older));
+    expect(result).toEqual(expect.objectContaining({ ok: true, message: 'Loaded 2 components and 1 connection. Updated 1 part to ASME dimensions.' }));
+    if (!result.ok) return;
+    const valve = result.scene.components.find((c) => c.id === 'valve')!;
+    expect(valve.position.x).toBeCloseTo(1.2 + asme.DN150.valveFaceToFace / 2, 9);
+    expect(valve.position.y).toBeCloseTo(0.635, 9);
   });
 
   it('migrates a version 1 file and says so', () => {

@@ -49,6 +49,7 @@ Licences of everything installed in the consumer app (2026-10-15):
   ```
 
   Otherwise joints next to those fittings show as open joints or filler runs. `examples/consumer-vite` does this; the consumer check caught the case.
+- **ASME valves and nozzles (T-052, ADR-0016):** the ball valve is now its B16.10 face-to-face (DN150: 267 mm instead of 1.2 m), so its ports moved. The same `upgradeDimensions` call closes up older files, including those saved after T-050. Tanks take `nozzleSize` and the pump `suctionSize`/`dischargeSize` (absent = DN150, nothing changes). `HYDRAULIC.lengths` was removed; valve flow length comes from geometry. The editor's import message now reads "Updated N parts to ASME dimensions."
 
 ## Not done here
 - Publishing to npm or a private registry needs a separate owner decision.

@@ -58,6 +58,8 @@ export function findTouchingPorts(scene: ScadaScene, options: TouchingOptions): 
   }
 
   const pairs: { a: Entry; b: Entry }[] = [];
+  // A resolver may list one port in more than one place (`upgradeDimensions`); a pair is still one pair.
+  const seen = new Set<string>();
   for (const a of entries) {
     const [cx, cy, cz] = a.world.position.map(cell);
     for (let dx = -1; dx <= 1; dx++)
@@ -67,7 +69,11 @@ export function findTouchingPorts(scene: ScadaScene, options: TouchingOptions): 
             if (b.endpoint.instanceId === a.endpoint.instanceId || key(b.endpoint) <= key(a.endpoint)) continue;
             const d = Math.hypot(...a.world.position.map((n, i) => n - b.world.position[i]));
             const opposition = -a.world.direction.reduce((s, n, i) => s + n * b.world.direction[i], 0);
-            if (d <= tolerance && opposition >= minOpposition) pairs.push({ a, b });
+            if (d > tolerance || opposition < minOpposition) continue;
+            const pair = `${key(a.endpoint)}|${key(b.endpoint)}`;
+            if (seen.has(pair)) continue;
+            seen.add(pair);
+            pairs.push({ a, b });
           }
   }
 

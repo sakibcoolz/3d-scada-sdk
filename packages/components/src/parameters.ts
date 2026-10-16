@@ -1,5 +1,5 @@
 import type { ComponentInstance, ComponentKind, Quantity } from '@scada3d/core';
-import { componentCatalog, couplerDefinition, elbowDefinition, pipeDefinition, reducerDefinition, tankDefinition, teeDefinition, valveDefinition } from './catalog.js';
+import { componentCatalog, conicalTankDefinition, couplerDefinition, pumpDefinition, elbowDefinition, pipeDefinition, reducerDefinition, tankDefinition, teeDefinition, valveDefinition } from './catalog.js';
 import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
 import { pipeSizes, type PipeSize } from './sizes.js';
 import { asme } from './asme.js';
@@ -25,6 +25,22 @@ export function validateProperties(type: ComponentKind, properties: Properties):
   return problems;
 }
 
+const portSizeParameters: Partial<Record<ComponentKind, Readonly<Record<string, string>>>> = {
+  reducer: { in: 'size', out: 'outletSize' },
+  pump: { suction: 'suctionSize', discharge: 'dischargeSize' },
+};
+
+/**
+ * The choice parameter that sets one port's size: `outletSize` on the reducer outlet,
+ * `suctionSize`/`dischargeSize` on the pump, `nozzleSize` on vessels, otherwise `size` where the
+ * kind has one (ADR-0009, ADR-0016).
+ */
+export function sizeParameterFor(type: ComponentKind, portId: string): string | undefined {
+  const parameters = componentCatalog[type].parameters ?? {};
+  const name = portSizeParameters[type]?.[portId] ?? (parameters.nozzleSize ? 'nozzleSize' : 'size');
+  return parameters[name] ? name : undefined;
+}
+
 /** Every parameter's value, falling back to its default. */
 function effective(type: ComponentKind, properties: Properties): Record<string, string | number> {
   const parameters = componentCatalog[type].parameters ?? {};
@@ -33,7 +49,9 @@ function effective(type: ComponentKind, properties: Properties): Record<string, 
 
 type Values = Record<string, string | number>;
 const builders: Partial<Record<ComponentKind, (v: Values) => IndustrialComponentDefinition>> = {
-  tank: (v) => tankDefinition(v.standHeight as number),
+  tank: (v) => tankDefinition(v.standHeight as number, v.nozzleSize as PipeSize),
+  conicalTank: (v) => conicalTankDefinition(v.nozzleSize as PipeSize),
+  pump: (v) => pumpDefinition(v.suctionSize as PipeSize, v.dischargeSize as PipeSize),
   pipe: (v) => pipeDefinition(v.length as number, v.size as PipeSize),
   elbow: (v) => elbowDefinition(v.size as PipeSize),
   tee: (v) => teeDefinition(v.size as PipeSize),

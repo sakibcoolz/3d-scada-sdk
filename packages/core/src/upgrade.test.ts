@@ -50,3 +50,22 @@ describe('upgradeDimensions', () => {
     expect(r.scene.components[2].position.x).toBe(6);
   });
 });
+
+describe('upgradeDimensions with mixed generations', () => {
+  // "valve" also shrank (±1 legacy, ±0.2 now). The file has a current fitting but a legacy valve.
+  const nowV = { ...now, valve: [fluid('a', -0.2, -1), fluid('b', 0.2, 1)] };
+  const legacyV = { ...legacy, valve: [fluid('a', -1, -1), fluid('b', 1, 1)] };
+  const opts = { resolvePorts: (t: string) => nowV[t as keyof typeof nowV], resolveLegacyPorts: (t: string) => legacyV[t as keyof typeof legacyV] };
+
+  it('re-seats a legacy part next to a current one and carries current joints along', () => {
+    // valve v [-1, 1] (legacy) — current fitting f [1, 1.4] — pipe p [1.4, 2.4]; touching, unconnected.
+    const s: ScadaScene = { schemaVersion: 3, units: 'm', components: [part('v', 'valve', 0), part('f', 'fitting', 1.2), part('p', 'pipe', 1.9)], connections: [] };
+    const r = upgradeDimensions(s, opts);
+    const x = Object.fromEntries(r.scene.components.map((c) => [c.id, c.position.x]));
+    expect(x.v).toBe(0);
+    expect(x.f).toBeCloseTo(0.4, 9);
+    expect(x.p).toBeCloseTo(1.1, 9);
+    expect(findTouchingPorts(r.scene, opts).matches).toHaveLength(2);
+    expect(upgradeDimensions(r.scene, opts).reseated).toBe(0);
+  });
+});

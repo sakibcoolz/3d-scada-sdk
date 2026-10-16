@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { sceneJson, startDrag, waitForCanvas } from './helpers';
+import { sceneJson, startDrag, waitForCanvas, VALVE_FACE } from './helpers';
 
 const size = (page: Page) => page.getByLabel('Size', { exact: true });
 
@@ -49,7 +49,7 @@ test('changing the size of a connected part is refused with the reason', async (
   await startDrag(page, 'Vertical Tank +', [0, 0, 0]);
   await page.mouse.up();
   const tank = (await sceneJson(page)).components[0];
-  await startDrag(page, 'Ball Valve +', [tank.position.x + 1.8, 0, tank.position.z]);
+  await startDrag(page, 'Ball Valve +', [tank.position.x + 1.2 + VALVE_FACE / 2, 0, tank.position.z]);
   await page.mouse.up();
   const before = await page.getByLabel('Scene JSON').inputValue();
   await size(page).selectOption('DN100');

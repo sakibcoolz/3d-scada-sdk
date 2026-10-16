@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { project, sceneJson, startDrag, waitForCanvas } from './helpers';
+import { project, sceneJson, startDrag, waitForCanvas, VALVE_FACE } from './helpers';
 
 test('exports a connected rotated scene and re-imports it byte-identically in a fresh editor', async ({ page }) => {
   await page.goto('/');
@@ -10,7 +10,7 @@ test('exports a connected rotated scene and re-imports it byte-identically in a 
   await startDrag(page, 'Vertical Tank +', [0, 0, 0]);
   await page.mouse.up();
   const { x, z } = (await sceneJson(page)).components[0].position;
-  await startDrag(page, 'Ball Valve +', [x + 1.8, 0, z]);
+  await startDrag(page, 'Ball Valve +', [x + 1.2 + VALVE_FACE / 2, 0, z]);
   await page.mouse.up();
   await startDrag(page, 'Straight Pipe +', [-3, 0, 2]);
   await page.mouse.up();
