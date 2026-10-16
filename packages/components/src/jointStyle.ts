@@ -38,7 +38,7 @@ export const asmeFlange: Record<PipeSize, AsmeFlange> = {
   DN200: flange(342.9, 28.6, 269.9, 298.5, 8, 19.1, 246.1, 101.6),
 };
 
-const FLANGED: ReadonlySet<ComponentKind> = new Set<ComponentKind>(['tank', 'conicalTank', 'valve', 'pump']);
+const FLANGED: ReadonlySet<ComponentKind> = new Set<ComponentKind>(['tank', 'conicalTank', 'horizontalTank', 'sphericalTank', 'pool', 'valve', 'pump']);
 
 /** How two parts are joined: flanged if either is a valve, pump or tank; welded otherwise. */
 export function jointStyle(a: ComponentKind, b: ComponentKind): 'flanged' | 'welded' {

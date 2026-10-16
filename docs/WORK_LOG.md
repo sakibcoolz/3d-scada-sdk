@@ -1126,3 +1126,40 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-053 REVIEW until merged. Next: T-054 (horizontal tank).
+
+## 2026-10-16 — T-054, T-055 and pool: horizontal and spherical tanks, pool, braced stands (ADR-0018)
+- Branch: `feat/T-054-tank-family-2`, stacked on uncommitted T-053. T-053's file state is saved as git tree `70d48727` so it can still be committed as its own PR. Graphify was not used.
+- Owner input: images of a horizontal tank, a small spherical tank, a pool, and braced stands, with "create 3D components". The elevated tank was not shown and stays in T-056.
+- Changes:
+  - **Core:** `componentKinds` gains `horizontalTank`, `sphericalTank` and `pool`.
+  - **Components:**
+    - `horizontalTankDefinition`, `sphericalTankDefinition` and `poolDefinition`, with their parameters;
+    - shared `crossBraces` and `legWithFoot`; vertical tank stands of 0.3 m and more are braced;
+    - `lathe.axis`, the `strut` part and the `holds` flag;
+    - `vesselProfile` (exact walls plus 1024-slice integration) behind `capacityOf`;
+    - the new vessels are flanged in `jointStyle`.
+  - **Simulation:** `vesselOf` uses `vesselProfile`.
+  - **React:**
+    - lathe axis and strut geometry;
+    - `liquidCut.ts` `cutBelow` (convex cut and cap) for horizontal and spherical liquids;
+    - basin liquid scaled from the floor;
+    - these vessels are kept out of instancing.
+  - **Docs:** ADR-0018, DECISION_LOG, COMPONENT_STANDARD, SCENE_AND_CONNECTIONS, API and RELEASE; backlog T-054 and T-055 REVIEW, T-056 narrowed to the elevated tank.
+- Tests:
+  - Written first and run red: `tankFamily2.test.ts` (12), the `vessels.test.ts` additions (4) and `liquidCut.test.ts` (3).
+  - Added after: `e2e/tank-family-2.spec.ts` (2).
+- Existing tests changed, with reasons:
+  - `tank-stand.spec.ts` and `view-modes.spec.ts`: vertical tank stands now have 8 brace struts (shell count 13 → 21);
+  - `sizes.test.ts` and `tankShape.test.ts`: struts have no `center`, so they are skipped or narrowed;
+  - the API snapshot gains `vesselProfile`.
+- Browser check: screenshots in glass view show the braced dished tank, the horizontal tank with a flat-cut liquid, the sphere with a cut liquid, and the pool's liquid. All plates show their capacity.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1233 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (118 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-054 and T-055 REVIEW, the pool done within them; T-056 (elevated tank) and T-057 (HP view) TODO.

@@ -21,6 +21,7 @@ Use one ADR per significant decision. Accepted decisions are binding; proposals 
 | [0015](adr/0015-flanges-and-welds.md) | Accepted | Joints drawn as ASME B16.5 Class 150 flange pairs (valves, pumps, tanks) or butt-weld beads (pipe and fittings); routed bends at 1.5 × NPS; instanced and display only |
 | [0016](adr/0016-valves-and-nozzles.md) | Accepted | Ball valve at ASME B16.10 Class 150 short-pattern face-to-face; tank `nozzleSize` and pump `suctionSize`/`dischargeSize`; `upgradeDimensions` handles files mixing generations |
 | [0017](adr/0017-tank-family.md) | Accepted | Vertical tank `diameter`/`height`/`head` (flat or 2:1 dished), capacity on the name plate (`capacityUnit`), `vesselOf` follows dimensions, `componentPresets` in the palette |
+| [0018](adr/0018-tank-family-2.md) | Accepted | Horizontal tank, spherical tank and pool kinds; braced stands; `lathe` axis, `strut`, `holds` and `vesselProfile` for their volumes; cut liquids |
 
 ## New ADR template
 Title / Status (Proposed/Accepted/Superseded) / Context / Options considered / Decision / Trade-offs / Consequences / Migration / Tests / Date / Approvers. Owner approval required before altering public schema or safety boundaries.

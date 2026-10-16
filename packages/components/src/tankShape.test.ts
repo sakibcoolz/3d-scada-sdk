@@ -38,7 +38,7 @@ describe('vertical tank dimensions', () => {
     expect(head.points[head.points.length - 1][1]).toBeCloseTo(2, 12); // depth D/4
     expect(d.bounds.max[1]).toBeCloseTo(2, 12);
     // No flat top plate on a dished tank; the bottom stays flat.
-    expect(d.parts.filter((p) => p.role === 'shell' && p.shape === 'cylinder' && p.axis === 'y' && !p.openEnded && p.radius === 1).map((p) => p.center[1])).toEqual([-1.5]);
+    expect(d.parts.flatMap((p) => (p.role === 'shell' && p.shape === 'cylinder' && p.axis === 'y' && !p.openEnded && p.radius === 1 ? [p.center[1]] : []))).toEqual([-1.5]);
     const liquid = d.parts.find((p) => p.role === 'liquid' && p.shape === 'lathe');
     expect(liquid?.shape === 'lathe' && liquid.points[liquid.points.length - 1][1]).toBeGreaterThan(1.5);
   });

@@ -9,6 +9,6 @@ export type { AsmeFlange } from './jointStyle.js';
 export type { AsmeSize } from './asme.js';
 export type { PipeSize } from './sizes.js';
 export { isChoiceParameter, liquidProfile } from './geometry.js';
-export { CAPACITY_UNITS, capacityOf, componentPresets, formatCapacity, segmentVolume, vesselSegments } from './vessel.js';
-export type { CapacityUnit, ComponentPreset, VesselSegment } from './vessel.js';
+export { CAPACITY_UNITS, capacityOf, componentPresets, formatCapacity, segmentVolume, vesselProfile, vesselSegments } from './vessel.js';
+export type { CapacityUnit, ComponentPreset, VesselProfile, VesselSegment } from './vessel.js';
 export type { Axis, Bounds, ChoiceParameterSpec, GeometryPart, IndustrialComponentDefinition, NumberParameterSpec, ParameterSpec, PartRole } from './geometry.js';

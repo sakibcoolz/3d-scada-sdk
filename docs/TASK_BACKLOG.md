@@ -53,9 +53,9 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-051 | M7 (post-MVP) | P1 | T-050 | DONE | ASME phase 2: flanged joints (B16.5 Class 150 flange pairs with bolts) on valves, pumps and tank nozzles; butt-weld beads on pipe-to-fitting joints; routed-run bends at 1.5D per size |
 | T-052 | M7 (post-MVP) | P1 | T-051 | DONE | ASME phase 3: valve face-to-face per B16.10, flanged pump and tank nozzles, with `upgradeDimensions` for older files |
 | T-053 | M7 (post-MVP) | P1 | T-052 | REVIEW | Tank family 1 (owner image): vertical tank `diameter`/`height` parameters with Large/Small/Short palette presets, `head` flat or dished, capacity on the name plate (L, m³, US gal), simulation volume from the shape |
-| T-054 | M7 (post-MVP) | P2 | T-053 | TODO | Tank family 2: horizontal tank with dished ends, on saddles or a stand, sized by diameter/length, partial-cylinder volume |
-| T-055 | M7 (post-MVP) | P2 | T-053 | TODO | Tank family 3: spherical tank on legs, sized by diameter, spherical-cap volume |
-| T-056 | M7 (post-MVP) | P2 | T-053 | TODO | Tank family 4: elevated tank on a lattice tower, and an open pool (wide shallow basin) |
+| T-054 | M7 (post-MVP) | P2 | T-053 | REVIEW | Tank family 2: horizontal tank with dished ends, on saddles or a stand, sized by diameter/length, partial-cylinder volume |
+| T-055 | M7 (post-MVP) | P2 | T-053 | REVIEW | Tank family 3: spherical tank on legs, sized by diameter, spherical-cap volume |
+| T-056 | M7 (post-MVP) | P2 | T-053 | TODO | Tank family 4: elevated tank on a lattice tower (the open pool was delivered with T-054/T-055, ADR-0018) |
 | T-057 | M7 (post-MVP) | P3 | T-053 | TODO | High-performance HMI view mode: flat grey vessels with a blue level fill (owner: later) |
 
 ## Release-path change (owner-approved 2026-10-15)
