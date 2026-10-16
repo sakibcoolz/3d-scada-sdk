@@ -3,6 +3,28 @@ import { BoxGeometry, CylinderGeometry, LatheGeometry, Vector2, Matrix4, Quatern
 import type { PipeRoute } from '@scada3d/core';
 import type { GeometryPart, IndustrialComponentDefinition } from '@scada3d/components';
 
+/**
+ * Low-poly geometry for joint hardware (ADR-0015): thousands of bolts and flanges must stay cheap,
+ * and at their size 6-sided bolts and 16-sided flanges look the same as round ones.
+ */
+export function createJointPartGeometry(part: GeometryPart): BufferGeometry {
+  const radial = part.role === 'bolt' ? 6 : 16;
+  if (part.shape === 'cylinder' || part.shape === 'cone') {
+    const [top, bottom] = part.shape === 'cylinder' ? [part.radius, part.radius] : part.axis === 'x' ? [part.radiusStart, part.radiusEnd] : [part.radiusEnd, part.radiusStart];
+    const geometry = new CylinderGeometry(top, bottom, part.length, radial, 1, false);
+    if (part.axis === 'x') geometry.rotateZ(Math.PI / 2);
+    if (part.axis === 'z') geometry.rotateX(Math.PI / 2);
+    return geometry.translate(...part.center);
+  }
+  if (part.shape === 'ring') {
+    const geometry = new TorusGeometry(part.radius, part.tube, 3, 16);
+    if (part.axis === 'x') geometry.rotateY(Math.PI / 2);
+    if (part.axis === 'y') geometry.rotateX(Math.PI / 2);
+    return geometry.translate(...part.center);
+  }
+  return createPartGeometry(part);
+}
+
 /** Builds a part's geometry with its transform baked in, so vertices are in component-local metres. */
 export function createPartGeometry(part: GeometryPart): BufferGeometry {
   switch (part.shape) {
@@ -21,6 +43,13 @@ export function createPartGeometry(part: GeometryPart): BufferGeometry {
       return new TorusGeometry(part.bendRadius, part.tubeRadius, 16, 24, Math.PI / 2)
         .rotateZ(part.startAngle)
         .translate(...part.center);
+    case 'ring': {
+      // Torus in its own XY plane (normal +Z), turned so its axis is the part's axis.
+      const geometry = new TorusGeometry(part.radius, part.tube, 8, 32);
+      if (part.axis === 'x') geometry.rotateY(Math.PI / 2);
+      if (part.axis === 'y') geometry.rotateX(Math.PI / 2);
+      return geometry.translate(...part.center);
+    }
     case 'lathe':
       return new LatheGeometry(part.points.map(([r, y]) => new Vector2(r, y)), 32).translate(...part.center);
     case 'cone': {

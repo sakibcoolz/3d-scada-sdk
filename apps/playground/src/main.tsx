@@ -21,6 +21,8 @@ const collisions = params.get('collisions') !== 'off';
 const defaultLocked = params.has('locked');
 // `?instancing=off|always` overrides the automatic equipment instancing (T-046).
 const instancing = (['off', 'always'] as const).find((m) => m === params.get('instancing')) ?? 'auto';
+// `?joints=off` hides flanges, bolts and weld beads (ADR-0015).
+const joints = params.get('joints') !== 'off';
 
 // `?demo` opens the MVP demo network, validated like any imported scene, with a demo tag feed.
 function initialScene(): ScadaScene | undefined {
@@ -67,6 +69,7 @@ function App() {
             collisions={collisions}
             defaultLocked={defaultLocked}
             instancing={instancing}
+            joints={joints}
           />
         )}
       </div>

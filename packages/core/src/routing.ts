@@ -36,8 +36,13 @@ export type PipeRoute =
 
 export interface RoutingOptions {
   resolvePorts: (type: ComponentKind, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
-  /** Centreline bend radius, metres. Default 0.3 (2 × DN150, matching the catalog elbow). */
+  /** Centreline bend radius, metres. Default 0.3. */
   bendRadius?: number;
+  /**
+   * Bend radius for a pipe size (port `nominalSize`), e.g. ASME long radius 1.5 × NPS (ADR-0015).
+   * Takes precedence over `bendRadius` when given.
+   */
+  bendRadiusFor?: (nominalSize: number | undefined) => number;
 }
 
 const EPS = 1e-9;
@@ -124,7 +129,9 @@ function resolve(scene: ScadaScene, endpoint: SceneConnection['from'], options: 
  * the first axis order x, y, z). Off-axis ports are only supported when a straight run fits.
  */
 export function routeConnection(scene: ScadaScene, connection: SceneConnection, options: RoutingOptions): PipeRoute {
-  const radius = options.bendRadius ?? 0.3;
+  const fromComponent = scene.components.find((c) => c.id === connection.from.instanceId);
+  const fromPort = fromComponent && options.resolvePorts(fromComponent.type, fromComponent.properties)?.find((p) => p.id === connection.from.portId);
+  const radius = options.bendRadiusFor ? options.bendRadiusFor(fromPort?.nominalSize) : options.bendRadius ?? 0.3;
   const connectionId = connection.id;
   const start = resolve(scene, connection.from, options);
   const end = resolve(scene, connection.to, options);

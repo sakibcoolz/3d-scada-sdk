@@ -1005,3 +1005,40 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (after the example fix; 1 before).
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-050 REVIEW until merged (after #51).
+
+## 2026-10-16 — T-051 ASME phase 2: flanges, welds, 1.5D bends (ADR-0015)
+- Branch: `feat/T-051-flanges-welds`, stacked on `feat/T-050-asme-fittings` (#52). Graphify was not used; targeted search instead.
+- Changes:
+  - **Components:**
+    - `asmeFlange` (B16.5 Class 150 weld-neck, values to be verified);
+    - `jointStyle` (flanged when a valve, pump or tank is on either side, welded otherwise) and `hasFlangedEnds`;
+    - `flangePairParts`, `flangeParts` and `weldParts`;
+    - the `ring` part shape and the `flange`, `bolt` and `weld` roles;
+    - `catalogResolvers.bendRadiusFor` (B16.9 LR A).
+  - **Core:** `RoutingOptions.bendRadiusFor(nominalSize)`, which sizes routed bends by the from-port.
+  - **React:**
+    - `jointPlacements` (direct joints, routed-run ends, bend welds, free flanged ports);
+    - `JointHardware`: instanced, low-poly, chunked ≤ 256, not pickable;
+    - detail drops above 2,000 joints (no bolts) and 8,000 (rings only);
+    - `joints?: boolean` prop on the viewer and editor.
+  - **Playground:** `?joints=off`.
+  - **Docs:** ADR-0015, DECISION_LOG, COMPONENT_STANDARD, SCENE_AND_CONNECTIONS, API and PERFORMANCE; backlog T-051 REVIEW.
+- Tests:
+  - Written first: flange table, joint style, pair, single and weld geometry; `jointPlacements` (4); routing `bendRadiusFor`.
+  - Added after: `e2e/joints.spec.ts` (pipe–valve–pipe–pipe gives 12 flange, 16 bolt and 1 weld meshes; `?joints=off` gives none).
+- Existing tests changed, with reasons:
+  - `render-scale.spec.ts` counts joint meshes separately (fewer than 60);
+  - the `instancing.spec.ts` leak test gets a 90 s timeout, because SwiftShader is slower with joint hardware.
+- Measurements:
+  - Apple M2 Chrome: chain-1000 gave 372 frames in 5 s with joints and 376 without; chain-5000 gave 370 and 372.
+  - SwiftShader, chain-200: 6.0 fps with joints and 9.0 without (CPU rasterising).
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1098 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (113 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-051 REVIEW until merged; T-050 DONE (#52 merged). Next: T-052 (valve face-to-face per B16.10, flanged pump and tank nozzles).

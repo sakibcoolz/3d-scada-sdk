@@ -3,7 +3,7 @@ import type { ComponentDefinition, Vector3Tuple } from '@scada3d/core';
 export type Axis = 'x' | 'y' | 'z';
 
 /** How the renderer treats a part: shells follow normal/glass mode, the others carry live state. */
-export type PartRole = 'shell' | 'liquid' | 'valve-ball' | 'valve-handle' | 'gauge' | 'scale' | 'plate';
+export type PartRole = 'shell' | 'liquid' | 'valve-ball' | 'valve-handle' | 'gauge' | 'scale' | 'plate' | 'flange' | 'bolt' | 'weld';
 
 /**
  * Framework-neutral geometry in component-local metres. Renderers turn these into meshes;
@@ -18,7 +18,9 @@ export type GeometryPart =
   /** Frustum along an axis: `radiusStart` at the −axis end, `radiusEnd` at the +axis end. */
   | { shape: 'cone'; role: PartRole; center: Vector3Tuple; axis: Axis; radiusStart: number; radiusEnd: number; length: number; openEnded?: boolean }
   /** Solid of revolution about local +Y: profile points [radius, y] with y increasing. */
-  | { shape: 'lathe'; role: PartRole; center: Vector3Tuple; points: [number, number][] };
+  | { shape: 'lathe'; role: PartRole; center: Vector3Tuple; points: [number, number][] }
+  /** Full torus around an axis: a weld bead of tube radius `tube` at `radius` from the axis. */
+  | { shape: 'ring'; role: PartRole; center: Vector3Tuple; axis: Axis; radius: number; tube: number };
 
 export interface Bounds {
   min: Vector3Tuple;

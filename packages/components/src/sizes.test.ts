@@ -85,7 +85,7 @@ describe('pipe sizes', () => {
 
     it('has bounds that hold every part', () => {
       for (const part of definition.parts) {
-        if (part.shape === 'bend' || part.shape === 'lathe') continue;
+        if (part.shape === 'bend' || part.shape === 'lathe' || part.shape === 'ring') continue;
         // Half-extent of the part along each local axis.
         const half = [0, 1, 2].map((i) => {
           if (part.shape === 'sphere') return part.radius;

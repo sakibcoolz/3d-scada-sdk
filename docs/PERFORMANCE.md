@@ -100,6 +100,15 @@ LOD is not needed on this hardware: the remaining slow frames are about one per 
 
 Software rasterisation pays a little for coarser culling: a 64-instance chunk is culled only when all of it is off-screen. Real GPUs gain because the CPU work drops.
 
+## Joint hardware (T-051, ADR-0015)
+| Scene | Apple M2: frames in 5 s, joints on / off | SwiftShader fps, joints on / off |
+|---|---|---|
+| chain-200 | — | 6.0 / 9.0 |
+| chain-1000 | 372 / 376 | — |
+| chain-5000 | 370 / 372 | — |
+
+On a real GPU the instanced, chunked hardware costs nothing measurable. On CPU rasterising, the large flange discs cost about a third of the frame rate. Detail drops above 2,000 and 8,000 joints.
+
 ## Findings and follow-ups
 - **Fixed in this part:** drei `TransformControls` built a new gizmo (17 geometries plus materials) on every selection and never disposed it, leaking GPU memory with each selection change. The viewer now disposes the gizmo on unmount; the leak test covers it.
 - Each component instance builds its own geometry, and equipment is not instanced, so geometry and draw calls grow one-for-one with components. Candidate optimisations, to be measured before adoption: share geometry per catalog type, instance equipment meshes, lower segment counts or LOD for distant parts, and avoid per-frame tuple allocation in flow markers. Tracked as T-029 (post-MVP). Part A (above) shares geometry and instances markers; equipment instancing followed in T-046 (part B, above). LOD remains unbuilt: the M2 measurements do not need it.
