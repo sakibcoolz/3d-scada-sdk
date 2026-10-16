@@ -3,11 +3,12 @@ import { CanvasTexture, Color, DoubleSide, LatheGeometry, Vector2, Matrix4, Mesh
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
 import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, attachComponents, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
-import { catalogResolvers, componentCatalog, definitionFor, isChoiceParameter, liquidProfile, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
-import { createEquipmentGeometries, createRouteGeometry, disposeGeometries } from './geometry.js';
+import { catalogResolvers, componentCatalog, definitionFor, flangePairParts, flangeParts, isChoiceParameter, liquidProfile, weldParts, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
+import { createEquipmentGeometries, createJointPartGeometry, createRouteGeometry, disposeGeometries } from './geometry.js';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop.js';
 import { EDITOR_CSS, formatMetres } from './editorStyles.js';
 import { spatialChunks } from './instancing.js';
+import { jointPlacements, type JointPlacement } from './jointLayer.js';
 import { sanitizeSvg } from '@scada3d/asset-import';
 import { componentNames, describeAttach, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice.js';
 
@@ -283,6 +284,72 @@ function Underlay({ underlay }: { underlay: SceneUnderlay }) {
   </mesh>;
 }
 
+/** Detail by joint count, so very large plants stay fast: bolts, then hubs, faces and welds drop out. */
+const MAX_JOINTS_WITH_BOLTS = 2000;
+const MAX_JOINTS_WITH_DETAIL = 8000;
+/** Geometry per joint part, shared by every viewer (a handful of shapes per size). */
+const jointGeometries = new Map<string, BufferGeometry>();
+const jointMatrix = new Matrix4();
+
+/** Joint frames grouped into compact chunks by their position (median splits, ≤ 256 each). */
+function chunkByPosition(matrices: number[][]): number[][][] {
+  const out: number[][][] = [];
+  const split = (items: number[][]) => {
+    if (items.length <= 256) { if (items.length) out.push(items); return; }
+    const extent = [12, 13, 14].map((i) => Math.max(...items.map((m) => m[i])) - Math.min(...items.map((m) => m[i])));
+    const axis = [12, 13, 14][extent.indexOf(Math.max(...extent))];
+    const sorted = [...items].sort((a, b) => a[axis] - b[axis]);
+    split(sorted.slice(0, sorted.length >> 1));
+    split(sorted.slice(sorted.length >> 1));
+  };
+  split(matrices);
+  return out;
+}
+
+/**
+ * Joint hardware (ADR-0015): bolted ASME flange pairs, single flanges on free flanged ports and
+ * butt-weld beads, one instanced mesh per part of each joint type and size. Display only.
+ */
+function JointHardware({ scene, routes }: { scene: ScadaScene; routes: readonly PipeRoute[] }) {
+  const groups = useMemo(() => {
+    const placements = jointPlacements(scene, routes);
+    const bolts = placements.length <= MAX_JOINTS_WITH_BOLTS;
+    const detail = placements.length <= MAX_JOINTS_WITH_DETAIL;
+    const byKind = new Map<string, JointPlacement[]>();
+    for (const p of placements) byKind.set(`${p.style}:${p.size}`, [...(byKind.get(`${p.style}:${p.size}`) ?? []), p]);
+    return [...byKind].flatMap(([kind, list]) => {
+      const { style, size } = list[0];
+      const parts = style === 'pair' ? flangePairParts(size) : style === 'single' ? flangeParts(size) : weldParts(size);
+      return parts.flatMap((part, i) => {
+        if (part.role === 'bolt' && !bolts) return [];
+        // Above the detail limit only the flange rings remain (the widest flange part of each side).
+        if (!detail && (part.role === 'weld' || part.shape !== 'cylinder' || i % 3 !== 1)) return [];
+        const key = `${kind}:${i}`;
+        let geometry = jointGeometries.get(key);
+        if (!geometry) jointGeometries.set(key, (geometry = createJointPartGeometry(part)));
+        // Spatial chunks so off-screen hardware is culled, as for instanced equipment.
+        return chunkByPosition(list.map((p) => p.matrix)).map((matrices, c) => ({ key: `${key}:${c}`, geometry: geometry!, role: part.role, matrices }));
+      });
+    });
+  }, [scene, routes]);
+  return <>{groups.map((g) => <JointMesh key={`${g.key}:${g.matrices.length}`} geometry={g.geometry} role={g.role} matrices={g.matrices}/>)}</>;
+}
+
+function JointMesh({ geometry, role, matrices }: { geometry: BufferGeometry; role: string; matrices: number[][] }) {
+  const mesh = useRef<InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const m = mesh.current;
+    if (!m) return;
+    matrices.forEach((e, i) => m.setMatrixAt(i, jointMatrix.fromArray(e)));
+    m.instanceMatrix.needsUpdate = true;
+    m.computeBoundingSphere();
+  }, [matrices]);
+  const color = role === 'bolt' ? '#4f5a64' : role === 'weld' ? '#6c7883' : '#8c9cab';
+  return <instancedMesh ref={mesh} args={[geometry, undefined, matrices.length]} userData={{ role, joint: true }} raycast={() => null}>
+    <meshStandardMaterial color={color} metalness={0.7} roughness={role === 'weld' ? 0.7 : 0.4}/>
+  </instancedMesh>;
+}
+
 const PORT_MARKER_RADIUS = 0.05;
 // Port markers are 5 cm dots: a coarse sphere looks the same and keeps 2,000 of them cheap.
 const portMarkerGeometry = new SphereGeometry(1, 8, 6);
@@ -495,7 +562,7 @@ export type TransformHandler = (id: string, position: Vector3Like, rotation: Qua
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;/** Clicked component; `additive` is true when Shift was held (the editor attaches). */onSelect?:SelectHandler;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',joints=true,ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;/** Clicked component; `additive` is true when Shift was held (the editor attaches). */onSelect?:SelectHandler;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Draw flanges, bolts and weld beads at joints (ADR-0015). Default true. */joints?:boolean;ref?:React.Ref<ScadaHandle>}) {
   const telemetry = useTelemetryFeed(telemetryInput, ref);
   const collision = useMemo(() => (collisions ? findCollisions(scene, { resolveBounds }) : undefined), [scene, collisions]);
   const previewCollides = useMemo(() => !!(collisions && preview && collidingWith({ ...scene, components: [...scene.components, preview.component] }, preview.component.id).length), [scene, preview, collisions]);
@@ -572,6 +639,7 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
       onObjectChange={()=>{const {position:p,quaternion:q}=selectedObject;onTransform(selectedId,{x:p.x,y:p.y,z:p.z},{x:q.x,y:q.y,z:q.z,w:q.w},`transform:${selectedId}:${gesture.current}`);}}/>}
     {routes.map(route=><RoutePipe key={route.connectionId} route={route} material={routeMaterial} radius={radiusOf(route.connectionId)}/>)}
     <PortMarkers scene={shown}/>
+    {joints&&<JointHardware scene={shown} routes={routes}/>}
     {open.map(o=><OpenJointMarkers key={`open:${o.connectionId}`} scene={scene} open={o}/>)}
     {flowStates && <FlowLayer routes={routes} stateById={stateById} radiusOf={radiusOf}/>}
     {preview && <DropPreview scene={scene} plan={preview} colliding={previewCollides}/>}
@@ -913,7 +981,7 @@ function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
-export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',locked,defaultLocked=false,onLockedChange,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',joints=true,locked,defaultLocked=false,onLockedChange,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Draw flanges, bolts and weld beads at joints (ADR-0015). Default true. */joints?:boolean;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;ref?:React.Ref<ScadaHandle>}) {
   // The editor owns the feed; the viewer below only receives the merged observations.
   const telemetry=useTelemetryFeed(telemetryInput,ref);
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
@@ -1143,7 +1211,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     <main onDragOver={e=>{if(!dragKind.current||isLocked)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={select} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} simulation={simulation} collisions={collisions} openJoints={openJoints} instancing={instancing}/>
+      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={select} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} simulation={simulation} collisions={collisions} openJoints={openJoints} instancing={instancing} joints={joints}/>
       {isLocked&&<div style={{position:'absolute',bottom:10,right:110,padding:'4px 10px',borderRadius:4,background:'#0b1725e6',border:'1px solid #ffd166',color:'#ffd166',fontSize:12,pointerEvents:'none'}}>🔒 Editing locked</div>}
       {notice.length>0&&<ConnectionNotice lines={notice} onDismiss={()=>setNotice([])}/>}
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene)+previewOverlap:''}</div>

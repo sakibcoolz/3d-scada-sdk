@@ -101,6 +101,8 @@ test('large scenes instance automatically; small ones and instancing=off do not'
 });
 
 test('instanced scenes do not leak GPU geometry across remounts or selection changes', async ({ page }) => {
+  // 200 valves with joint hardware remount slowly on software rendering (~3.5 s each).
+  test.setTimeout(90_000);
   await installThreeHook(page);
   await page.goto('/?generate=200');
   await waitForCanvas(page);

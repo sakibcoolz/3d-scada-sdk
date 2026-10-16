@@ -1,7 +1,8 @@
 import type { ComponentInstance, ComponentKind, Quantity } from '@scada3d/core';
 import { componentCatalog, couplerDefinition, elbowDefinition, pipeDefinition, reducerDefinition, tankDefinition, teeDefinition, valveDefinition } from './catalog.js';
 import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
-import type { PipeSize } from './sizes.js';
+import { pipeSizes, type PipeSize } from './sizes.js';
+import { asme } from './asme.js';
 
 type Properties = ComponentInstance['properties'];
 
@@ -73,4 +74,9 @@ export const catalogResolvers = {
   resolveBounds: (type: ComponentKind, properties?: Properties) => definitionFor(type, properties).bounds,
   resolveBindable: (type: ComponentKind): Readonly<Record<string, Quantity>> | undefined => componentCatalog[type].bindable,
   validateProperties,
+  /** Routed runs bend like ASME long-radius elbows: 1.5 × NPS for the run's size (ADR-0015). */
+  bendRadiusFor: (nominalSize: number | undefined) => {
+    const size = (Object.keys(pipeSizes) as PipeSize[]).find((s) => nominalSize !== undefined && Math.abs(pipeSizes[s].bore - nominalSize) < 1e-4);
+    return size ? asme[size].elbowLR90 : 0.3;
+  },
 };

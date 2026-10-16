@@ -32,7 +32,7 @@ Pure functions take the current time (`now`) and the catalog lookups (`resolvePo
 
 | Runtime exports | Types |
 |---|---|
-| `componentCatalog` (tank, conicalTank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `liquidProfile`, `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `asme` (ASME dimensions per size), `legacyCatalogResolvers` (pre-ASME fitting ports for upgrades), `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
+| `componentCatalog` (tank, conicalTank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `liquidProfile`, `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `asme` (ASME dimensions per size), `legacyCatalogResolvers` (pre-ASME fitting ports for upgrades), `asmeFlange`, `jointStyle`, `hasFlangedEnds`, `flangePairParts`, `flangeParts`, `weldParts` (joint hardware, ADR-0015), `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
 
 ### `@scada3d/asset-import` (ADR-0012)
 | Runtime | Types |
@@ -87,6 +87,7 @@ handle.current?.setTagValues([{ tagId: 'LT-101', value: 62, quality: 'GOOD', sou
 
 - `Scada3DViewer` props: `scene`, `viewMode?`, `viewOverrides?`, `selectedId?`, `onSelect?`, `collisions?` (default `true`: overlapping solid components are shown in red and listed), `openJoints?` (default `true`: connections whose ports do not meet get amber markers at both ends and are listed), `flow?` (`FlowInput`: readings keyed by connection), `telemetry?` (`TelemetryInput`: `observations?`, `provider?`, `source?`, `staleAfterMs?`), `ref?` (`ScadaHandle`). Editor-only props (`preview`, `onCamera`, `transformMode`, `onTransform`) are used by `Scada3DEditor` and are not part of the supported viewer contract.
 - `Scada3DEditor` props: `initialScene?`, `onChange?`, `flow?`, `telemetry?`, `collisions?` (default `true`), `openJoints?` (default `true`), `defaultLocked?` (default `false`) or controlled `locked?` + `onLockedChange?` (view-only mode), `ref?`.
+- Joints (T-051, ADR-0015): `Scada3DViewer`/`Scada3DEditor` `joints?: boolean` (default true) draws flanges, bolts and weld beads. `RoutingOptions.bendRadiusFor?(nominalSize)` sets a bend radius per pipe size; `catalogResolvers` provides the ASME long-radius value.
 - Selection (T-049): `Scada3DViewer.onSelect?: SelectHandler`, i.e. `(id, { additive }?) => void`; `additive` is true when Shift was held. The editor attaches the Shift-clicked part to the selected one with `attachComponents`. Hosts using a one-argument handler are unaffected.
 - Underlay (T-019a, ADR-0012):
   - `ScadaScene.underlay` (`SceneUnderlay`) is drawn by the viewer flat on the ground, sanitized again and painted through an `<img>` onto a texture. It cannot be picked.

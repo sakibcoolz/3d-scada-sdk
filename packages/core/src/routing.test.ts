@@ -114,6 +114,12 @@ describe('routeConnection', () => {
     expect(result).toEqual(expect.objectContaining({ status: 'ok', kind: 'straight' }));
   });
 
+  it('uses a bend radius for the pipe size when bendRadiusFor is given', () => {
+    const sized: RoutingOptions = { ...options, bendRadiusFor: (nominal) => (nominal === 0.15 ? 0.229 : 1) };
+    const result = routeConnection(pair(nozzle('a', [0, 0, 0], '+x'), nozzle('b', [2, 2, 0], '-y')), { id: 'e1', from: { instanceId: 'a', portId: 'p' }, to: { instanceId: 'b', portId: 'p' } }, sized);
+    expect(result.status === 'ok' && result.bends).toEqual([{ corner: [2, 0, 0], radius: 0.229 }]);
+  });
+
   it('makes one bend for an L-shaped run', () => {
     const result = route(pair(nozzle('a', [0, 0, 0], '+x'), nozzle('b', [2, 2, 0], '-y')));
     expect(result).toEqual(expect.objectContaining({ status: 'ok', kind: 'orthogonal' }));
