@@ -3,9 +3,10 @@ import { CanvasTexture, Color, DoubleSide, LatheGeometry, Vector2, Matrix4, Mesh
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
 import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, attachComponents, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
-import { catalogResolvers, componentCatalog, definitionFor, flangePairParts, flangeParts, isChoiceParameter, liquidProfile, weldParts, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
+import { catalogResolvers, componentCatalog, componentPresets, definitionFor, flangePairParts, flangeParts, isChoiceParameter, liquidProfile, weldParts, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createJointPartGeometry, createRouteGeometry, disposeGeometries } from './geometry.js';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop.js';
+import { usePlateTexture } from './plateText.js';
 import { EDITOR_CSS, formatMetres } from './editorStyles.js';
 import { spatialChunks } from './instancing.js';
 import { jointPlacements, type JointPlacement } from './jointLayer.js';
@@ -96,6 +97,8 @@ const normalShell = shellLook('normal');
 function InstancedPart({ part, geometry, members, unknown, onSelect }: { part: ReturnType<typeof definitionFor>['parts'][number]; geometry: BufferGeometry; members: ComponentInstance[]; unknown: ReadonlyMap<string, ReadonlySet<string>>; onSelect?: SelectHandler }) {
   const mesh = useRef<InstancedMesh>(null);
   const role = part.role;
+  const plateText = part.shape === 'box' ? part.text : undefined;
+  const plateMap = usePlateTexture(plateText);
   useLayoutEffect(() => {
     const m = mesh.current;
     if (!m) return;
@@ -124,10 +127,10 @@ function InstancedPart({ part, geometry, members, unknown, onSelect }: { part: R
     : role === 'valve-ball' ? <meshStandardMaterial color="#ffffff"/>
     : role === 'valve-handle' ? <meshStandardMaterial color="#e3d5a5"/>
     : role === 'gauge' ? <meshStandardMaterial color="#d8eefc" transparent opacity={0.3} depthWrite={false} roughness={0.1}/>
-    : role === 'plate' ? <meshStandardMaterial color="#e8edf2" roughness={0.6}/>
+    : role === 'plate' ? <meshStandardMaterial key={plateText} color={plateMap ? '#ffffff' : '#e8edf2'} map={plateMap ?? null} roughness={0.6}/>
     : role === 'scale' ? <meshStandardMaterial color="#3d4a56" roughness={0.8}/>
     : <meshStandardMaterial color="#7b9eb6" metalness={normalShell.metalness} roughness={0.35} side={DoubleSide}/>;
-  return <instancedMesh ref={mesh} args={[geometry, undefined, members.length]} userData={{ role, componentIds: members.map((c) => c.id) }}
+  return <instancedMesh ref={mesh} args={[geometry, undefined, members.length]} userData={{ role, componentIds: members.map((c) => c.id), ...(plateText ? { plateText } : {}) }}
     onClick={(e) => { e.stopPropagation(); if (e.instanceId !== undefined && members[e.instanceId]) onSelect?.(members[e.instanceId].id, { additive: e.nativeEvent.shiftKey }); }}>
     {material}
   </instancedMesh>;
@@ -144,6 +147,14 @@ function LatheLiquid({ points, fraction, color, tag }: { points: [number, number
   useEffect(() => () => geometry?.dispose(), [geometry]);
   return <mesh geometry={geometry} visible={!!geometry} userData={{ ...tag, levelFraction: step }}>
     <meshStandardMaterial color={color} transparent opacity={0.65} depthWrite={false}/>
+  </mesh>;
+}
+
+/** A name plate; its `text` (the capacity) is drawn on it as a texture. */
+function Plate({ geometry, text, userData }: { geometry: BufferGeometry; text?: string; userData: Record<string, string> }) {
+  const map = usePlateTexture(text);
+  return <mesh geometry={geometry} userData={text ? { ...userData, plateText: text } : userData}>
+    <meshStandardMaterial key={text} color={map ? '#ffffff' : '#e8edf2'} map={map ?? null} roughness={0.6}/>
   </mesh>;
 }
 
@@ -172,7 +183,7 @@ function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown
       }
       if (part.role === 'liquid' && part.shape === 'lathe') return <LatheLiquid key={i} points={part.points} fraction={fill.fraction ?? 0} color={liquidColor} tag={tag('liquid')}/>;
       if (part.role === 'gauge') return <mesh key={i} geometry={geometry} userData={tag('gauge')}><meshStandardMaterial color="#d8eefc" transparent opacity={0.3} depthWrite={false} roughness={0.1}/></mesh>;
-      if (part.role === 'plate') return <mesh key={i} geometry={geometry} userData={tag('plate')}><meshStandardMaterial color="#e8edf2" roughness={0.6}/></mesh>;
+      if (part.role === 'plate') return <Plate key={i} geometry={geometry} text={part.shape === 'box' ? part.text : undefined} userData={tag('plate')}/>;
       if (part.role === 'scale') return <mesh key={i} geometry={geometry} userData={tag('scale')}><meshStandardMaterial color="#3d4a56" roughness={0.8}/></mesh>;
       if (part.role === 'valve-ball') return <mesh key={i} geometry={geometry} userData={tag('valve-ball')}><meshStandardMaterial color={unknown?.has('open')?VALVE_UNKNOWN:open?'#48b983':'#e76e75'}/></mesh>;
       if (part.role === 'valve-handle') return <mesh key={i} geometry={geometry} userData={tag('valve-handle')} rotation={[0, open ? 0 : Math.PI / 2, 0]}><meshStandardMaterial color="#e3d5a5"/></mesh>;
@@ -1043,6 +1054,8 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
   function announceConnections(before:ScadaScene,after:ScadaScene){const lines=describeNewConnections(before,after);if(lines.length)setNotice(lines);}
   const camera=useRef<Camera|undefined>(undefined);
   const dragKind=useRef<ComponentKind|undefined>(undefined);
+  // Starting properties of a palette preset being dragged (e.g. a large dished tank).
+  const dragPreset=useRef<ComponentInstance['properties']|undefined>(undefined);
   const [preview,setPreview]=useState<DropPlan>();
   // Placement is never blocked; the status line just warns about an overlap.
   const previewOverlap=useMemo(()=>{
@@ -1053,18 +1066,22 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     return hits.length?` — overlaps ${hits.join(', ')}`:'';
   },[collisions,preview,scene]);
   // Keyboard/click add: rest on the ground in a row, never auto-connect.
-  function add(type:ComponentKind) {
+  function add(type:ComponentKind, preset:ComponentInstance['properties']={}) {
     const id=newId();
-    const position=dropPosition(definitionFor(type,defaultProperties(type)),[scene.components.length*2.4,0,0]);
-    update({...scene,components:[...scene.components,{id,type,position,rotation:{x:0,y:0,z:0,w:1},scale:{x:1,y:1,z:1},properties:defaultProperties(type)}]});setSelected(id);
+    const properties={...defaultProperties(type),...preset};
+    // In a row, 2.4 m apart, but never into the right-most part (a large tank is wider than that).
+    const definition=definitionFor(type,properties);
+    const rightEdge=Math.max(-Infinity,...scene.components.map(c=>c.position.x+definitionFor(c.type,c.properties).bounds.max[0]));
+    const position=dropPosition(definition,[Math.max(scene.components.length*2.4,rightEdge+0.3-definition.bounds.min[0]),0,0]);
+    update({...scene,components:[...scene.components,{id,type,position,rotation:{x:0,y:0,z:0,w:1},scale:{x:1,y:1,z:1},properties}]});setSelected(id);
   }
   function planAt(e:React.DragEvent<HTMLElement>, id:string):DropPlan|undefined {
     const kind=dragKind.current, canvas=e.currentTarget.querySelector('canvas');
     if(!kind||!camera.current||!canvas) return undefined;
     const hit=screenToPlane({x:e.clientX,y:e.clientY},canvas.getBoundingClientRect(),camera.current);
-    return hit ? planDrop(scene,kind,hit,{createId:()=>id,properties:defaultProperties(kind)}) : undefined;
+    return hit ? planDrop(scene,kind,hit,{createId:()=>id,properties:{...defaultProperties(kind),...dragPreset.current}}) : undefined;
   }
-  function endDrag(){dragKind.current=undefined;setPreview(undefined);}
+  function endDrag(){dragKind.current=undefined;dragPreset.current=undefined;setPreview(undefined);}
   function drop(e:React.DragEvent<HTMLElement>) {
     e.preventDefault();
     if(isLocked){endDrag();return;}
@@ -1191,7 +1208,8 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
       <p aria-live="polite" style={{fontSize:12,margin:'4px 0 0'}}>{touchingNote}</p>
       <button onClick={paste} disabled={!clipboard} title="Paste (Ctrl+V)" className="s3-block">Paste ({clipboard?.components.length??0})</button>
       <p aria-live="polite" style={{fontSize:12,margin:'4px 0 8px'}}>{clipNote}</p>
-      {section('Components',<div className="s3-palette">{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)}>{componentCatalog[k].label} +</button>)}</div>)}
+      {section('Components',<div className="s3-palette">{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)}>{componentCatalog[k].label} +</button>)}
+        {componentPresets.map(p=><button key={p.id} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',p.type);e.dataTransfer.effectAllowed='copy';dragKind.current=p.type;dragPreset.current=p.properties;}} onDragEnd={endDrag} onClick={()=>add(p.type,p.properties)}>{p.label} +</button>)}</div>)}
       </fieldset>
       <SceneList scene={scene} selected={selected} onSelect={select} locked={isLocked}/>
       <label className="s3-stack">View <select aria-label="View mode" value={viewMode} onChange={e=>setViewMode(e.target.value as ViewMode)}>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>

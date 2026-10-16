@@ -12,7 +12,8 @@ export type PartRole = 'shell' | 'liquid' | 'valve-ball' | 'valve-handle' | 'gau
 export type GeometryPart =
   | { shape: 'cylinder'; role: PartRole; center: Vector3Tuple; axis: Axis; radius: number; length: number; openEnded?: boolean }
   | { shape: 'sphere'; role: PartRole; center: Vector3Tuple; radius: number }
-  | { shape: 'box'; role: PartRole; center: Vector3Tuple; size: Vector3Tuple }
+  /** `text` (a name plate's capacity) is drawn on the box's faces. */
+  | { shape: 'box'; role: PartRole; center: Vector3Tuple; size: Vector3Tuple; text?: string }
   /** Quarter torus in the XY plane, sweeping from startAngle to startAngle + π/2 about center. */
   | { shape: 'bend'; role: PartRole; center: Vector3Tuple; bendRadius: number; tubeRadius: number; startAngle: number }
   /** Frustum along an axis: `radiusStart` at the −axis end, `radiusEnd` at the +axis end. */

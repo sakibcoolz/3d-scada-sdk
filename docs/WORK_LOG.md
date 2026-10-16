@@ -1084,3 +1084,45 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-052 REVIEW until merged. This completes the three ASME phases; next candidates are T-047 (SVG extrusion), T-020 (glTF) and T-028.
+
+## 2026-10-16 — T-053 Tank family 1: dimensions, dished head, capacity plate (ADR-0017)
+- Branch: `feat/T-053-tank-dimensions` from `develop` after #54. Graphify was not used; targeted search and a survey agent instead.
+- Owner input: a catalogue image of tank shapes, plus four answers:
+  - all four new shapes;
+  - dimension parameters with presets;
+  - the HP style later, as a view mode;
+  - the computed capacity on the plate.
+- Backlog:
+  - T-052 DONE (#54 merged). T-019 and T-030 to T-033 DONE; their PRs (#50, #33–#36) were merged earlier, but the backlog still said REVIEW.
+  - New tasks T-054 (horizontal tank), T-055 (spherical tank), T-056 (elevated tank and pool) and T-057 (HP view mode). T-053 is REVIEW.
+- Changes:
+  - **Components:**
+    - `tankDefinition({ diameter, height, head, standHeight, nozzleSize, capacityUnit })`, with the original 2 × 3 m tank as the default;
+    - a 2:1 dished head as a lathe shell, with a lathe liquid;
+    - box parts take `text`, and tank plates show the capacity;
+    - `vessel.ts`: `vesselSegments`, `segmentVolume`, `capacityOf`, `formatCapacity`, `CAPACITY_UNITS` and `componentPresets`;
+    - the conical tank shows its capacity and takes `capacityUnit`.
+  - **Simulation:** `vesselOf(type, properties?)` uses `vesselSegments`, cached per definition; the mass-balance and hydraulic models pass each tank's properties.
+  - **React:**
+    - `plateText.ts` draws the plate text as a canvas texture, per mesh and disposed on unmount;
+    - plates use it in both the per-component and instanced paths;
+    - palette presets work with click-add and drag;
+    - click-add never places a part inside the right-most one.
+  - **Docs:** ADR-0017, DECISION_LOG, COMPONENT_STANDARD, SCENE_AND_CONNECTIONS and API.
+- Tests:
+  - Written first and run red: `tankShape.test.ts` (15) and `vessels.test.ts` (3).
+  - Added after, not run red first: `e2e/tank-family.spec.ts` (3).
+- Existing tests changed, with reasons:
+  - `tank-stand.spec.ts`: new tanks also record `diameter: 2` and `height: 3`;
+  - the API snapshot gains the new exports.
+- Browser check: a screenshot shows the flat, dished, large and short tanks with plate text ("9.42 m³", "35.3 m³"). It also showed large tanks overlapping on click-add; fixed, and covered by the e2e test.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1130 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (116 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-053 REVIEW until merged. Next: T-054 (horizontal tank).

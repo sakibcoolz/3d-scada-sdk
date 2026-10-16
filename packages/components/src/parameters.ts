@@ -3,6 +3,7 @@ import { componentCatalog, conicalTankDefinition, couplerDefinition, pumpDefinit
 import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
 import { pipeSizes, type PipeSize } from './sizes.js';
 import { asme } from './asme.js';
+import type { CapacityUnit } from './vessel.js';
 
 type Properties = ComponentInstance['properties'];
 
@@ -49,8 +50,8 @@ function effective(type: ComponentKind, properties: Properties): Record<string, 
 
 type Values = Record<string, string | number>;
 const builders: Partial<Record<ComponentKind, (v: Values) => IndustrialComponentDefinition>> = {
-  tank: (v) => tankDefinition(v.standHeight as number, v.nozzleSize as PipeSize),
-  conicalTank: (v) => conicalTankDefinition(v.nozzleSize as PipeSize),
+  tank: (v) => tankDefinition({ standHeight: v.standHeight as number, nozzleSize: v.nozzleSize as PipeSize, diameter: v.diameter as number, height: v.height as number, head: v.head as 'flat' | 'dished', capacityUnit: v.capacityUnit as CapacityUnit }),
+  conicalTank: (v) => conicalTankDefinition(v.nozzleSize as PipeSize, v.capacityUnit as CapacityUnit),
   pump: (v) => pumpDefinition(v.suctionSize as PipeSize, v.dischargeSize as PipeSize),
   pipe: (v) => pipeDefinition(v.length as number, v.size as PipeSize),
   elbow: (v) => elbowDefinition(v.size as PipeSize),

@@ -8,7 +8,7 @@ import { vesselOf, type Vessel } from './vessels.js';
 export const MODEL = { name: 'mass-balance', version: 1, gravity: 9.81, dischargeCoefficient: 0.62, step: 0.1 } as const;
 
 /** Liquid-holding components (tanks of any shape) receive flow and drain by gravity. */
-const isVessel = (c: ComponentInstance) => vesselOf(c.type) !== undefined;
+const isVessel = (c: ComponentInstance) => vesselOf(c.type, c.properties) !== undefined;
 
 const key = (e: Endpoint) => `${e.instanceId}\u0000${e.portId}`;
 
@@ -153,7 +153,7 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
 
   const authored = (c: ComponentInstance) => (typeof c.properties.level === 'number' && Number.isFinite(c.properties.level) ? Math.min(100, Math.max(0, c.properties.level)) : 0);
   const tanks = () => scene.components.filter(isVessel);
-  const vessel = (id: string): Vessel => vesselOf(network.components.get(id)!.type)!;
+  const vessel = (id: string): Vessel => vesselOf(network.components.get(id)!.type, network.components.get(id)!.properties)!;
   const staticNotes = (): SimulationNote[] => tanks().filter((c) => typeof c.properties.level !== 'number').map((c) => ({ kind: 'assumed-empty', instanceId: c.id }));
 
   function configure(next: Pick<SimulationOptions, 'feeds' | 'pumps'>, strict: boolean) {
@@ -260,7 +260,7 @@ export function createSimulation(scene: ScadaScene, options: SimulationOptions =
   function load(next: ScadaScene, keep: boolean) {
     scene = next;
     network = new Network(next);
-    volumes = new Map(tanks().map((c) => [c.id, keep && volumes.has(c.id) ? volumes.get(c.id)! : vesselOf(c.type)!.volumeAtPercent(authored(c))]));
+    volumes = new Map(tanks().map((c) => [c.id, keep && volumes.has(c.id) ? volumes.get(c.id)! : vesselOf(c.type, c.properties)!.volumeAtPercent(authored(c))]));
   }
 
   load(scene, false);
