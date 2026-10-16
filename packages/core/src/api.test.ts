@@ -48,6 +48,7 @@ const publicApi = [
   'snapComponent',
   'toCanonical',
   'unlockFromParent',
+  'upgradeDimensions',
   'validateScene',
 ];
 

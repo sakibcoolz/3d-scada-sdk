@@ -1,14 +1,15 @@
 import type { ComponentKind, ConnectionPort, Vector3Tuple } from '@scada3d/core';
 import type { GeometryPart, IndustrialComponentDefinition } from './geometry.js';
 import { DEFAULT_SIZE, outerRadiusFor, pipeSizes, SIZE_PARAMETER, type PipeSize } from './sizes.js';
+import { asme } from './asme.js';
 
 /** Nominal bore of every MVP fluid port, metres (DN150). */
 export const nominalBore = 0.15;
-/** Outer radius of pipes and nozzles at the nominal bore, metres (DN150 OD ≈ 168 mm). */
-export const pipeOuterRadius = 0.084;
+/** Outer radius of DN150 pipes and nozzles, metres: ASME B36.10M OD 168.3 mm (ADR-0014). */
+export const pipeOuterRadius = 0.08415;
 
 const r = pipeOuterRadius;
-/** Elbow centreline bend radius, 2 × the DN150 bore, used at every size. */
+/** Bend radius of the conical tank's built-in outlet bend, metres. */
 const elbowBendRadius = 2 * nominalBore;
 
 function fluidPort(id: string, position: Vector3Tuple, direction: Vector3Tuple, size: PipeSize = DEFAULT_SIZE): ConnectionPort {
@@ -40,30 +41,32 @@ export function pipeDefinition(length: number, size: PipeSize = DEFAULT_SIZE): I
   });
 }
 
-/** 90° elbow, bend radius 0.3 m at every size. Local origin is where the two pipe axes intersect. */
+/** ASME B16.9 long-radius 90° elbow: bend radius = centre-to-end A. Origin where the pipe axes meet. */
 export function elbowDefinition(size: PipeSize = DEFAULT_SIZE): IndustrialComponentDefinition {
   const r = outerRadiusFor(size);
+  const a = asme[size].elbowLR90;
   return define({
     type: 'elbow',
     label: '90° Elbow',
-    ports: [fluidPort('in', [-elbowBendRadius, 0, 0], [-1, 0, 0], size), fluidPort('out', [0, elbowBendRadius, 0], [0, 1, 0], size)],
-    bounds: { min: [-elbowBendRadius, -r, -r], max: [r, elbowBendRadius, r] },
-    parts: [{ shape: 'bend', role: 'shell', center: [-elbowBendRadius, elbowBendRadius, 0], bendRadius: elbowBendRadius, tubeRadius: r, startAngle: -Math.PI / 2 }],
+    ports: [fluidPort('in', [-a, 0, 0], [-1, 0, 0], size), fluidPort('out', [0, a, 0], [0, 1, 0], size)],
+    bounds: { min: [-a, -r, -r], max: [r, a, r] },
+    parts: [{ shape: 'bend', role: 'shell', center: [-a, a, 0], bendRadius: a, tubeRadius: r, startAngle: -Math.PI / 2 }],
     parameters: { size: SIZE_PARAMETER },
   });
 }
 
-/** Equal tee: 2 m run along X, 1 m branch up Y, the same size on all three ports. */
+/** ASME B16.9 equal tee: run ends and branch end at centre-to-end C, the same size on all three ports. */
 export function teeDefinition(size: PipeSize = DEFAULT_SIZE): IndustrialComponentDefinition {
   const r = outerRadiusFor(size);
+  const c = asme[size].teeCenterToEnd;
   return define({
     type: 'tee',
     label: 'T-Junction',
-    ports: [fluidPort('left', [-1, 0, 0], [-1, 0, 0], size), fluidPort('right', [1, 0, 0], [1, 0, 0], size), fluidPort('branch', [0, 1, 0], [0, 1, 0], size)],
-    bounds: { min: [-1, -r, -r], max: [1, 1, r] },
+    ports: [fluidPort('left', [-c, 0, 0], [-1, 0, 0], size), fluidPort('right', [c, 0, 0], [1, 0, 0], size), fluidPort('branch', [0, c, 0], [0, 1, 0], size)],
+    bounds: { min: [-c, -r, -r], max: [c, c, r] },
     parts: [
-      { shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'x', radius: r, length: 2 },
-      { shape: 'cylinder', role: 'shell', center: [0, 0.5, 0], axis: 'y', radius: r, length: 1 },
+      { shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'x', radius: r, length: 2 * c },
+      { shape: 'cylinder', role: 'shell', center: [0, c / 2, 0], axis: 'y', radius: r, length: c },
     ],
     parameters: { size: SIZE_PARAMETER },
   });
@@ -92,19 +95,25 @@ export function valveDefinition(size: PipeSize = DEFAULT_SIZE): IndustrialCompon
 /** Default outlet of a new reducer: one step down from DN150. */
 export const REDUCER_OUTLET: PipeSize = 'DN100';
 
-/** Concentric reducer, 0.3 m: `size` inlet stub, 0.2 m cone, `outletSize` outlet stub (ADR-0009). */
+/**
+ * ASME B16.9 concentric reducer: length H by the larger end; 20 % straight at each end around a
+ * 60 % cone. `size` is the inlet, `outletSize` the outlet (ADR-0009, ADR-0014).
+ */
 export function reducerDefinition(size: PipeSize = DEFAULT_SIZE, outletSize: PipeSize = REDUCER_OUTLET): IndustrialComponentDefinition {
   const [rin, rout] = [outerRadiusFor(size), outerRadiusFor(outletSize)];
   const m = Math.max(rin, rout);
+  const larger = pipeSizes[size].bore >= pipeSizes[outletSize].bore ? size : outletSize;
+  const h = asme[larger].reducerLength;
+  const stub = 0.2 * h;
   return define({
     type: 'reducer',
     label: 'Reducer',
-    ports: [fluidPort('in', [-0.15, 0, 0], [-1, 0, 0], size), fluidPort('out', [0.15, 0, 0], [1, 0, 0], outletSize)],
-    bounds: { min: [-0.15, -m, -m], max: [0.15, m, m] },
+    ports: [fluidPort('in', [-h / 2, 0, 0], [-1, 0, 0], size), fluidPort('out', [h / 2, 0, 0], [1, 0, 0], outletSize)],
+    bounds: { min: [-h / 2, -m, -m], max: [h / 2, m, m] },
     parts: [
-      { shape: 'cylinder', role: 'shell', center: [-0.125, 0, 0], axis: 'x', radius: rin, length: 0.05 },
-      { shape: 'cone', role: 'shell', center: [0, 0, 0], axis: 'x', radiusStart: rin, radiusEnd: rout, length: 0.2 },
-      { shape: 'cylinder', role: 'shell', center: [0.125, 0, 0], axis: 'x', radius: rout, length: 0.05 },
+      { shape: 'cylinder', role: 'shell', center: [-h / 2 + stub / 2, 0, 0], axis: 'x', radius: rin, length: stub },
+      { shape: 'cone', role: 'shell', center: [0, 0, 0], axis: 'x', radiusStart: rin, radiusEnd: rout, length: h - 2 * stub },
+      { shape: 'cylinder', role: 'shell', center: [h / 2 - stub / 2, 0, 0], axis: 'x', radius: rout, length: stub },
     ],
     parameters: { size: SIZE_PARAMETER, outletSize: { label: 'Outlet size', choices: SIZE_PARAMETER.choices, default: REDUCER_OUTLET } },
   });

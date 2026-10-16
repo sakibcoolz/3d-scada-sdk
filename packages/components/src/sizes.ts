@@ -1,17 +1,18 @@
 import type { ConnectionPort } from '@scada3d/core';
 import type { ChoiceParameterSpec } from './geometry.js';
+import { asme } from './asme.js';
 
 /**
- * Pipe sizes offered by the catalog (ADR-0009). `bore` is the nominal bore in metres, used as the
- * port `nominalSize`; `outerDiameter` is what is drawn. DN150 keeps the original 168 mm so
- * existing scenes look identical; the others follow the steel-pipe series.
+ * Pipe sizes offered by the catalog (ADR-0009). `bore` is the nominal size in metres, used as the
+ * port `nominalSize` for matching; `outerDiameter` is what is drawn: the ASME B36.10M outside
+ * diameter (ADR-0014; DN150 is 168.3 mm, previously drawn at 168 mm).
  */
 export const pipeSizes = {
-  DN50: { bore: 0.05, outerDiameter: 0.0603 },
-  DN80: { bore: 0.08, outerDiameter: 0.0889 },
-  DN100: { bore: 0.1, outerDiameter: 0.1143 },
-  DN150: { bore: 0.15, outerDiameter: 0.168 },
-  DN200: { bore: 0.2, outerDiameter: 0.2191 },
+  DN50: { bore: 0.05, outerDiameter: asme.DN50.outsideDiameter },
+  DN80: { bore: 0.08, outerDiameter: asme.DN80.outsideDiameter },
+  DN100: { bore: 0.1, outerDiameter: asme.DN100.outsideDiameter },
+  DN150: { bore: 0.15, outerDiameter: asme.DN150.outsideDiameter },
+  DN200: { bore: 0.2, outerDiameter: asme.DN200.outsideDiameter },
 } as const;
 
 export type PipeSize = keyof typeof pipeSizes;

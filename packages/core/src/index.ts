@@ -52,6 +52,10 @@ export type { ComponentClipboard } from './clipboard.js';
 export { connectTouchingPorts, findTouchingPorts } from './touching.js';
 export type { ConnectTouchingResult, TouchingMatch, TouchingOptions, TouchingRejection, TouchingResult } from './touching.js';
 
+// Bringing scenes written with older component dimensions up to date (ADR-0014)
+export { upgradeDimensions } from './upgrade.js';
+export type { UpgradeOptions, UpgradeResult } from './upgrade.js';
+
 // Attaching one part to another at their closest free ports (editor Shift+click)
 export { attachComponents } from './attach.js';
 export type { AttachOptions, AttachResult } from './attach.js';

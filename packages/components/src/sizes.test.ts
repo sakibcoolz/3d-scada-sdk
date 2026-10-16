@@ -77,7 +77,8 @@ describe('pipe sizes', () => {
       }
     });
 
-    it('keeps every port where the DN150 version has it', () => {
+    // Pipes, valves and couplers keep their ports at every size; ASME fittings scale (asme.test.ts).
+    if (!['elbow', 'tee', 'reducer'].includes(type)) it('keeps every port where the DN150 version has it', () => {
       const base = definitionFor(type, type === 'reducer' ? { outletSize: 'DN100' } : {});
       expect(definition.ports.map((p) => [p.id, p.position, p.direction])).toEqual(base.ports.map((p) => [p.id, p.position, p.direction]));
     });

@@ -17,8 +17,8 @@ export const HYDRAULIC = {
   step: 0.5,
   /** Minor-loss coefficients, h = K·v²/2g. */
   K: { valve: 0.05, elbow: 0.3, bend: 0.3, teeRun: 0.1, teeBranch: 1.0, reducer: 0.5, tankExit: 0.5, tankEntry: 1.0, freeExit: 1.0 },
-  /** Flow lengths of fittings, m. */
-  lengths: { valve: 1.2, elbow: (Math.PI / 2) * 0.3, teeLeg: 1 },
+  /** Flow length of the valve body, m. Elbows and tees use their ASME geometry (ADR-0014). */
+  lengths: { valve: 1.2 },
 } as const;
 
 import { vesselOf } from './vessels.js';
@@ -175,6 +175,10 @@ class HydraulicNetwork {
   private elevation(e: Endpoint) {
     return portToWorld(this.components.get(e.instanceId)!, this.port(e)).position[1];
   }
+  /** Tee leg from the centre to a port: the ASME centre-to-end distance. */
+  private teeLeg(e: Endpoint) {
+    return Math.hypot(...this.port(e).position);
+  }
   private bore(e: Endpoint) {
     return this.port(e).nominalSize ?? 0.15;
   }
@@ -197,8 +201,11 @@ class HydraulicNetwork {
         const [p0, p1] = definitionFor(c.type, c.properties).ports;
         return [{ length: Math.hypot(p1.position[0] - p0.position[0], p1.position[1] - p0.position[1], p1.position[2] - p0.position[2]), diameter: d(entry), k: 0 }];
       }
-      case 'elbow':
-        return [{ length: HYDRAULIC.lengths.elbow, diameter: d(entry), k: HYDRAULIC.K.elbow }];
+      case 'elbow': {
+        // Centreline arc of the long-radius bend.
+        const bend = definitionFor(c.type, c.properties).parts.find((p) => p.shape === 'bend');
+        return [{ length: bend && bend.shape === 'bend' ? (Math.PI / 2) * bend.bendRadius : 0, diameter: d(entry), k: HYDRAULIC.K.elbow }];
+      }
       case 'valve':
         return [{ length: HYDRAULIC.lengths.valve, diameter: d(entry), k: HYDRAULIC.K.valve }];
       case 'reducer': {
@@ -219,7 +226,7 @@ class HydraulicNetwork {
       for (const p of this.ports(c.id)) {
         const e = { instanceId: c.id, portId: p };
         const connected = this.peers.has(key(e));
-        if (c.type === 'tee') starts.push({ terminal: this.terminal('node', e), segments: [{ length: HYDRAULIC.lengths.teeLeg, diameter: this.bore(e), k: p === 'branch' ? HYDRAULIC.K.teeBranch : HYDRAULIC.K.teeRun }], leaving: e });
+        if (c.type === 'tee') starts.push({ terminal: this.terminal('node', e), segments: [{ length: this.teeLeg(e), diameter: this.bore(e), k: p === 'branch' ? HYDRAULIC.K.teeBranch : HYDRAULIC.K.teeRun }], leaving: e });
         else if (isVessel(c)) { if (connected) starts.push({ terminal: this.terminal('tank', e), segments: [], leaving: e }); }
         else if (!connected) starts.push({ terminal: this.terminal(this.fedPorts.has(key(e)) ? 'node' : 'free', e), segments: [], leaving: e, through: c, entry: p });
       }
@@ -247,7 +254,7 @@ class HydraulicNetwork {
         const c = this.components.get(peer.other.instanceId)!;
         if (isVessel(c)) { this.finish(link, this.terminal('tank', peer.other), used, key(peer.other)); break; }
         if (c.type === 'tee') {
-          link.segments.push({ length: HYDRAULIC.lengths.teeLeg, diameter: this.bore(peer.other), k: peer.other.portId === 'branch' ? HYDRAULIC.K.teeBranch : HYDRAULIC.K.teeRun });
+          link.segments.push({ length: this.teeLeg(peer.other), diameter: this.bore(peer.other), k: peer.other.portId === 'branch' ? HYDRAULIC.K.teeBranch : HYDRAULIC.K.teeRun });
           this.finish(link, this.terminal('node', peer.other), used, key(peer.other));
           break;
         }
@@ -398,7 +405,11 @@ export function createHydraulicSimulation(initial: ScadaScene, options: Simulati
       }
       if (change < 1e-10) break;
     }
-    const linkFlows = network.links.map((l) => (l.a === l.b ? 0 : linkFlow(l, head(l.a) - head(l.b), tankDry)));
+    // Below 1 µL/s a flow is solver tolerance, not physics (e.g. a dead-end tee): report it as zero.
+    const linkFlows = network.links.map((l) => {
+      const q = l.a === l.b ? 0 : linkFlow(l, head(l.a) - head(l.b), tankDry);
+      return Math.abs(q) < 1e-9 ? 0 : q;
+    });
     return { linkFlows, blockedFeeds };
   }
 
