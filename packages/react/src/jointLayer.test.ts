@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { routeScene, type ComponentInstance, type ComponentKind, type ScadaScene, type SceneConnection } from '@scada3d/core';
-import { catalogResolvers } from '@scada3d/components';
+import { asme, catalogResolvers } from '@scada3d/components';
 import { jointPlacements } from './jointLayer.js';
 
 const I = { x: 0, y: 0, z: 0, w: 1 };
@@ -13,15 +13,16 @@ const xAxis = (m: readonly number[]) => [m[0], m[1], m[2]].map((n) => Math.round
 
 describe('jointPlacements', () => {
   it('puts one flange pair where a valve meets a pipe, on the joint, along the valve port', () => {
-    // valve out at x = 0.6; pipe in at 0.6.
-    const s = scene([part('v', 'valve', 0, 0.2, { open: true }), part('p', 'pipe', 1.6, 0.2, { length: 2 })], [join('c', 'v', 'out', 'p', 'in')]);
+    // valve out at x = F/2 (B16.10); pipe in there too.
+    const h = asme.DN150.valveFaceToFace / 2;
+    const s = scene([part('v', 'valve', 0, 0.2, { open: true }), part('p', 'pipe', h + 1, 0.2, { length: 2 })], [join('c', 'v', 'out', 'p', 'in')]);
     const pairs = place(s).filter((p) => p.style === 'pair');
     expect(pairs).toHaveLength(1);
     expect(pairs[0].size).toBe('DN150');
-    expect(origin(pairs[0].matrix)).toEqual([0.6, 0.2, 0]);
+    expect(origin(pairs[0].matrix)).toEqual([h, 0.2, 0]);
     expect(xAxis(pairs[0].matrix)).toEqual([1, 0, 0]);
     // The valve's other, free end gets a single flange; the free pipe end gets nothing.
-    expect(place(s).filter((p) => p.style === 'single').map((p) => origin(p.matrix))).toEqual([[-0.6, 0.2, 0]]);
+    expect(place(s).filter((p) => p.style === 'single').map((p) => origin(p.matrix))).toEqual([[-h, 0.2, 0]]);
   });
 
   it('welds a pipe to an elbow', () => {

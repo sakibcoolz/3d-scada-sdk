@@ -20,31 +20,42 @@ export interface UpgradeResult {
 }
 
 
-/** Whether two ports sit together face to face (1 mm, 1°), as `findTouchingPorts` decides. */
+/** Each port of a kind under the old dimensions, plus its current place where that differs. */
+function eitherGeneration(options: UpgradeOptions): Resolver {
+  return (type, properties) => {
+    const old = options.resolveLegacyPorts(type, properties) ?? [];
+    const now = options.resolvePorts(type, properties) ?? [];
+    const same = (a: ConnectionPort, b: ConnectionPort) => a.id === b.id && a.position.every((n, i) => n === b.position[i]) && a.direction.every((n, i) => n === b.direction[i]);
+    return [...old, ...now.filter((p) => !old.some((o) => same(o, p)))];
+  };
+}
+
+/** Whether two ports sit together face to face (1 mm, 1°), as `findTouchingPorts` decides, in any of the places `resolve` gives each. */
 function meets(scene: ScadaScene, a: Endpoint, b: Endpoint, resolve: Resolver): boolean {
   const at = (e: Endpoint) => {
     const c = scene.components.find((x) => x.id === e.instanceId);
-    const p = c && resolve(c.type, c.properties)?.find((q) => q.id === e.portId);
-    return c && p ? portToWorld(c, p) : undefined;
+    return c ? (resolve(c.type, c.properties) ?? []).filter((q) => q.id === e.portId).map((q) => portToWorld(c, q)) : [];
   };
-  const [p, q] = [at(a), at(b)];
-  if (!p || !q) return false;
-  const distance = Math.hypot(...p.position.map((n, i) => n - q.position[i]));
-  const facing = -p.direction.reduce((s, n, i) => s + n * q.direction[i], 0);
-  return distance <= 0.001 && facing >= Math.cos(Math.PI / 180);
+  return at(a).some((p) => at(b).some((q) => {
+    const distance = Math.hypot(...p.position.map((n, i) => n - q.position[i]));
+    const facing = -p.direction.reduce((s, n, i) => s + n * q.direction[i], 0);
+    return distance <= 0.001 && facing >= Math.cos(Math.PI / 180);
+  }));
 }
 
 /**
  * Brings a scene written with older component dimensions up to date: every pair of ports that met
  * under the old dimensions (connected or merely touching) is made to meet again, walking each
- * line outwards from its first part so downstream parts follow. Deliberate gaps are left alone,
+ * line outwards from its first part so downstream parts follow. A file may mix generations (e.g.
+ * current fittings with older valves): each side of a joint may be in either, and joints that
+ * already meet carry the parts after them along. Deliberate gaps are left alone,
  * connections are not changed, and a scene already in current dimensions is returned as is.
  */
 export function upgradeDimensions(scene: ScadaScene, options: UpgradeOptions): UpgradeResult {
-  const legacy = { resolvePorts: options.resolveLegacyPorts };
+  const either = eitherGeneration(options);
   const edges: { a: Endpoint; b: Endpoint; connectionId?: string }[] = [
-    ...scene.connections.filter((c) => meets(scene, c.from, c.to, options.resolveLegacyPorts)).map((c) => ({ a: c.from, b: c.to, connectionId: c.id })),
-    ...findTouchingPorts(scene, legacy).matches.map((m) => ({ a: m.from, b: m.to })),
+    ...scene.connections.filter((c) => meets(scene, c.from, c.to, either)).map((c) => ({ a: c.from, b: c.to, connectionId: c.id })),
+    ...findTouchingPorts(scene, { resolvePorts: either }).matches.map((m) => ({ a: m.from, b: m.to })),
   ];
   if (edges.length === 0) return { scene, reseated: 0 };
 

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { sceneJson, startDrag, waitForCanvas } from './helpers';
+import { sceneJson, startDrag, VALVE_FACE, waitForCanvas } from './helpers';
 
 type C = { id: string; type: string; parentId?: string; position: { x: number; y: number; z: number } };
 
@@ -10,11 +10,11 @@ async function buildChain(page: Page): Promise<{ tank: C; valve: C; pipe: C }> {
   await startDrag(page, 'Vertical Tank +', [0, 0, 0]);
   await page.mouse.up();
   const t = (await sceneJson(page)).components[0] as C;
-  await startDrag(page, 'Ball Valve +', [t.position.x + 1.8, 0, t.position.z]);
+  await startDrag(page, 'Ball Valve +', [t.position.x + 1.2 + VALVE_FACE / 2, 0, t.position.z]);
   await page.mouse.up();
   const v = (await sceneJson(page)).components[1] as C;
   // A ground-dropped pipe's ports sit too low to reach the valve outlet, so chain a second valve.
-  await startDrag(page, 'Ball Valve +', [v.position.x + 1.2, 0, v.position.z]);
+  await startDrag(page, 'Ball Valve +', [v.position.x + VALVE_FACE, 0, v.position.z]);
   await page.mouse.up();
   const scene = await sceneJson(page);
   expect(scene.connections).toHaveLength(2);

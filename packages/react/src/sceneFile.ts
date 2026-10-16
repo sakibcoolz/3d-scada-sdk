@@ -32,7 +32,7 @@ export function importSceneText(text: string): SceneImport {
   const upgraded = upgradeDimensions(result.scene, { ...catalogResolvers, ...legacyCatalogResolvers });
   const { components, connections } = upgraded.scene;
   const migrated = result.migratedFrom ? ` (migrated from version ${result.migratedFrom})` : '';
-  const reseated = upgraded.reseated ? ` Updated ${count(upgraded.reseated, 'part')} to ASME fitting sizes.` : '';
+  const reseated = upgraded.reseated ? ` Updated ${count(upgraded.reseated, 'part')} to ASME dimensions.` : '';
   return {
     ok: true,
     scene: upgraded.scene,

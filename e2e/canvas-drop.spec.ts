@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { sceneJson, startDrag, waitForCanvas } from './helpers';
+import { sceneJson, startDrag, VALVE_FACE, waitForCanvas } from './helpers';
 
 test('drops components at the pointer and snaps a valve onto the tank outlet', async ({ page }) => {
   await page.goto('/');
@@ -22,7 +22,7 @@ test('drops components at the pointer and snaps a valve onto the tank outlet', a
 
   // The tank outlet sits at (x + 1.2, 1.435, z). The valve is dropped on the ground right below it
   // and is lifted onto the outlet (snap in plan view).
-  await startDrag(page, 'Ball Valve +', [x + 1.8, 0, z]);
+  await startDrag(page, 'Ball Valve +', [x + 1.2 + VALVE_FACE / 2, 0, z]);
   await expect(status).toHaveText('Connects Ball Valve "in" to Vertical Tank "outlet"');
   await page.mouse.up();
 
@@ -30,7 +30,7 @@ test('drops components at the pointer and snaps a valve onto the tank outlet', a
   expect(scene.components).toHaveLength(2);
   const valve = scene.components[1];
   expect(valve.type).toBe('valve');
-  expect(valve.position.x).toBeCloseTo(x + 1.8, 9);
+  expect(valve.position.x).toBeCloseTo(x + 1.2 + VALVE_FACE / 2, 9);
   expect(valve.position.y).toBeCloseTo(0.635 + 0.8, 9);
   expect(valve.position.z).toBeCloseTo(z, 9);
   expect(scene.connections).toEqual([

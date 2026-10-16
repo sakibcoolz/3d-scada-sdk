@@ -19,6 +19,7 @@ Use one ADR per significant decision. Accepted decisions are binding; proposals 
 | [0013](adr/0013-conical-tank.md) | Accepted | `conicalTank` kind (legs, cone, side outlet, sight gauge, plate); `lathe` liquid following the vessel; simulation vessel shapes from the catalog |
 | [0014](adr/0014-asme-dimensions.md) | Accepted | ASME B36.10M/B16.9 dimensions for pipe, elbows, tees and reducers (values to be verified against the standard); older files re-seated on load with `upgradeDimensions` |
 | [0015](adr/0015-flanges-and-welds.md) | Accepted | Joints drawn as ASME B16.5 Class 150 flange pairs (valves, pumps, tanks) or butt-weld beads (pipe and fittings); routed bends at 1.5 × NPS; instanced and display only |
+| [0016](adr/0016-valves-and-nozzles.md) | Accepted | Ball valve at ASME B16.10 Class 150 short-pattern face-to-face; tank `nozzleSize` and pump `suctionSize`/`dischargeSize`; `upgradeDimensions` handles files mixing generations |
 
 ## New ADR template
 Title / Status (Proposed/Accepted/Superseded) / Context / Options considered / Decision / Trade-offs / Consequences / Migration / Tests / Date / Approvers. Owner approval required before altering public schema or safety boundaries.

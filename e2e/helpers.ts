@@ -1,5 +1,8 @@
 import { expect, type Page } from '@playwright/test';
 
+/** DN150 ball valve face to face, ASME B16.10 Class 150 short pattern (ADR-0016), metres. */
+export const VALVE_FACE = 0.267;
+
 export type Vec3 = [number, number, number];
 
 // Mirrors the viewer camera: position (7, 6, 9), 50° vertical fov, orbit target at the origin.

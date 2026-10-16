@@ -72,21 +72,29 @@ export function teeDefinition(size: PipeSize = DEFAULT_SIZE): IndustrialComponen
   });
 }
 
-/** Ball valve, 1.2 m body; ball, stem and handle scale with the pipe diameter. */
+/**
+ * Flanged ball valve, ASME B16.10 Class 150 short pattern: ports at the raised faces, F apart. The
+ * ball body, stem and lever (0.9 F) fit within F; the lever lies along the pipe when open (ADR-0016).
+ */
 export function valveDefinition(size: PipeSize = DEFAULT_SIZE): IndustrialComponentDefinition {
   const r = outerRadiusFor(size);
-  const k = r / pipeOuterRadius;
+  const f = asme[size].valveFaceToFace;
+  const h = f / 2;
+  const ball = Math.min(0.45 * f, 1.6 * r);
+  const stem = { bottom: 0.9 * ball, length: 0.3 * f, radius: 0.15 * r };
+  const lever: Vector3Tuple = [0.9 * f, 0.2 * r, 0.35 * r];
+  const leverY = stem.bottom + stem.length + lever[1] / 2;
   return define({
     type: 'valve',
     label: 'Ball Valve',
     bindable: { open: 'boolean' },
-    ports: [fluidPort('in', [-0.6, 0, 0], [-1, 0, 0], size), fluidPort('out', [0.6, 0, 0], [1, 0, 0], size)],
-    bounds: { min: [-0.6, -0.2 * k, -0.2 * k], max: [0.6, 0.495 * k, 0.2 * k] },
+    ports: [fluidPort('in', [-h, 0, 0], [-1, 0, 0], size), fluidPort('out', [h, 0, 0], [1, 0, 0], size)],
+    bounds: { min: [-h, -ball, -ball], max: [h, leverY + lever[1] / 2, ball] },
     parts: [
-      { shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'x', radius: r, length: 1.2 },
-      { shape: 'sphere', role: 'valve-ball', center: [0, 0, 0], radius: 0.2 * k },
-      { shape: 'cylinder', role: 'shell', center: [0, 0.32 * k, 0], axis: 'y', radius: 0.025 * k, length: 0.25 * k },
-      { shape: 'box', role: 'valve-handle', center: [0, 0.47 * k, 0], size: [0.6 * k, 0.05 * k, 0.08 * k] },
+      { shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'x', radius: r, length: f },
+      { shape: 'sphere', role: 'valve-ball', center: [0, 0, 0], radius: ball },
+      { shape: 'cylinder', role: 'shell', center: [0, stem.bottom + stem.length / 2, 0], axis: 'y', radius: stem.radius, length: stem.length },
+      { shape: 'box', role: 'valve-handle', center: [0, leverY, 0], size: lever },
     ],
     parameters: { size: SIZE_PARAMETER },
   });
@@ -164,11 +172,16 @@ function levelGauge(centreY: number, columnLength: number, plateY: number): Geom
 /** Stand under the vertical tank, metres; absent in older files means no stand (ADR-0013). */
 export const TANK_STAND = { label: 'Stand height', unit: 'm', default: 0, min: 0, max: 3, step: 0.1, initial: 0.8, keepsBottom: true } as const;
 
+/** Size of a vessel's or pump's flanged nozzles; ports keep their place at every size (ADR-0016). */
+const nozzleParameter = (label: string) => ({ ...SIZE_PARAMETER, label });
+
 /**
  * Flat-bottomed vertical tank: radius 1 m, 3 m shell, side nozzles, front sight gauge. On a
- * stand of `standHeight` m it stands on four legs with feet; its ports never move.
+ * stand of `standHeight` m it stands on four legs with feet. Nozzles are `nozzleSize`; its ports
+ * never move.
  */
-export function tankDefinition(standHeight = 0): IndustrialComponentDefinition {
+export function tankDefinition(standHeight = 0, nozzleSize: PipeSize = DEFAULT_SIZE): IndustrialComponentDefinition {
+  const r = outerRadiusFor(nozzleSize);
   const bottom = -1.535;
   const floor = bottom - standHeight;
   const legAt = (deg: number): [number, number] => [Math.round(0.75 * Math.cos((deg * Math.PI) / 180) * 1e9) / 1e9, Math.round(0.75 * Math.sin((deg * Math.PI) / 180) * 1e9) / 1e9];
@@ -185,7 +198,7 @@ export function tankDefinition(standHeight = 0): IndustrialComponentDefinition {
     type: 'tank',
     label: 'Vertical Tank',
     bindable: { level: 'percent', temperature: 'temperature' },
-    ports: [fluidPort('inlet', [-1.2, 0.8, 0], [-1, 0, 0]), fluidPort('outlet', [1.2, -0.9, 0], [1, 0, 0])],
+    ports: [fluidPort('inlet', [-1.2, 0.8, 0], [-1, 0, 0], nozzleSize), fluidPort('outlet', [1.2, -0.9, 0], [1, 0, 0], nozzleSize)],
     bounds: { min: [-1.2, standHeight > 0 ? floor : bottom, -1], max: [1.2, 1.535, 1.145] },
     parts: [
       { shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'y', radius: 1, length: 3, openEnded: true },
@@ -197,7 +210,7 @@ export function tankDefinition(standHeight = 0): IndustrialComponentDefinition {
       ...levelGauge(0, 2.76, 0.4),
       ...stand,
     ],
-    parameters: { standHeight: { ...TANK_STAND } },
+    parameters: { standHeight: { ...TANK_STAND }, nozzleSize: nozzleParameter('Nozzle size') },
   });
 }
 
@@ -206,7 +219,8 @@ export function tankDefinition(standHeight = 0): IndustrialComponentDefinition {
  * top; the outlet leaves the cone tip, bends and runs out horizontally to +X, 0.4 m above the
  * ground. The front (+Z) carries the shared sight gauge, scale and name plate (`levelGauge`).
  */
-function conicalTankDefinition(): IndustrialComponentDefinition {
+export function conicalTankDefinition(nozzleSize: PipeSize = DEFAULT_SIZE): IndustrialComponentDefinition {
+  const r = outerRadiusFor(nozzleSize);
   const legAt = (deg: number): [number, number, number] => [0.9 * Math.cos((deg * Math.PI) / 180), -1.5, 0.9 * Math.sin((deg * Math.PI) / 180)];
   const round = (n: number) => Math.round(n * 1e9) / 1e9;
   const coneRadiusAt = (y: number) => r + (1 - r) * (y + 1.5);
@@ -214,7 +228,7 @@ function conicalTankDefinition(): IndustrialComponentDefinition {
     type: 'conicalTank',
     label: 'Conical Tank',
     bindable: { level: 'percent', temperature: 'temperature' },
-    ports: [fluidPort('inlet', [0, 1.7, 0], [0, 1, 0]), fluidPort('outlet', [1.1, -2.1, 0], [1, 0, 0])],
+    ports: [fluidPort('inlet', [0, 1.7, 0], [0, 1, 0], nozzleSize), fluidPort('outlet', [1.1, -2.1, 0], [1, 0, 0], nozzleSize)],
     bounds: { min: [-1, -2.5, -1], max: [1.1, 1.7, 1.145] },
     parts: [
       { shape: 'cylinder', role: 'shell', center: [0, 0.5, 0], axis: 'y', radius: 1, length: 2, openEnded: true },
@@ -229,6 +243,24 @@ function conicalTankDefinition(): IndustrialComponentDefinition {
       // Liquid 4 cm inside the walls, from just above the cone tip to just below the cap.
       { shape: 'lathe', role: 'liquid', center: [0, 0, 0], points: [[round(coneRadiusAt(-1.46) - 0.04), -1.46], [0.96, -0.5], [0.96, 1.46]] },
     ],
+    parameters: { nozzleSize: nozzleParameter('Nozzle size') },
+  });
+}
+
+/** End-suction centrifugal pump placeholder: suction on -X, discharge on top, each nozzle sized. */
+export function pumpDefinition(suctionSize: PipeSize = DEFAULT_SIZE, dischargeSize: PipeSize = DEFAULT_SIZE): IndustrialComponentDefinition {
+  const [rs, rd] = [outerRadiusFor(suctionSize), outerRadiusFor(dischargeSize)];
+  return define({
+    type: 'pump',
+    label: 'Centrifugal Pump',
+    ports: [fluidPort('suction', [-0.6, 0, 0], [-1, 0, 0], suctionSize), fluidPort('discharge', [0.3, 0.6, 0], [0, 1, 0], dischargeSize)],
+    bounds: { min: [-0.6, -0.4, -0.175], max: [0.4, 0.6, 0.175] },
+    parts: [
+      { shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'z', radius: 0.4, length: 0.35 },
+      { shape: 'cylinder', role: 'shell', center: [-0.475, 0, 0], axis: 'x', radius: rs, length: 0.25 },
+      { shape: 'cylinder', role: 'shell', center: [0.3, 0.4, 0], axis: 'y', radius: rd, length: 0.4 },
+    ],
+    parameters: { suctionSize: nozzleParameter('Suction size'), dischargeSize: nozzleParameter('Discharge size') },
   });
 }
 
@@ -242,18 +274,7 @@ export const componentCatalog: Record<ComponentKind, IndustrialComponentDefiniti
   valve: valveDefinition(),
   reducer: reducerDefinition(),
   coupler: couplerDefinition(),
-  // End-suction centrifugal pump placeholder: suction on -X, discharge on top.
-  pump: define({
-    type: 'pump',
-    label: 'Centrifugal Pump',
-    ports: [fluidPort('suction', [-0.6, 0, 0], [-1, 0, 0]), fluidPort('discharge', [0.3, 0.6, 0], [0, 1, 0])],
-    bounds: { min: [-0.6, -0.4, -0.175], max: [0.4, 0.6, 0.175] },
-    parts: [
-      { shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'z', radius: 0.4, length: 0.35 },
-      { shape: 'cylinder', role: 'shell', center: [-0.475, 0, 0], axis: 'x', radius: r, length: 0.25 },
-      { shape: 'cylinder', role: 'shell', center: [0.3, 0.4, 0], axis: 'y', radius: r, length: 0.4 },
-    ],
-  }),
+  pump: pumpDefinition(),
   // Placeholders without ports until mechanical and signal connections are designed.
   sensor: define({
     type: 'sensor',

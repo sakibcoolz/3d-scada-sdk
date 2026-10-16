@@ -11,7 +11,7 @@ test('loading an older plant re-seats it to ASME fitting sizes and says so', asy
   await waitForCanvas(page);
   await page.getByLabel('Import JSON text').fill(plant);
   await page.getByRole('button', { name: 'Load text' }).click();
-  await expect(page.getByText(/^Loaded 12 components and 0 connections\. Updated \d+ parts? to ASME fitting sizes\.$/)).toBeVisible();
+  await expect(page.getByText(/^Loaded 12 components and 0 connections\. Updated \d+ parts? to ASME dimensions\.$/)).toBeVisible();
   await expect(page.getByRole('button', { name: /^Connect touching ports/ })).toHaveText('Connect touching ports (11)');
   // Loading the upgraded file again changes nothing more.
   const upgraded = await page.getByLabel('Scene JSON').inputValue();

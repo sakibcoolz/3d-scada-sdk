@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { PerspectiveCamera } from 'three';
 import { validateScene, type ComponentKind, type ScadaScene, type Vector3Like, type Vector3Tuple } from '@scada3d/core';
-import { componentCatalog } from '@scada3d/components';
+import { asme, componentCatalog } from '@scada3d/components';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane } from './drop.js';
 
 const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
+/** Half the DN150 valve's B16.10 face-to-face, and its height above the ground when it rests there. */
+const VALVE_HALF = asme.DN150.valveFaceToFace / 2;
+const VALVE_Y = -componentCatalog.valve.bounds.min[1];
 
 function counter(prefix: string): () => string {
   let n = 0;
@@ -67,7 +70,7 @@ describe('screenToPlane', () => {
 describe('dropPosition', () => {
   it('rests the component bounds on the plane at the hit point', () => {
     expectVectorClose(dropPosition(componentCatalog.tank, [3, 0, -2]), { x: 3, y: 1.535, z: -2 });
-    expectVectorClose(dropPosition(componentCatalog.valve, [1, 0, 0]), { x: 1, y: 0.2, z: 0 });
+    expectVectorClose(dropPosition(componentCatalog.valve, [1, 0, 0]), { x: 1, y: VALVE_Y, z: 0 });
     expectVectorClose(dropPosition(componentCatalog.tank, [0, 2, 0]), { x: 0, y: 3.535, z: 0 });
   });
 });
@@ -80,10 +83,10 @@ describe('planDrop', () => {
   });
 
   it('snaps a valve dropped beside the tank outlet onto it', () => {
-    // Valve inlet lands at (1.2, 0.2, 0); the tank outlet is at (1.2, 0.635, 0).
-    const plan = planDrop(tankOnGround(), 'valve', [1.8, 0, 0], { createId: counter('c') });
+    // Valve inlet lands at (1.2, VALVE_Y, 0); the tank outlet is at (1.2, 0.635, 0).
+    const plan = planDrop(tankOnGround(), 'valve', [1.2 + VALVE_HALF, 0, 0], { createId: counter('c') });
     expect(plan.snap.ok).toBe(true);
-    expectVectorClose(plan.component.position, { x: 1.8, y: 0.635, z: 0 });
+    expectVectorClose(plan.component.position, { x: 1.2 + VALVE_HALF, y: 0.635, z: 0 });
     if (plan.snap.ok) {
       expect(plan.snap.connection).toEqual({ from: { instanceId: 'c1', portId: 'in' }, to: { instanceId: 'tank', portId: 'outlet' } });
     }
@@ -95,9 +98,10 @@ describe('planDrop', () => {
       components: [...tankOnGround().components, { id: 'v0', type: 'valve', position: { x: 9, y: 0.2, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} }],
       connections: [{ id: 'e0', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'v0', portId: 'in' } }],
     };
-    const plan = planDrop(scene, 'valve', [1.8, 0, 0], { createId: counter('c') });
+    // Dropped on a plane 8 cm up, so the valve centre is 0.2 m up, within reach of the outlet.
+    const plan = planDrop(scene, 'valve', [1.2 + VALVE_HALF, 0.08, 0], { createId: counter('c') });
     expect(plan.snap).toEqual(expect.objectContaining({ ok: false, nearest: expect.objectContaining({ status: 'occupied' }) }));
-    expectVectorClose(plan.component.position, { x: 1.8, y: 0.2, z: 0 });
+    expectVectorClose(plan.component.position, { x: 1.2 + VALVE_HALF, y: 0.08 + VALVE_Y, z: 0 });
   });
 
   it('starts properties from the editor defaults for the kind', () => {
@@ -120,7 +124,7 @@ describe('applyDrop', () => {
   });
 
   it('adds the snapped component and its connection as one valid change', () => {
-    const plan = planDrop(tankOnGround(), 'valve', [1.8, 0, 0], { createId: counter('c') });
+    const plan = planDrop(tankOnGround(), 'valve', [1.2 + VALVE_HALF, 0, 0], { createId: counter('c') });
     const result = applyDrop(tankOnGround(), plan, counter('e'));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -141,7 +145,7 @@ describe('applyDrop', () => {
 
 describe('describeDrop', () => {
   it('names the ports a snap will connect', () => {
-    const plan = planDrop(tankOnGround(), 'valve', [1.8, 0, 0], { createId: counter('c') });
+    const plan = planDrop(tankOnGround(), 'valve', [1.2 + VALVE_HALF, 0, 0], { createId: counter('c') });
     expect(describeDrop(plan, tankOnGround())).toBe('Connects Ball Valve "in" to Vertical Tank "outlet"');
   });
 
@@ -151,7 +155,7 @@ describe('describeDrop', () => {
       components: [...tankOnGround().components, { id: 'v0', type: 'valve', position: { x: 9, y: 0.2, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} }],
       connections: [{ id: 'e0', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'v0', portId: 'in' } }],
     };
-    expect(describeDrop(planDrop(scene, 'valve', [1.8, 0, 0], { createId: counter('c') }), scene)).toBe(
+    expect(describeDrop(planDrop(scene, 'valve', [1.2 + VALVE_HALF, 0.08, 0], { createId: counter('c') }), scene)).toBe(
       'Cannot connect "in" to Vertical Tank "outlet": port already connected',
     );
   });
@@ -180,11 +184,13 @@ describe('planDrop with pipe sizes', () => {
     expect(applied.ok).toBe(true);
   });
 
-  it('leaves a part without a size choice unsnapped next to a port of another size', () => {
-    // The tank inlet is DN150 and cannot change, so it never snaps to the DN100 outlet.
-    const plan = planDrop(reducerScene(), 'tank', [1.5, 0, 0], { createId: () => 't' });
-    expect(plan.snap.ok).toBe(false);
-    expect(plan.component.properties).toEqual({});
+  it('sizes only the nozzle that snaps: a pump dropped on the DN100 outlet gets a DN100 suction', () => {
+    const outletX = 0.07; // reducer "out", DN150 → DN100 (B16.9 H = 140 mm)
+    const plan = planDrop(reducerScene(), 'pump', [outletX + 0.6, 0, 0], { createId: () => 'u' });
+    expect(plan.snap.ok).toBe(true);
+    expect(plan.component.properties).toEqual({ suctionSize: 'DN100' });
+    if (plan.snap.ok) expect(plan.snap.connection).toEqual({ from: { instanceId: 'u', portId: 'suction' }, to: { instanceId: 'r', portId: 'out' } });
+    expect(applyDrop(reducerScene(), plan, () => 'c').ok).toBe(true);
   });
 });
 
@@ -198,7 +204,7 @@ describe('planDrop next to a raised port (snap in plan view)', () => {
   });
 
   it('lifts a part dropped on the ground below the outlet and snaps it on', () => {
-    const plan = planDrop(raised(), 'valve', [1.85, 0, 0.1], { createId: () => 'v' });
+    const plan = planDrop(raised(), 'valve', [1.25 + VALVE_HALF, 0, 0.1], { createId: () => 'v' });
     expect(plan.snap.ok).toBe(true);
     if (plan.snap.ok) expect(plan.snap.connection.to).toEqual({ instanceId: 't', portId: 'outlet' });
     expect(plan.component.position.y).toBeCloseTo(1.435, 9);
@@ -208,6 +214,6 @@ describe('planDrop next to a raised port (snap in plan view)', () => {
   it('does not reach a port that is far away in plan', () => {
     const plan = planDrop(raised(), 'valve', [4, 0, 0], { createId: () => 'v' });
     expect(plan.snap.ok).toBe(false);
-    expect(plan.component.position.y).toBeCloseTo(0.2, 9);
+    expect(plan.component.position.y).toBeCloseTo(VALVE_Y, 9);
   });
 });
