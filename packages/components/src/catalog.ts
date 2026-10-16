@@ -336,46 +336,82 @@ export const HORIZONTAL_LENGTH = { label: 'Shell length', unit: 'm', default: 3,
 export const HORIZONTAL_STAND = { label: 'Stand height', unit: 'm', default: 0.6, min: 0.3, max: 3, step: 0.1, keepsBottom: true } as const;
 
 /**
- * Horizontal tank along X: a `length` straight shell, `diameter` across, with 2:1 dished ends
- * (depth D/4), on four cross-braced legs `standHeight` below it. Inlet on top a quarter along,
- * outlet out of the +X head below the axis. Origin on the axis, mid-length (ADR-0018).
+ * ASME flanged-and-dished (torispherical) head for a shell of radius `R`: crown radius D, knuckle
+ * radius 0.06 D, depth about 0.169 D. Profile [radius, depth] from the rim (R, 0) to the crown.
+ */
+function torisphericalHead(R: number): { depth: number; points: [number, number][] } {
+  const [rc, rk] = [2 * R, 0.12 * R];
+  const c = -Math.sqrt((rc - rk) ** 2 - (R - rk) ** 2); // crown centre on the axis
+  const turn = Math.atan2(-c, R - rk); // where the knuckle meets the crown
+  const knuckle = Array.from({ length: 9 }, (_, k): [number, number] => { const t = (k / 8) * turn; return [round9(R - rk + rk * Math.cos(t)), round9(rk * Math.sin(t))]; });
+  const crown = Array.from({ length: 12 }, (_, k): [number, number] => { const t = turn + ((k + 1) / 12) * (Math.PI / 2 - turn); return [round9(rc * Math.cos(t)), round9(c + rc * Math.sin(t))]; });
+  return { depth: round9(c + rc), points: [...knuckle, ...crown] };
+}
+
+/** How far along the axis a head profile reaches at radius `rho`. */
+function headDepthAt(points: readonly [number, number][], rho: number): number {
+  const i = points.findIndex(([r]) => r <= rho);
+  if (i <= 0) return 0;
+  const [[r0, a0], [r1, a1]] = [points[i - 1], points[i]];
+  return a0 + ((a1 - a0) * (r0 - rho)) / (r0 - r1);
+}
+
+/**
+ * Horizontal tank along X: a `length` straight shell, `diameter` across, with ASME F&D heads and
+ * weld seams where they meet the shell. It rests on two saddles just inside the seams, each on two
+ * legs reaching `standHeight` below the shell, X-braced front and back. Inlet on top near the −X
+ * end, outlet out of the +X head low down (0.75 R below the axis). The capacity plate is flat on
+ * the middle of the front; a full-height sight glass on two brackets is at the +X end (ADR-0018).
+ * Origin on the axis, mid-length.
  */
 export function horizontalTankDefinition(diameter: number = HORIZONTAL_DIAMETER.default, length: number = HORIZONTAL_LENGTH.default, standHeight: number = HORIZONTAL_STAND.default, nozzleSize: PipeSize = DEFAULT_SIZE, capacityUnit: CapacityUnit = 'm³'): IndustrialComponentDefinition {
   const r = outerRadiusFor(nozzleSize);
   const R = diameter / 2;
   const h = length / 2;
-  // Profile along x: crown of the −X head, rim, straight shell, rim, crown of the +X head.
-  const profile = (rim: number, depth: number): [number, number][] => [
-    ...Array.from({ length: 13 }, (_, k): [number, number] => { const t = (k / 12) * (Math.PI / 2); return [round9(rim * Math.sin(t)), round9(-h - depth * Math.cos(t))]; }),
-    ...Array.from({ length: 13 }, (_, k): [number, number] => { const t = ((12 - k) / 12) * (Math.PI / 2); return [round9(rim * Math.sin(t)), round9(h + depth * Math.cos(t))]; }),
+  const head = torisphericalHead(R);
+  // Profile along x: crown of the −X head to its rim, the straight shell, rim to crown of the +X head.
+  const profile = (points: readonly [number, number][]): [number, number][] => [
+    ...[...points].reverse().map(([rho, a]): [number, number] => [rho, round9(-h - a)]),
+    ...points.map(([rho, a]): [number, number] => [rho, round9(h + a)]),
   ];
-  const shell: GeometryPart = { shape: 'lathe', role: 'shell', center: [0, 0, 0], axis: 'x', points: profile(R, R / 2), holds: true };
+  const shell: GeometryPart = { shape: 'lathe', role: 'shell', center: [0, 0, 0], axis: 'x', points: profile(head.points), holds: true };
   const floor = round9(-R - standHeight);
-  const legX = round9(Math.min(0.35 * length, h));
-  const legZ = round9(0.6 * R);
   const k = Math.max(1, R);
-  const legTop = round9(-0.8 * R + 0.02);
-  const legs: [number, number][] = [[-legX, legZ], [legX, legZ], [legX, -legZ], [-legX, -legZ]];
-  const outletY = round9(-0.5 * R);
-  const headAt = round9(h + (R / 2) * Math.sqrt(1 - 0.25) - 0.03);
-  const outletX = round9(h + R / 2 + 0.2);
-  const inletX = round9(-length / 4);
+  const saddleX = round9(h - 0.1);
+  const saddleBottom = round9(-R - 0.06);
+  const legZ = round9(0.6 * R);
+  const legs: [number, number][] = [[-saddleX, legZ], [saddleX, legZ], [saddleX, -legZ], [-saddleX, -legZ]];
+  const outletY = round9(-0.75 * R);
+  const headAt = round9(h + headDepthAt(head.points, 0.75 * R) - 0.03);
+  const outletX = round9(h + head.depth + 0.2);
+  const inletX = round9(-h + 0.4);
+  const gaugeX = round9(h - 0.25);
+  const gaugeZ = round9(R + 0.08);
+  const bracketFrom = round9(R * Math.sqrt(1 - 0.49) - 0.02);
+  const gauge = levelGauge(0, round9(1.7 * R), 0, gaugeZ, formatCapacity(capacityOf([shell]), capacityUnit), gaugeX)
+    // The plate goes flat on the middle of the shell instead of across the glass.
+    .map((p): GeometryPart => (p.role === 'plate' && p.shape === 'box' ? { ...p, center: [0, 0, round9(R + 0.012)] } : p));
   return define({
     type: 'horizontalTank',
     label: 'Horizontal Tank',
     bindable: { level: 'percent', temperature: 'temperature' },
     ports: [fluidPort('inlet', [inletX, round9(R + 0.2), 0], [0, 1, 0], nozzleSize), fluidPort('outlet', [outletX, outletY, 0], [1, 0, 0], nozzleSize)],
-    bounds: { min: [round9(-h - R / 2), floor, -R], max: [outletX, round9(R + 0.2), round9(R + 0.145)] },
+    // The weld seams stand 12 mm proud of the shell at the back.
+    bounds: { min: [round9(-h - head.depth), floor, round9(-R - 0.012)], max: [outletX, round9(R + 0.2), round9(R + 0.12)] },
     parts: [
       shell,
+      { shape: 'ring', role: 'shell', center: [round9(-h), 0, 0], axis: 'x', radius: R, tube: 0.012 },
+      { shape: 'ring', role: 'shell', center: [round9(h), 0, 0], axis: 'x', radius: R, tube: 0.012 },
       { shape: 'cylinder', role: 'shell', center: [inletX, round9(R + 0.075), 0], axis: 'y', radius: r, length: 0.25 },
       { shape: 'cylinder', role: 'shell', center: [round9((headAt + outletX) / 2), outletY, 0], axis: 'x', radius: r, length: round9(outletX - headAt) },
-      { shape: 'lathe', role: 'liquid', center: [0, 0, 0], axis: 'x', points: profile(round9(R - 0.05), round9(R / 2 - 0.04)) },
-      ...levelGauge(0, round9(2 * R - 0.4), round9(0.3 * R), round9(R + 0.08), formatCapacity(capacityOf([shell]), capacityUnit), round9(Math.max(0, h - 0.35))),
-      ...legs.flatMap(([x, z]) => legWithFoot(x, z, legTop, floor, k)),
-      // Braced along both long sides.
-      ...crossBraces([legs[0], legs[1]], round9(-R), round9(floor + 0.05), round9(0.025 * k), false),
-      ...crossBraces([legs[3], legs[2]], round9(-R), round9(floor + 0.05), round9(0.025 * k), false),
+      { shape: 'lathe', role: 'liquid', center: [0, 0, 0], axis: 'x', points: profile(torisphericalHead(round9(R - 0.05)).points) },
+      ...gauge,
+      ...[-0.7, 0.7].map((f): GeometryPart => ({ shape: 'cylinder', role: 'shell', center: [gaugeX, round9(f * R), round9((bracketFrom + gaugeZ) / 2)], axis: 'z', radius: 0.015, length: round9(gaugeZ - bracketFrom) })),
+      // Saddles cradle the bottom of the shell (their tops are hidden inside it).
+      ...[-saddleX, saddleX].map((x): GeometryPart => ({ shape: 'box', role: 'shell', center: [x, round9((saddleBottom - 0.55 * R) / 2), 0], size: [round9(0.2 * k), round9(0.45 * R + 0.06), round9(1.5 * R)] })),
+      ...legs.flatMap(([x, z]) => legWithFoot(x, z, saddleBottom, floor, k)),
+      ...crossBraces([legs[0], legs[1]], saddleBottom, round9(floor + 0.05), round9(0.025 * k), false),
+      ...crossBraces([legs[3], legs[2]], saddleBottom, round9(floor + 0.05), round9(0.025 * k), false),
     ],
     parameters: { diameter: { ...HORIZONTAL_DIAMETER }, length: { ...HORIZONTAL_LENGTH }, standHeight: { ...HORIZONTAL_STAND }, nozzleSize: nozzleParameter('Nozzle size'), capacityUnit: CAPACITY_UNIT },
   });

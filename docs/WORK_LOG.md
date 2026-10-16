@@ -1163,3 +1163,32 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-054 and T-055 REVIEW, the pool done within them; T-056 (elevated tank) and T-057 (HP view) TODO.
+
+## 2026-10-16 — T-054 correction: horizontal tank to the owner's reference
+- Branch: `feat/T-054-tank-family-2` (PR #56).
+- Owner request: "please correct horizontal tank". Asked what was wrong; the owner picked all four:
+  - gauge and plate placement;
+  - legs and stand;
+  - head shape;
+  - nozzles.
+- Changes:
+  - **Heads:** ASME F&D (torispherical) heads (crown D, knuckle 0.06 D, depth about 0.169 D) replace the 2:1 ends; weld seam rings at both tangent lines.
+  - **Stand:** two saddles just inside the seams, legs under them, X-braced front and back.
+  - **Nozzles:** inlet on top 0.4 m from the −X seam; outlet from the +X head at 0.75 R below the axis.
+  - **Gauge and plate:** the plate is flat on the middle of the front; a 1.7 R sight glass on two brackets at the +X end.
+  - ADR-0018, COMPONENT_STANDARD and DECISION_LOG updated.
+- Tests:
+  - The horizontal tank tests were rewritten first and run red (4 failed): F&D depth, seams, ports, capacity "10.7 m³", plate and gauge placement, saddles.
+  - `e2e/tank-family-2.spec.ts`: the horizontal tank plate now reads "10.7 m³" (F&D heads hold less than 2:1 heads).
+  - Found by the geometry bounds test: the seams stand 12 mm proud at the back, so `bounds.min` z is now −(R + 0.012).
+- Browser check: screenshots in normal and glass view show the saddles, heads, seams, centred plate and bracketed gauge, with the liquid cut level in glass view.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1234 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (118 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-054 REVIEW in #56.

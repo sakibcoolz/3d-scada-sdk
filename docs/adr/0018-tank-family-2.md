@@ -9,11 +9,12 @@ The owner shared images of a horizontal tank, a small spherical tank, a pool, an
 - **New kinds:** `horizontalTank`, `sphericalTank` and `pool`, added to `componentKinds` (core).
   - All three are level- and temperature-bindable, with flanged nozzles (`jointStyle`), `nozzleSize` and `capacityUnit`.
   - Each plate shows its capacity.
-- **Horizontal tank:**
-  - Shell along X: `diameter` 0.6–6 m (default 2), straight `length` 1–20 m (default 3), and 2:1 dished ends of depth D/4.
-  - Four legs at ±0.35 L (at most L/2) and z = ±0.6 R, `standHeight` 0.3–3 m (default 0.6) below the shell, braced with an X along both long sides.
-  - Inlet on top, a quarter of the length from the −X end. Outlet out of the +X head at 0.5 R below the axis.
-  - The gauge is near the +X end.
+- **Horizontal tank** (corrected after owner review):
+  - Shell along X: `diameter` 0.6–6 m (default 2) and straight `length` 1–20 m (default 3).
+  - ASME flanged-and-dished (torispherical) heads: crown radius D, knuckle 0.06 D, depth about 0.169 D. Weld seams where the heads meet the shell.
+  - Two saddles just inside the seams cradle the shell. Each stands on two legs (z = ±0.6 R) reaching `standHeight` 0.3–3 m (default 0.6) below the shell, X-braced front and back.
+  - Inlet on top 0.4 m from the −X seam. Outlet out of the +X head 0.75 R below the axis, so the tank drains low.
+  - The capacity plate is flat on the middle of the front. A full-height sight glass (1.7 R) stands on two brackets at the +X end.
 - **Spherical tank:**
   - Sphere `diameter` 1–10 m (default 2.4) on four legs that meet it at the equator and reach `standHeight` 0.2–3 m (default 0.5) below it.
   - Inlet on top; outlet out to +X at 0.7 R below the equator.
@@ -42,8 +43,8 @@ The owner shared images of a horizontal tank, a small spherical tank, a pool, an
 
 ## Tests
 - Components:
-  - ports, shells, bounds and parameters for each kind;
-  - capacity against closed forms (cylinder plus ellipsoid heads, (4/3)πR³, the box interior), and half volume at half height;
+  - ports, shells, bounds and parameters for each kind; the horizontal tank's F&D head depth, seams, saddles, plate and gauge placement;
+  - capacity against closed forms (cylinder plus two F&D heads of about 0.0809 D³, (4/3)πR³, the box interior), and half volume at half height;
   - plate texts;
   - brace counts, and struts inside the bounds.
 - Simulation: level and volume agree for each kind; a horizontal tank fills fastest at mid height.

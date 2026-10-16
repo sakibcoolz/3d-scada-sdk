@@ -5,34 +5,59 @@ const plateText = (parts: readonly GeometryPart[]) => parts.find((p) => p.role =
 const struts = (parts: readonly GeometryPart[]) => parts.filter((p) => p.shape === 'strut');
 const portOf = (type: Parameters<typeof definitionFor>[0], id: string, properties = {}) => definitionFor(type, properties).ports.find((p) => p.id === id)!;
 
+/** ASME F&D (torispherical) head depth: crown radius D, knuckle radius 0.06 D. */
+const fdDepth = (D: number) => {
+  const [R, rk, rc] = [D / 2, 0.06 * D, D];
+  return rc - Math.sqrt((rc - rk) ** 2 - (R - rk) ** 2);
+};
+
 describe('horizontal tank (T-054)', () => {
-  const R = 1, L = 3;
-  it('lies along X with 2:1 dished ends, a top inlet and an end outlet', () => {
+  const R = 1, L = 3, depth = fdDepth(2);
+  it('lies along X with ASME F&D heads, a top inlet near the -X end and a low outlet from the +X head', () => {
     const d = componentCatalog.horizontalTank;
-    expect(portOf('horizontalTank', 'inlet')).toMatchObject({ position: [-L / 4, R + 0.2, 0], direction: [0, 1, 0] });
-    expect(portOf('horizontalTank', 'outlet')).toMatchObject({ position: [L / 2 + R / 2 + 0.2, -0.5 * R, 0], direction: [1, 0, 0] });
+    expect(portOf('horizontalTank', 'inlet')).toMatchObject({ position: [-L / 2 + 0.4, R + 0.2, 0], direction: [0, 1, 0] });
+    const outlet = portOf('horizontalTank', 'outlet');
+    expect(outlet.direction).toEqual([1, 0, 0]);
+    expect(outlet.position[0]).toBeCloseTo(L / 2 + depth + 0.2, 9);
+    expect(outlet.position[1]).toBeCloseTo(-0.75 * R, 12);
     const shell = d.parts.find((p): p is Extract<GeometryPart, { shape: 'lathe' }> => p.role === 'shell' && p.shape === 'lathe');
     expect(shell?.axis).toBe('x');
-    expect(shell?.points[0][0]).toBeCloseTo(0, 12);
-    expect(shell?.points[0][1]).toBeCloseTo(-L / 2 - R / 2, 12);
+    expect(shell?.points[0][0]).toBeCloseTo(0, 9);
+    expect(shell?.points[0][1]).toBeCloseTo(-L / 2 - depth, 9);
+    expect(depth / 2).toBeCloseTo(0.169, 3);
+    // Weld seams where the heads meet the shell.
+    expect(d.parts.filter((p) => p.shape === 'ring' && p.axis === 'x').map((p) => p.shape === 'ring' && p.center[0])).toEqual([-L / 2, L / 2]);
     expect(d.bounds.min[1]).toBeCloseTo(-R - 0.6, 12); // default 0.6 m stand
   });
 
-  it('holds a cylinder plus two half-ellipsoid heads, half of it at half height', () => {
+  it('holds the shell plus two F&D heads (about 0.0809 D³ each), half of it at half height', () => {
     const d = componentCatalog.horizontalTank;
-    const exact = Math.PI * R * R * L + (4 / 3) * Math.PI * R * R * (R / 2);
-    expect(capacityOf(d.parts) / exact).toBeCloseTo(1, 2);
+    const approx = Math.PI * R * R * L + 2 * 0.0809 * 8;
+    expect(capacityOf(d.parts) / approx).toBeCloseTo(1, 2);
     const v = vesselProfile(d.parts)!;
     expect(v.bottom).toBeCloseTo(-R, 9);
     expect(v.top).toBeCloseTo(R, 9);
     expect(v.volumeAt(0) / v.volumeAt(R)).toBeCloseTo(0.5, 3);
-    expect(plateText(d.parts)).toBe('11.5 m³');
+    expect(plateText(d.parts)).toBe('10.7 m³');
   });
 
-  it('follows diameter, length and stand, and stands on four braced legs', () => {
+  it('puts the plate flat on the middle of the shell and a bracketed full-height gauge at the +X end', () => {
+    const d = componentCatalog.horizontalTank;
+    const plate = d.parts.find((p) => p.role === 'plate');
+    expect(plate?.shape === 'box' && plate.center[0]).toBe(0);
+    expect(plate?.shape === 'box' && plate.center[2]).toBeCloseTo(R + 0.012, 12);
+    const gauge = d.parts.find((p) => p.role === 'gauge');
+    expect(gauge?.shape === 'cylinder' && gauge.center[0]).toBeCloseTo(L / 2 - 0.25, 12);
+    expect(gauge?.shape === 'cylinder' && gauge.length).toBeCloseTo(1.7 * R + 0.04, 12);
+    expect(d.parts.filter((p) => p.shape === 'cylinder' && p.axis === 'z' && p.radius === 0.015)).toHaveLength(2);
+  });
+
+  it('rests on two saddles near the ends, each on two legs, braced front and back', () => {
     const d = definitionFor('horizontalTank', { diameter: 3, length: 6, standHeight: 1 });
-    expect(portOf('horizontalTank', 'outlet', { diameter: 3, length: 6 }).position[0]).toBeCloseTo(3 + 0.75 + 0.2, 12);
+    const saddles = d.parts.filter((p) => p.role === 'shell' && p.shape === 'box' && p.size[2] > 1.5);
+    expect(saddles.map((p) => p.shape === 'box' && p.center[0])).toEqual([-2.9, 2.9]);
     expect(d.bounds.min[1]).toBeCloseTo(-1.5 - 1, 12);
+    expect(portOf('horizontalTank', 'outlet', { diameter: 3, length: 6 }).position[0]).toBeCloseTo(3 + fdDepth(3) + 0.2, 9);
     expect(struts(d.parts)).toHaveLength(4);
     expect(catalogResolvers.validateProperties('horizontalTank', { length: 100 })).toEqual([{ property: 'length', message: 'must be between 1 and 20 m' }]);
   });

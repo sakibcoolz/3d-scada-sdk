@@ -11,7 +11,7 @@ test('the horizontal tank, spherical tank and pool can be added, show their capa
   expect(scene.components.map((c: { type: string }) => c.type)).toEqual(['horizontalTank', 'sphericalTank', 'pool']);
   expect(scene.components.map((c: { properties: { level?: number } }) => c.properties.level)).toEqual([45, 45, 45]);
   await expect(page.getByLabel('Collisions')).toHaveCount(0);
-  await expect.poll(async () => (await renderedParts(page)).filter((p) => p.role === 'plate').map((p) => p.plateText)).toEqual(['11.5 m³', '7.24 m³', '16.2 m³']);
+  await expect.poll(async () => (await renderedParts(page)).filter((p) => p.role === 'plate').map((p) => p.plateText)).toEqual(['10.7 m³', '7.24 m³', '16.2 m³']);
   // Each body has a visible liquid (gauge columns are the thin ones on the tanks).
   await expect.poll(async () => (await renderedParts(page)).filter((p) => p.role === 'liquid' && p.visible).length).toBe(5);
 });
