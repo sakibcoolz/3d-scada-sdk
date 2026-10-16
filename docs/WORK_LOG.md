@@ -962,3 +962,46 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0.
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-049 REVIEW until merged (with T-048).
+
+## 2026-10-16 — T-050 ASME dimensions, phase 1 (ADR-0014)
+- Branch: `feat/T-050-asme-fittings` (from `feat/T-048-conical-tank` @ `9d5ea22`, PR #51 open; targets `develop`).
+- Owner request: "i want all component industry standard connect so should not feel like it is just working things".
+- Owner decisions (asked):
+  - ASME;
+  - joints flanged and welded by part type (phase 2, T-051);
+  - re-seat older scenes on load;
+  - deliver in phases (T-050, T-051, T-052).
+  - Recorded as ADR-0014.
+- Before starting: committed and opened PR #51 for T-048/T-049 (owner "yes").
+- Graphify: index NOT built. Fallback: read the catalog, snapping, touching, joints and simulation code directly.
+- Scope:
+  - **Components:**
+    - `asme.ts` table, with values as published in common ASME B36.10M/B16.9 tables and the caveat that they must be verified against the standard; not a certified design tool;
+    - pipe drawn at the ASME OD (DN150 at 168.3 mm, `pipeOuterRadius` 0.08415);
+    - LR elbows (bend radius = A), equal tees (C), concentric reducers (H by the larger end);
+    - `legacyCatalogResolvers` (old fitting ports).
+  - **Core:** `upgradeDimensions` (re-seats ports that met under old sizes, connected or touching, BFS per line from its first part, flat copy so one part moves per seat, idempotent, gaps and connections untouched).
+  - **React:** `importSceneText` upgrades and reports "Updated N parts to ASME fitting sizes."
+  - **Simulation:** elbow and tee flow lengths from geometry; flows below 1 µL/s reported as zero.
+  - **Example host:** upgrades its built-in older scene.
+  - **Docs:** ADR-0014, DECISION_LOG, COMPONENT_STANDARD, SCENE_AND_CONNECTIONS, API, RELEASE migration note; backlog T-050 REVIEW, T-051/T-052 TODO.
+- Tests:
+  - Written first and run red: ASME table and fittings (22), `upgradeDimensions` (4).
+  - Added after: `e2e/asme-upgrade.spec.ts` (load message, `Connect touching ports (11)`, idempotent reload).
+- Existing tests changed, with reasons:
+  - the owner-plant fixtures now go through `upgradeDimensions` first, as on load (`touching.test.ts`, `joints.test.ts`). Old 2.00 m / 15 mm distances became 1.14 m / 857 mm, because the flipped tee's joints were already broken and are left where they were. After seating, valve A is reached by a straight run;
+  - the size test "ports do not move with size" now covers only pipes, valves and couplers;
+  - the elbow-on-tee snap test places the elbow relative to the new branch;
+  - the hydraulic loop test exposed a 7×10⁻⁹ % drain from solver tolerance at a dead-end tee, now zeroed below 1 µL/s;
+  - `e2e/open-joints.spec.ts` uses the new distances, and a pattern after seating.
+- Found by the consumer check: the example host loaded its older scene with `parseScene` directly, so the reducer's joints opened by about 80 mm. Fixed by calling `upgradeDimensions`, and documented as a host migration step in RELEASE.md.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1074 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (111 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (after the example fix; 1 before).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-050 REVIEW until merged (after #51).

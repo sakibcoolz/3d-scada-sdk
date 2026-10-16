@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { installThreeHook, renderedParts, sceneJson, waitForCanvas } from './helpers';
 
-// The owner's plant: the tee is turned end for end and valve B (Ball Valve 3) sits 15 mm above the branch.
+// The owner's plant, written before ASME fittings (ADR-0014): the tee is turned end for end and valve B
+// (Ball Valve 3) sat 15 mm off the old 1 m branch; after the upgrade the shorter tee leaves it 857 mm off.
 const plant = readFileSync(join(__dirname, '../packages/components/src/fixtures/open-joints-plant.json'), 'utf8');
 const list = (page: Page) => page.getByLabel('Open joints');
 
@@ -19,9 +20,9 @@ test('lists connections whose ports do not meet and marks both ends', async ({ p
   await load(page);
   await expect(list(page)).toHaveText(
     [
-      'Straight Pipe 1 "out" → T-Junction 1 "left": ports face the wrong way (2.00 m apart)',
-      'T-Junction 1 "right" → Ball Valve 2 "in": ports face the wrong way (2.00 m apart)',
-      'T-Junction 1 "branch" → Ball Valve 3 "in": 15 mm apart, no pipe can be drawn',
+      'Straight Pipe 1 "out" → T-Junction 1 "left": ports face the wrong way (1.14 m apart)',
+      'T-Junction 1 "right" → Ball Valve 2 "in": ports face the wrong way (1.14 m apart)',
+      'T-Junction 1 "branch" → Ball Valve 3 "in": 857 mm apart, no pipe can be drawn',
     ].join('\n'),
   );
   await expect.poll(async () => (await renderedParts(page)).filter((p) => p.role === 'open-joint').length).toBe(6);
@@ -31,8 +32,8 @@ test('seating the tee and then valve B closes every open joint, one undo step ea
   await load(page);
   await page.getByRole('button', { name: /^T-Junction 1/ }).click();
   await page.getByRole('button', { name: 'Seat on Straight Pipe 1 "out"' }).click();
-  await expect(page.getByRole('status', { name: 'Connection message' })).toHaveText(/Seated T-Junction 1 "left" on Straight Pipe 1 "out" \(moved 2\.00 m\)\./);
-  await expect(list(page)).toHaveText('T-Junction 1 "branch" → Ball Valve 3 "in": 15 mm apart, no pipe can be drawn');
+  await expect(page.getByRole('status', { name: 'Connection message' })).toHaveText(/Seated T-Junction 1 "left" on Straight Pipe 1 "out" \(moved 1\.14 m\)\./);
+  await expect(list(page)).toHaveText(/^T-Junction 1 "branch" → Ball Valve 3 "in": .+ apart, no pipe can be drawn$/);
 
   await page.getByRole('button', { name: /^Ball Valve 3/ }).click();
   await page.getByRole('button', { name: 'Seat on T-Junction 1 "branch"' }).click();
@@ -42,7 +43,7 @@ test('seating the tee and then valve B closes every open joint, one undo step ea
   await expect.poll(async () => (await renderedParts(page)).filter((p) => p.role === 'open-joint').length).toBe(0);
 
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect(list(page)).toHaveText('T-Junction 1 "branch" → Ball Valve 3 "in": 15 mm apart, no pipe can be drawn');
+  await expect(list(page)).toHaveText(/^T-Junction 1 "branch" → Ball Valve 3 "in": .+ apart, no pipe can be drawn$/);
 });
 
 test('only open joints of the selected part get a seat button', async ({ page }) => {

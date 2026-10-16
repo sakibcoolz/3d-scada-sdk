@@ -16,6 +16,7 @@ All geometry is right-handed, Y-up, metres. Scene components use named vectors (
 | Graph | `connect`, `disconnect`, `removeComponent`, `connectionsOf`, `reachableComponents`, `connectedGroups` | `GraphResult`, `GraphError`, `GraphErrorCode`, `GraphOptions` |
 | Routing | `routeConnection`, `routeScene`, `sampleRouteCenterline` | `PipeRoute`, `RouteBend`, `RouteKind`, `RouteFailure`, `RoutingOptions` |
 | Attach | `attachComponents` | `AttachOptions`, `AttachResult` |
+| Upgrade (hosts loading older scenes must call it; see RELEASE.md) | `upgradeDimensions` | `UpgradeOptions`, `UpgradeResult` |
 | Assemblies | `assemblyOf`, `moveAssembly`, `lockConnectedAsChildren`, `unlockFromParent` | `AssemblyResult` (`ComponentInstance.parentId`) |
 | Copy and paste | `copyComponents`, `pasteComponents`, `clipboardWidth` | `ComponentClipboard` |
 | Touching ports | `findTouchingPorts`, `connectTouchingPorts` | `TouchingOptions`, `TouchingMatch`, `TouchingRejection`, `TouchingResult`, `ConnectTouchingResult` |
@@ -31,7 +32,7 @@ Pure functions take the current time (`now`) and the catalog lookups (`resolvePo
 
 | Runtime exports | Types |
 |---|---|
-| `componentCatalog` (tank, conicalTank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `liquidProfile`, `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
+| `componentCatalog` (tank, conicalTank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `liquidProfile`, `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `asme` (ASME dimensions per size), `legacyCatalogResolvers` (pre-ASME fitting ports for upgrades), `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
 
 ### `@scada3d/asset-import` (ADR-0012)
 | Runtime | Types |

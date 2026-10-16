@@ -1,5 +1,5 @@
-import { parseScene, type ScadaScene, type SceneValidationError } from '@scada3d/core';
-import { catalogResolvers } from '@scada3d/components';
+import { parseScene, upgradeDimensions, type ScadaScene, type SceneValidationError } from '@scada3d/core';
+import { catalogResolvers, legacyCatalogResolvers } from '@scada3d/components';
 import { sanitizeSvg } from '@scada3d/asset-import';
 
 /** Largest scene file the editor will read (bytes for files, characters for pasted text). */
@@ -28,11 +28,14 @@ export function underlayProblem(svg: string): string | undefined {
 export function importSceneText(text: string): SceneImport {
   const result = parseScene(text, { ...catalogResolvers, validateUnderlay: underlayProblem, maxLength: MAX_SCENE_FILE_BYTES });
   if (!result.ok) return { ok: false, errors: formatSceneErrors(result.errors) };
-  const { components, connections } = result.scene;
+  // Files from before ASME fittings (ADR-0014): re-seat joints that met under the old sizes.
+  const upgraded = upgradeDimensions(result.scene, { ...catalogResolvers, ...legacyCatalogResolvers });
+  const { components, connections } = upgraded.scene;
   const migrated = result.migratedFrom ? ` (migrated from version ${result.migratedFrom})` : '';
+  const reseated = upgraded.reseated ? ` Updated ${count(upgraded.reseated, 'part')} to ASME fitting sizes.` : '';
   return {
     ok: true,
-    scene: result.scene,
-    message: `Loaded ${count(components.length, 'component')} and ${count(connections.length, 'connection')}${migrated}.`,
+    scene: upgraded.scene,
+    message: `Loaded ${count(components.length, 'component')} and ${count(connections.length, 'connection')}${migrated}.${reseated}`,
   };
 }

@@ -17,6 +17,7 @@ Use one ADR per significant decision. Accepted decisions are binding; proposals 
 | [0011](adr/0011-hydraulic-model.md) | Accepted | Optional `hydraulic` v1 simulation model: Darcy–Weisbach friction, K-factor fittings, quadratic pump curves, tree networks (loops reported) |
 | [0012](adr/0012-svg-underlay.md) | Accepted | `@scada3d/asset-import`: allow-list SVG sanitizer without a DOM; optional sanitized `underlay` in scene v3 drawn as a ground-plane reference |
 | [0013](adr/0013-conical-tank.md) | Accepted | `conicalTank` kind (legs, cone, side outlet, sight gauge, plate); `lathe` liquid following the vessel; simulation vessel shapes from the catalog |
+| [0014](adr/0014-asme-dimensions.md) | Accepted | ASME B36.10M/B16.9 dimensions for pipe, elbows, tees and reducers (values to be verified against the standard); older files re-seated on load with `upgradeDimensions` |
 
 ## New ADR template
 Title / Status (Proposed/Accepted/Superseded) / Context / Options considered / Decision / Trade-offs / Consequences / Migration / Tests / Date / Approvers. Owner approval required before altering public schema or safety boundaries.

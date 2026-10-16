@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { componentKinds, quaternionFromEuler, snapComponent, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@scada3d/core';
+import { componentKinds, quaternionFromEuler, rotateVector, snapComponent, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@scada3d/core';
 import { componentCatalog, definitionFor, outerRadiusFor, pipeOuterRadius, sizeOfPort, type GeometryPart } from './index.js';
 
 const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
@@ -42,12 +42,16 @@ describe('componentCatalog with validateScene', () => {
 describe('componentCatalog with snapComponent', () => {
   it('snaps an elbow onto the tee branch and the result validates', () => {
     const tee: ComponentInstance = { id: 'tee', type: 'tee', position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} };
-    // Elbow dropped near the branch with its "in" port roughly facing down.
+    // Elbow dropped near the branch with its "in" port roughly facing down, about 6 cm off.
+    const rotation = quaternionFromEuler({ x: 0, y: 0, z: Math.PI / 2 + 0.2 });
+    const [inPort] = componentCatalog.elbow.ports;
+    const branch = componentCatalog.tee.ports.find((p) => p.id === 'branch')!.position;
+    const offset = rotateVector({ x: inPort.position[0], y: inPort.position[1], z: inPort.position[2] }, rotation);
     const elbow: ComponentInstance = {
       id: 'elbow',
       type: 'elbow',
-      position: { x: 0.25, y: 1.4, z: 0.05 },
-      rotation: quaternionFromEuler({ x: 0, y: 0, z: Math.PI / 2 + 0.2 }),
+      position: { x: branch[0] + 0.04 - offset.x, y: branch[1] + 0.03 - offset.y, z: 0.03 - offset.z },
+      rotation,
       scale: { x: 1, y: 1, z: 1 },
       properties: {},
     };

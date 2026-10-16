@@ -1,7 +1,7 @@
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { parseScene, type ScadaScene } from '@scada3d/core';
-import { catalogResolvers } from '@scada3d/components';
+import { parseScene, upgradeDimensions, type ScadaScene } from '@scada3d/core';
+import { catalogResolvers, legacyCatalogResolvers } from '@scada3d/components';
 import { Scada3DEditor, Scada3DViewer } from '@scada3d/react';
 
 // A tank feeding a valve, a reducer and a DN100 pipe: authored as plain JSON, checked by the core.
@@ -23,7 +23,9 @@ const authored = {
 
 const loaded = parseScene(JSON.stringify(authored), catalogResolvers);
 if (!loaded.ok) throw new Error(loaded.errors.map((e) => e.message).join('\n'));
-const initial: ScadaScene = loaded.scene;
+// The scene above was authored before ASME fitting sizes (ADR-0014). A host that loads saved scenes
+// itself upgrades them, so joints that met under the old sizes meet again.
+const initial: ScadaScene = upgradeDimensions(loaded.scene, { ...catalogResolvers, ...legacyCatalogResolvers }).scene;
 
 function App() {
   const [mode, setMode] = useState<'viewer' | 'editor'>('viewer');

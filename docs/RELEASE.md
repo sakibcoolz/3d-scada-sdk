@@ -41,6 +41,15 @@ Licences of everything installed in the consumer app (2026-10-15):
 - **The consumer's own build tooling:** `caniuse-lite` (CC-BY-4.0, via Vite/Babel) is not shipped by the SDK.
 - Re-check when dependencies change.
 
+## Migration notes for hosts
+- **0.1.0 → ASME fittings (T-050, ADR-0014):** elbows, tees and reducers changed size, so their ports moved. The editor's import upgrades older files automatically. A host that loads saved scenes itself (`parseScene`/`validateScene` and then the viewer) must also call:
+
+  ```ts
+  upgradeDimensions(scene, { ...catalogResolvers, ...legacyCatalogResolvers })
+  ```
+
+  Otherwise joints next to those fittings show as open joints or filler runs. `examples/consumer-vite` does this; the consumer check caught the case.
+
 ## Not done here
 - Publishing to npm or a private registry needs a separate owner decision.
 - Semantic-version policy and changelog.
