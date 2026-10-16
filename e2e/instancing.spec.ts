@@ -56,14 +56,15 @@ test('instanced equipment looks the same as individual meshes', async ({ page })
   expect(await instancedRoles(page)).toEqual({});
   const classic = await page.locator('canvas').screenshot();
   await open(page, '?instancing=always');
-  expect(await instancedRoles(page)).toMatchObject({ shell: expect.any(Number), 'valve-ball': 2, 'valve-handle': 2, liquid: 1 });
+  // The tank has two liquid parts: its body and the sight gauge's column (ADR-0013).
+  expect(await instancedRoles(page)).toMatchObject({ shell: expect.any(Number), 'valve-ball': 2, 'valve-handle': 2, liquid: 2 });
   const instanced = await page.locator('canvas').screenshot();
   expect(await pixelDifference(page, classic, instanced)).toBeLessThan(0.002);
 });
 
 test('instanced parts keep their live colours and liquid level', async ({ page }) => {
   await open(page, '?instancing=always');
-  expect(await instancedRoles(page)).toMatchObject({ 'valve-ball': 2, liquid: 1 });
+  expect(await instancedRoles(page)).toMatchObject({ 'valve-ball': 2, liquid: 2 });
   const parts = await renderedParts(page);
   const ball = (id: string) => parts.find((p) => p.componentId === id && p.role === 'valve-ball')!;
   expect(ball('v-open').color).toBe('#48b983');
@@ -74,7 +75,7 @@ test('instanced parts keep their live colours and liquid level', async ({ page }
 
 test('clicking an instanced part selects it and gives it the gizmo', async ({ page }) => {
   await open(page, '?instancing=always');
-  expect(await instancedRoles(page)).toMatchObject({ liquid: 1 });
+  expect(await instancedRoles(page)).toMatchObject({ liquid: 2 });
   const box = (await page.locator('canvas').boundingBox())!;
   // Click the tank, which fills the left of the default view.
   await page.mouse.click(box.x + box.width * 0.36, box.y + box.height * 0.45);

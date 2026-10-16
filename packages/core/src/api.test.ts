@@ -6,6 +6,7 @@ import * as core from './index.js';
 const publicApi = [
   'SCENE_SCHEMA_VERSION',
   'assemblyOf',
+  'attachComponents',
   'canonicalUnits',
   'clipboardWidth',
   'componentKinds',

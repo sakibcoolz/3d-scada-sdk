@@ -1,5 +1,5 @@
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { BoxGeometry, CylinderGeometry, Matrix4, Quaternion, SphereGeometry, TorusGeometry, Vector3, type BufferGeometry } from 'three';
+import { BoxGeometry, CylinderGeometry, LatheGeometry, Vector2, Matrix4, Quaternion, SphereGeometry, TorusGeometry, Vector3, type BufferGeometry } from 'three';
 import type { PipeRoute } from '@scada3d/core';
 import type { GeometryPart, IndustrialComponentDefinition } from '@scada3d/components';
 
@@ -21,10 +21,12 @@ export function createPartGeometry(part: GeometryPart): BufferGeometry {
       return new TorusGeometry(part.bendRadius, part.tubeRadius, 16, 24, Math.PI / 2)
         .rotateZ(part.startAngle)
         .translate(...part.center);
+    case 'lathe':
+      return new LatheGeometry(part.points.map(([r, y]) => new Vector2(r, y)), 32).translate(...part.center);
     case 'cone': {
       // Three's top is +Y; turning to X puts the top at -X, turning to Z puts it at +Z.
       const [top, bottom] = part.axis === 'x' ? [part.radiusStart, part.radiusEnd] : [part.radiusEnd, part.radiusStart];
-      const geometry = new CylinderGeometry(top, bottom, part.length, 32, 1, false);
+      const geometry = new CylinderGeometry(top, bottom, part.length, 32, 1, part.openEnded ?? false);
       if (part.axis === 'x') geometry.rotateZ(Math.PI / 2);
       if (part.axis === 'z') geometry.rotateX(Math.PI / 2);
       return geometry.translate(...part.center);

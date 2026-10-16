@@ -1,15 +1,15 @@
 import React, { useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { CanvasTexture, Color, DoubleSide, Matrix4, MeshStandardMaterial, Plane, Quaternion, SphereGeometry, SRGBColorSpace, Vector3, type BufferGeometry, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
+import { CanvasTexture, Color, DoubleSide, LatheGeometry, Vector2, Matrix4, MeshStandardMaterial, Plane, Quaternion, SphereGeometry, SRGBColorSpace, Vector3, type BufferGeometry, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
-import { catalogResolvers, componentCatalog, definitionFor, isChoiceParameter, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
+import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, attachComponents, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
+import { catalogResolvers, componentCatalog, definitionFor, isChoiceParameter, liquidProfile, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createRouteGeometry, disposeGeometries } from './geometry.js';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop.js';
 import { EDITOR_CSS, formatMetres } from './editorStyles.js';
 import { spatialChunks } from './instancing.js';
 import { sanitizeSvg } from '@scada3d/asset-import';
-import { componentNames, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice.js';
+import { componentNames, describeAttach, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice.js';
 
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history.js';
 import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile.js';
@@ -54,6 +54,9 @@ const { resolveBounds, resolvePorts, resolveBindable } = catalogResolvers;
 /** Valve ball colour when its bound open/closed tag cannot be trusted. */
 const VALVE_UNKNOWN = '#8a96a3';
 
+/** A component was clicked; `additive` when Shift was held. */
+export type SelectHandler = (id: string, options?: { additive: boolean }) => void;
+
 /** When the viewer draws plain equipment as instanced meshes (T-046). */
 export type InstancingMode = 'auto' | 'off' | 'always';
 /** `instancing="auto"` instances scenes with at least this many components. */
@@ -68,7 +71,7 @@ const definitionKey = (d: object) => definitionKeys.get(d) ?? (definitionKeys.se
  * part of each definition: thousands of identical valves become a handful of draws. Valve state
  * and tank heat are per-instance colours; liquid level and handle angle are per-instance matrices.
  */
-function InstancedEquipment({ components, unknown, onSelect }: { components: readonly ComponentInstance[]; unknown: ReadonlyMap<string, ReadonlySet<string>>; onSelect?: (id: string) => void }) {
+function InstancedEquipment({ components, unknown, onSelect }: { components: readonly ComponentInstance[]; unknown: ReadonlyMap<string, ReadonlySet<string>>; onSelect?: SelectHandler }) {
   const groups = useMemo(() => {
     const byDefinition = new Map<ReturnType<typeof definitionFor>, ComponentInstance[]>();
     for (const c of components) {
@@ -80,7 +83,7 @@ function InstancedEquipment({ components, unknown, onSelect }: { components: rea
   return <>{groups.map(([definition, members]) => <InstancedDefinition key={definitionKey(definition)} definition={definition} members={members} unknown={unknown} onSelect={onSelect}/>)}</>;
 }
 
-const InstancedDefinition = React.memo(function InstancedDefinition({ definition, members, unknown, onSelect }: { definition: ReturnType<typeof definitionFor>; members: ComponentInstance[]; unknown: ReadonlyMap<string, ReadonlySet<string>>; onSelect?: (id: string) => void }) {
+const InstancedDefinition = React.memo(function InstancedDefinition({ definition, members, unknown, onSelect }: { definition: ReturnType<typeof definitionFor>; members: ComponentInstance[]; unknown: ReadonlyMap<string, ReadonlySet<string>>; onSelect?: SelectHandler }) {
   const geometries = useSharedGeometries(definition);
   const chunks = useMemo(() => spatialChunks(members), [members]);
   return <>{chunks.map((chunk, c) => definition.parts.map((part, i) => <InstancedPart key={`${c}:${i}:${chunk.length}`} part={part} geometry={geometries[i]} members={chunk} unknown={unknown} onSelect={onSelect}/>))}</>;
@@ -89,7 +92,7 @@ const InstancedDefinition = React.memo(function InstancedDefinition({ definition
 const instanceScratch = { local: new Matrix4(), world: new Matrix4(), position: new Vector3(), rotation: new Quaternion(), scale: new Vector3(), color: new Color() };
 const normalShell = shellLook('normal');
 
-function InstancedPart({ part, geometry, members, unknown, onSelect }: { part: ReturnType<typeof definitionFor>['parts'][number]; geometry: BufferGeometry; members: ComponentInstance[]; unknown: ReadonlyMap<string, ReadonlySet<string>>; onSelect?: (id: string) => void }) {
+function InstancedPart({ part, geometry, members, unknown, onSelect }: { part: ReturnType<typeof definitionFor>['parts'][number]; geometry: BufferGeometry; members: ComponentInstance[]; unknown: ReadonlyMap<string, ReadonlySet<string>>; onSelect?: SelectHandler }) {
   const mesh = useRef<InstancedMesh>(null);
   const role = part.role;
   useLayoutEffect(() => {
@@ -119,14 +122,31 @@ function InstancedPart({ part, geometry, members, unknown, onSelect }: { part: R
   const material = role === 'liquid' ? <meshStandardMaterial color="#ffffff" transparent opacity={0.65} depthWrite={false}/>
     : role === 'valve-ball' ? <meshStandardMaterial color="#ffffff"/>
     : role === 'valve-handle' ? <meshStandardMaterial color="#e3d5a5"/>
+    : role === 'gauge' ? <meshStandardMaterial color="#d8eefc" transparent opacity={0.3} depthWrite={false} roughness={0.1}/>
+    : role === 'plate' ? <meshStandardMaterial color="#e8edf2" roughness={0.6}/>
+    : role === 'scale' ? <meshStandardMaterial color="#3d4a56" roughness={0.8}/>
     : <meshStandardMaterial color="#7b9eb6" metalness={normalShell.metalness} roughness={0.35} side={DoubleSide}/>;
   return <instancedMesh ref={mesh} args={[geometry, undefined, members.length]} userData={{ role, componentIds: members.map((c) => c.id) }}
-    onClick={(e) => { e.stopPropagation(); if (e.instanceId !== undefined && members[e.instanceId]) onSelect?.(members[e.instanceId].id); }}>
+    onClick={(e) => { e.stopPropagation(); if (e.instanceId !== undefined && members[e.instanceId]) onSelect?.(members[e.instanceId].id, { additive: e.nativeEvent.shiftKey }); }}>
     {material}
   </instancedMesh>;
 }
 
-function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown, colliding }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:()=>void; objectRef?:(object:Object3D|null)=>void; /** Bound properties whose live value cannot be trusted. */ unknown?:ReadonlySet<string>; /** Overlaps another solid component. */ colliding?:boolean }) {
+/** Liquid in a lathe-shaped vessel (conical tank), rebuilt for each level so it follows the walls. */
+function LatheLiquid({ points, fraction, color, tag }: { points: [number, number][]; fraction: number; color: string; tag: Record<string, string> }) {
+  // Rounded to 0.1 % so a live feed does not rebuild the mesh for invisible changes.
+  const step = Math.round(fraction * 1000) / 1000;
+  const geometry = useMemo(() => {
+    const profile = liquidProfile(points, step);
+    return profile.length ? new LatheGeometry(profile.map(([r, y]) => new Vector2(r, y)), 32) : undefined;
+  }, [points, step]);
+  useEffect(() => () => geometry?.dispose(), [geometry]);
+  return <mesh geometry={geometry} visible={!!geometry} userData={{ ...tag, levelFraction: step }}>
+    <meshStandardMaterial color={color} transparent opacity={0.65} depthWrite={false}/>
+  </mesh>;
+}
+
+function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown, colliding }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:(additive:boolean)=>void; objectRef?:(object:Object3D|null)=>void; /** Bound properties whose live value cannot be trusted. */ unknown?:ReadonlySet<string>; /** Overlaps another solid component. */ colliding?:boolean }) {
   // Per-instance definition: parametric types (pipe length) change ports, bounds and parts.
   const definition = definitionFor(component.type, component.properties);
   const geometries = useSharedGeometries(definition);
@@ -140,7 +160,7 @@ function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown
   // Materials are keyed on view mode so switching recreates them: Three.js only recompiles the
   // opaque/transparent/clipped shader variant when a material is new or flagged needsUpdate.
   const shellProps = {color:colliding?COLLISION_COLOR:selected?'#63b3ed':'#7b9eb6',metalness:look.metalness,roughness:0.35,transparent:look.transparent,opacity:look.opacity,depthWrite:look.depthWrite,side:DoubleSide,clippingPlanes};
-  return <group ref={objectRef} position={[component.position.x, component.position.y, component.position.z]} quaternion={[component.rotation.x, component.rotation.y, component.rotation.z, component.rotation.w]} scale={[component.scale.x, component.scale.y, component.scale.z]} onClick={e=>{e.stopPropagation();onSelect();}}>
+  return <group ref={objectRef} position={[component.position.x, component.position.y, component.position.z]} quaternion={[component.rotation.x, component.rotation.y, component.rotation.z, component.rotation.w]} scale={[component.scale.x, component.scale.y, component.scale.z]} onClick={e=>{e.stopPropagation();onSelect(e.nativeEvent.shiftKey);}}>
     {definition.parts.map((part, i) => {
       const geometry = geometries[i];
       if (part.role === 'liquid' && part.shape === 'cylinder') {
@@ -149,6 +169,10 @@ function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown
         const bottom = part.center[1] - part.length / 2;
         return <mesh key={i} geometry={geometry} userData={tag('liquid')} visible={(fill.fraction ?? 0) > 0} scale={[1, height, 1]} position={[0, bottom * (1 - height), 0]}><meshStandardMaterial color={liquidColor} transparent opacity={0.65} depthWrite={false}/></mesh>;
       }
+      if (part.role === 'liquid' && part.shape === 'lathe') return <LatheLiquid key={i} points={part.points} fraction={fill.fraction ?? 0} color={liquidColor} tag={tag('liquid')}/>;
+      if (part.role === 'gauge') return <mesh key={i} geometry={geometry} userData={tag('gauge')}><meshStandardMaterial color="#d8eefc" transparent opacity={0.3} depthWrite={false} roughness={0.1}/></mesh>;
+      if (part.role === 'plate') return <mesh key={i} geometry={geometry} userData={tag('plate')}><meshStandardMaterial color="#e8edf2" roughness={0.6}/></mesh>;
+      if (part.role === 'scale') return <mesh key={i} geometry={geometry} userData={tag('scale')}><meshStandardMaterial color="#3d4a56" roughness={0.8}/></mesh>;
       if (part.role === 'valve-ball') return <mesh key={i} geometry={geometry} userData={tag('valve-ball')}><meshStandardMaterial color={unknown?.has('open')?VALVE_UNKNOWN:open?'#48b983':'#e76e75'}/></mesh>;
       if (part.role === 'valve-handle') return <mesh key={i} geometry={geometry} userData={tag('valve-handle')} rotation={[0, open ? 0 : Math.PI / 2, 0]}><meshStandardMaterial color="#e3d5a5"/></mesh>;
       return <mesh key={i} geometry={geometry} userData={tag('shell')}>
@@ -471,7 +495,7 @@ export type TransformHandler = (id: string, position: Vector3Like, rotation: Qua
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;onSelect?:(id:string)=>void;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;/** Clicked component; `additive` is true when Shift was held (the editor attaches). */onSelect?:SelectHandler;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;ref?:React.Ref<ScadaHandle>}) {
   const telemetry = useTelemetryFeed(telemetryInput, ref);
   const collision = useMemo(() => (collisions ? findCollisions(scene, { resolveBounds }) : undefined), [scene, collisions]);
   const previewCollides = useMemo(() => !!(collisions && preview && collidingWith({ ...scene, components: [...scene.components, preview.component] }, preview.component.id).length), [scene, preview, collisions]);
@@ -498,7 +522,7 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     const measured = live ? displayScene(scene, live.properties.filter((p) => !simulatedLevel(p))) : scene;
     const levels = simulation?.levels;
     if (!levels) return measured;
-    return { ...measured, components: measured.components.map((c) => (c.type === 'tank' && Object.hasOwn(levels, c.id) ? { ...c, properties: { ...c.properties, level: levels[c.id] } } : c)) };
+    return { ...measured, components: measured.components.map((c) => (componentCatalog[c.type].bindable?.level !== undefined && Object.hasOwn(levels, c.id) ? { ...c, properties: { ...c.properties, level: levels[c.id] } } : c)) };
   }, [scene, live, simulation?.levels]);
   // Keyed on content: telemetry re-resolves every second, but untrusted properties rarely change,
   // and a new map would make every instanced part rebuild its matrices.
@@ -528,7 +552,8 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   // Plain equipment of large scenes is instanced; selected, colliding and non-normal views keep their own meshes.
   const instanced = useMemo(() => {
     const on = instancing === 'always' || (instancing === 'auto' && shown.components.length >= INSTANCING_THRESHOLD);
-    return on ? shown.components.filter((c) => c.id !== selectedId && !collision?.collidingIds.has(c.id) && effectiveViewMode(viewMode, viewOverrides?.[c.id]) === 'normal') : [];
+    // Lathe liquids (conical tanks) are rebuilt per level, so those vessels keep their own meshes.
+    return on ? shown.components.filter((c) => c.id !== selectedId && !collision?.collidingIds.has(c.id) && effectiveViewMode(viewMode, viewOverrides?.[c.id]) === 'normal' && !definitionFor(c.type, c.properties).parts.some((p) => p.shape === 'lathe')) : [];
   }, [instancing, shown, selectedId, collision, viewMode, viewOverrides]);
   const instancedIds = useMemo(() => new Set(instanced.map((c) => c.id)), [instanced]);
   const gesture = useRef(0);
@@ -541,7 +566,7 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
     {scene.underlay&&<Underlay underlay={scene.underlay}/>}
     {instanced.length>0&&<InstancedEquipment components={instanced} unknown={unknownByComponent} onSelect={onSelect}/>}
-    {shown.components.filter(c=>!instancedIds.has(c.id)).map(c=><Equipment key={c.id} component={c} unknown={unknownByComponent.get(c.id)} colliding={collision?.collidingIds.has(c.id)} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={()=>onSelect?.(c.id)} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
+    {shown.components.filter(c=>!instancedIds.has(c.id)).map(c=><Equipment key={c.id} component={c} unknown={unknownByComponent.get(c.id)} colliding={collision?.collidingIds.has(c.id)} viewMode={effectiveViewMode(viewMode,viewOverrides?.[c.id])} selected={selectedId===c.id} onSelect={additive=>onSelect?.(c.id,{additive})} objectRef={selectedId===c.id?setSelectedObject:undefined}/>)}
     {onTransform && transformMode && selectedId && selectedObject && <GizmoControls object={selectedObject} mode={transformMode} rotationSnap={ROTATION_SNAP} translationSnap={TRANSLATION_SNAP}
       onMouseDown={()=>{gesture.current++;}}
       onObjectChange={()=>{const {position:p,quaternion:q}=selectedObject;onTransform(selectedId,{x:p.x,y:p.y,z:p.z},{x:q.x,y:q.y,z:q.z,w:q.w},`transform:${selectedId}:${gesture.current}`);}}/>}
@@ -570,11 +595,11 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
 
 /** Authored starting properties for a newly added component of each type. */
 function defaultProperties(type: ComponentKind): ComponentInstance['properties'] {
-  if (type === 'tank') return { level: 45 };
-  if (type === 'valve') return { open: true };
+  const state: ComponentInstance['properties'] = componentCatalog[type].bindable?.level !== undefined ? { level: 45 } : type === 'valve' ? { open: true } : {};
   const parameters = componentCatalog[type].parameters ?? {};
   // Choices (size) are left out: absent means the default, so files only record a deliberate size.
-  return Object.fromEntries(Object.entries(parameters).flatMap(([name, spec]) => (isChoiceParameter(spec) ? [] : [[name, spec.default]])));
+  // A numeric `initial` (e.g. a tank stand) is what new parts start with.
+  return { ...state, ...Object.fromEntries(Object.entries(parameters).flatMap(([name, spec]) => (isChoiceParameter(spec) ? [] : [[name, spec.initial ?? spec.default]]))) };
 }
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -653,7 +678,7 @@ function OpenJointMarkers({ scene, open }: { scene: ScadaScene; open: OpenJoint 
 }
 
 /** Keyboard-reachable list of everything in the scene; selecting here equals clicking in the canvas. */
-function SceneList({ scene, selected, onSelect, locked }: { scene: ScadaScene; selected?: string; onSelect: (id: string) => void; locked?: boolean }) {
+function SceneList({ scene, selected, onSelect, locked }: { scene: ScadaScene; selected?: string; onSelect: SelectHandler; locked?: boolean }) {
   const names = componentNames(scene);
   // Roots in scene order, each followed by its descendants (indented).
   const children = new Map<string, string[]>();
@@ -669,7 +694,7 @@ function SceneList({ scene, selected, onSelect, locked }: { scene: ScadaScene; s
   return <nav aria-label="Scene components" style={{margin:'10px 0'}}>
     <small>{locked ? 'In scene (editing locked)' : 'In scene (arrows move, R turns, Delete removes)'}</small>
     <div style={{maxHeight:160,overflowY:'auto'}}>
-      {entries.map(e => <button key={e.id} aria-pressed={selected === e.id} onClick={() => onSelect(e.id)}
+      {entries.map(e => <button key={e.id} aria-pressed={selected === e.id} onClick={(ev) => onSelect(e.id, { additive: ev.shiftKey })}
         style={{display:'block',width:`calc(100% - ${e.depth*14}px)`,marginLeft:e.depth*14,textAlign:'left',marginTop:3}}>{e.name}</button>)}
     </div>
   </nav>;
@@ -732,6 +757,12 @@ function ParameterField({ name, spec, component, connectedPorts, onChange }: {
     const anchor = (props: ComponentInstance['properties']) => definitionFor(component.type, props).ports.find((p) => p.id === anchorId);
     const before = anchor(component.properties), after = anchor(properties);
     let position = component.position;
+    if (spec.keepsBottom) {
+      // Keep the feet on the floor: the body moves by the change in its lowest point.
+      const lowest = (props: ComponentInstance['properties']) => definitionFor(component.type, props).bounds.min[1];
+      onChange({ position: { ...position, y: position.y + lowest(component.properties) - lowest(properties) }, properties });
+      return;
+    }
     if (before && after) {
       const [b, a] = [portToWorld(component, before).position, portToWorld(component, after).position];
       position = { x: position.x + b[0] - a[0], y: position.y + b[1] - a[1], z: position.z + b[2] - a[2] };
@@ -976,6 +1007,17 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     const result=applyDrop(scene,plan,newId);
     if(result.ok){update(result.scene);setSelected(plan.component.id);announceConnections(scene,result.scene);}
   }
+  /** Shift+click attaches the clicked part to the selected one at their closest free ports. */
+  const select:SelectHandler=(id,options)=>{
+    if(!options?.additive||!selected||selected===id){setSelected(id);return;}
+    const names=componentNames(scene);
+    if(isLocked){setNotice([`Editing is locked: ${names.get(id)} was not attached.`]);return;}
+    const r=attachComponents(scene,selected,id,{...catalogResolvers,createId:newId});
+    if(!r.ok){setNotice([`Cannot attach ${names.get(id)} to ${names.get(selected)}: ${r.error.message}`]);return;}
+    update(r.scene);
+    setSelected(id);
+    setNotice([describeAttach(r.scene,r.connection,r.moved)]);
+  };
   const component=scene.components.find(c=>c.id===selected);
   function patch(changes:Partial<ComponentInstance>, mergeKey?:string) {
     update({...scene,components:scene.components.map(c=>c.id===selected?{...c,...changes}:c)},mergeKey);
@@ -1065,7 +1107,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     <summary>{title}</summary>{disabled?<fieldset disabled>{children}</fieldset>:children}
   </details>;
   const connectedPorts=(c:ComponentInstance)=>new Set(connectionsOf(scene,c.id).flatMap(x=>[x.from,x.to]).filter(e=>e.instanceId===c.id).map(e=>e.portId));
-  const hasSettings=(c:ComponentInstance)=>Object.keys(componentCatalog[c.type].parameters??{}).length>0||c.type==='tank'||c.type==='valve';
+  const hasSettings=(c:ComponentInstance)=>Object.keys(componentCatalog[c.type].parameters??{}).length>0||componentCatalog[c.type].bindable?.level!==undefined||c.type==='valve';
   const hasBindings=(c:ComponentInstance)=>Object.keys(componentCatalog[c.type].bindable??{}).length>0||connectionsOf(scene,c.id).length>0;
   return <div ref={root} tabIndex={-1} onKeyDown={onKeyDown} className="scada3d-editor" style={{display:'grid',gridTemplateColumns:'220px minmax(0,1fr) 260px',gridTemplateRows:'minmax(0,1fr)',height:'100%',minHeight:500,color:'#ebf2fa',background:'#142437',fontFamily:'system-ui',outline:'none'}}>
     <style>{EDITOR_CSS}</style>
@@ -1083,7 +1125,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
       <p aria-live="polite" style={{fontSize:12,margin:'4px 0 8px'}}>{clipNote}</p>
       {section('Components',<div className="s3-palette">{(Object.keys(componentCatalog) as ComponentKind[]).map(k=><button key={k} draggable onDragStart={e=>{e.dataTransfer.setData('scada-kind',k);e.dataTransfer.effectAllowed='copy';dragKind.current=k;}} onDragEnd={endDrag} onClick={()=>add(k)}>{componentCatalog[k].label} +</button>)}</div>)}
       </fieldset>
-      <SceneList scene={scene} selected={selected} onSelect={setSelected} locked={isLocked}/>
+      <SceneList scene={scene} selected={selected} onSelect={select} locked={isLocked}/>
       <label className="s3-stack">View <select aria-label="View mode" value={viewMode} onChange={e=>setViewMode(e.target.value as ViewMode)}>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>
       <div style={{marginTop:12}}>{section('Underlay',<UnderlayControls scene={scene} onChange={(underlay,mergeKey)=>{const {underlay:_,...rest}=scene;update(underlay?{...rest,underlay}:rest,mergeKey);}}/>,isLocked)}</div>
       <div style={{marginTop:12}}>{section('Scene file',<>
@@ -1101,7 +1143,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     <main onDragOver={e=>{if(!dragKind.current||isLocked)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={setSelected} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} simulation={simulation} collisions={collisions} openJoints={openJoints} instancing={instancing}/>
+      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={select} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} simulation={simulation} collisions={collisions} openJoints={openJoints} instancing={instancing}/>
       {isLocked&&<div style={{position:'absolute',bottom:10,right:110,padding:'4px 10px',borderRadius:4,background:'#0b1725e6',border:'1px solid #ffd166',color:'#ffd166',fontSize:12,pointerEvents:'none'}}>🔒 Editing locked</div>}
       {notice.length>0&&<ConnectionNotice lines={notice} onDismiss={()=>setNotice([])}/>}
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene)+previewOverlap:''}</div>
@@ -1117,7 +1159,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
         </>,isLocked)}
         {hasSettings(component)&&section('Settings',<>
           {Object.entries(componentCatalog[component.type].parameters??{}).map(([name,spec])=>isChoiceParameter(spec)?<ChoiceField key={`${component.id}:${name}`} name={name} spec={spec} component={component} scene={scene} onChange={(changes)=>patch(changes)}/>:<ParameterField key={`${component.id}:${name}`} name={name} spec={spec} component={component} connectedPorts={connectedPorts(component)} onChange={(changes)=>patch(changes,`parameter:${component.id}:${name}`)}/>)}
-          {component.type==='tank'&&<>
+          {componentCatalog[component.type].bindable?.level!==undefined&&<>
             <label className="s3-stack">Liquid level % <input type="range" min="0" max="100" value={Math.round((liquidFill(component.properties.level).fraction??0)*100)} onChange={e=>patch({properties:{...component.properties,level:Number(e.target.value)}},`level:${component.id}`)}/></label>
             <LevelNote level={component.properties.level}/>
             <label className="s3-stack">Temperature °C <input type="number" step="1" value={typeof component.properties.temperature==='number'?component.properties.temperature:''} onChange={e=>{const {temperature:_,...rest}=component.properties;patch({properties:e.target.value===''?rest:{...rest,temperature:Number(e.target.value)}},`temperature:${component.id}`);}}/></label>

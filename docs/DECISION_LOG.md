@@ -16,6 +16,7 @@ Use one ADR per significant decision. Accepted decisions are binding; proposals 
 | [0010](adr/0010-simulation-package.md) | Accepted | Optional `@scada3d/simulation` package: deterministic mass-balance model (gravity drain, feeds, pumps), shown through a `simulation` prop, always SIMULATED |
 | [0011](adr/0011-hydraulic-model.md) | Accepted | Optional `hydraulic` v1 simulation model: Darcy–Weisbach friction, K-factor fittings, quadratic pump curves, tree networks (loops reported) |
 | [0012](adr/0012-svg-underlay.md) | Accepted | `@scada3d/asset-import`: allow-list SVG sanitizer without a DOM; optional sanitized `underlay` in scene v3 drawn as a ground-plane reference |
+| [0013](adr/0013-conical-tank.md) | Accepted | `conicalTank` kind (legs, cone, side outlet, sight gauge, plate); `lathe` liquid following the vessel; simulation vessel shapes from the catalog |
 
 ## New ADR template
 Title / Status (Proposed/Accepted/Superseded) / Context / Options considered / Decision / Trade-offs / Consequences / Migration / Tests / Date / Approvers. Owner approval required before altering public schema or safety boundaries.

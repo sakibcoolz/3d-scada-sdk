@@ -18,19 +18,20 @@ test('view modes change shell drawing but never the saved scene', async ({ page 
   const viewMode = page.getByLabel('View mode', { exact: true });
 
   const shells = async () => partsOf(page, tank, 'shell');
-  await expect.poll(async () => (await shells()).map((p) => p.opacity)).toEqual([1, 1, 1, 1, 1]);
+  // Five body parts plus the stand's four legs and four feet.
+  await expect.poll(async () => (await shells()).map((p) => p.opacity)).toEqual(Array(13).fill(1));
 
   await viewMode.selectOption('glass');
   await expect.poll(async () => (await shells()).every((p) => p.transparent && p.opacity === 0.21)).toBe(true);
 
   await viewMode.selectOption('xray');
   await expect.poll(async () => (await shells()).every((p) => p.opacity === 0.06)).toBe(true);
-  await expect.poll(async () => (await partsOf(page, tank, 'edges')).length).toBe(5);
+  await expect.poll(async () => (await partsOf(page, tank, 'edges')).length).toBe(13);
 
   await viewMode.selectOption('cutaway');
   await expect.poll(async () => (await shells()).every((p) => p.clippingPlanes === 1 && p.opacity === 1)).toBe(true);
-  // The liquid stays whole inside the cut shell.
-  await expect.poll(async () => (await partsOf(page, tank, 'liquid')).map((p) => p.clippingPlanes)).toEqual([0]);
+  // The liquid (and the gauge's liquid column) stays whole inside the cut shell.
+  await expect.poll(async () => (await partsOf(page, tank, 'liquid')).map((p) => p.clippingPlanes)).toEqual([0, 0]);
 
   await expect(page.getByLabel('Scene JSON')).toHaveValue(saved);
 });

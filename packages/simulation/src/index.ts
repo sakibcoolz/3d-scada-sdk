@@ -2,4 +2,6 @@
 export { createSimulation, MODEL } from './simulation.js';
 export { frictionFactor, HYDRAULIC } from './hydraulic.js';
 export { TANK } from './shared.js';
+export { vesselOf } from './vessels.js';
+export type { Vessel } from './vessels.js';
 export type { Feed, PumpCurve, Simulation, SimulationNote, SimulationOptions, SimulationState } from './shared.js';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ComponentInstance, ScadaScene, SceneConnection } from '@scada3d/core';
-import { describeLock, describeNewConnections, describeOpenJoint, describeOpenJoints, describeSeat, formatDistance } from './connectionNotice.js';
+import { describeAttach, describeLock, describeNewConnections, describeOpenJoint, describeOpenJoints, describeSeat, formatDistance } from './connectionNotice.js';
 
 const part = (id: string, type: ComponentInstance['type'], parentId?: string): ComponentInstance => ({
   id,
@@ -98,5 +98,12 @@ describe('open joint wording', () => {
   it('describes a seat from the moved part', () => {
     const s = scene([part('t', 'tee'), part('v', 'valve')], [joint('c', 't', 'branch', 'v', 'in')]);
     expect(describeSeat(s, 'c', 'v', 0.015)).toBe('Seated Ball Valve 1 "in" on T-Junction 1 "branch" (moved 15 mm).');
+  });
+});
+
+describe('describeAttach', () => {
+  it('names the moved part first, then the part it was attached to', () => {
+    const s = scene([part('t', 'tank'), part('v', 'valve')], [joint('c', 'v', 'in', 't', 'outlet')]);
+    expect(describeAttach(s, s.connections[0], 2.345)).toBe('Attached Ball Valve 1 "in" to Vertical Tank 1 "outlet" (moved 2.35 m).');
   });
 });

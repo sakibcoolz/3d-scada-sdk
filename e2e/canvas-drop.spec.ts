@@ -15,11 +15,13 @@ test('drops components at the pointer and snaps a valve onto the tank outlet', a
   expect(scene.components).toHaveLength(1);
   const { x, y, z } = scene.components[0].position;
   expect(Math.abs(x)).toBeLessThan(0.05);
-  expect(y).toBeCloseTo(1.535, 9);
+  // New tanks stand on a 0.8 m stand (ADR-0013): the body is 0.8 m higher than a bare tank.
+  expect(y).toBeCloseTo(1.535 + 0.8, 9);
   expect(Math.abs(z)).toBeLessThan(0.05);
   const tankId = scene.components[0].id;
 
-  // The tank outlet sits at (x + 1.2, 0.635, z); drop the valve so its inlet lands just below it.
+  // The tank outlet sits at (x + 1.2, 1.435, z). The valve is dropped on the ground right below it
+  // and is lifted onto the outlet (snap in plan view).
   await startDrag(page, 'Ball Valve +', [x + 1.8, 0, z]);
   await expect(status).toHaveText('Connects Ball Valve "in" to Vertical Tank "outlet"');
   await page.mouse.up();
@@ -29,7 +31,7 @@ test('drops components at the pointer and snaps a valve onto the tank outlet', a
   const valve = scene.components[1];
   expect(valve.type).toBe('valve');
   expect(valve.position.x).toBeCloseTo(x + 1.8, 9);
-  expect(valve.position.y).toBeCloseTo(0.635, 9);
+  expect(valve.position.y).toBeCloseTo(0.635 + 0.8, 9);
   expect(valve.position.z).toBeCloseTo(z, 9);
   expect(scene.connections).toEqual([
     { id: expect.any(String), from: { instanceId: valve.id, portId: 'in' }, to: { instanceId: tankId, portId: 'outlet' } },

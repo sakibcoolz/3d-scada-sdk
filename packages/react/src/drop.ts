@@ -1,6 +1,7 @@
 import { Plane, Raycaster, Vector2, Vector3, type Camera } from 'three';
 import {
   connect,
+  portToWorld,
   snapComponent,
   validateScene,
   type ComponentInstance,
@@ -73,7 +74,39 @@ export function planDrop(scene: ScadaScene, type: ComponentKind, hit: Vector3Tup
     const again = snapComponent(scene, resized, catalogResolvers);
     if (again.ok) return { component: { ...resized, position: again.position, rotation: again.rotation }, snap: again };
   }
+  // Snap in plan view: a part dropped on the ground below a raised port (e.g. a tank on a stand)
+  // is lifted to that port's height, then snapped as usual.
+  for (const candidate of resized ? [resized, placed] : [placed]) {
+    const lifted = liftToRaisedPort(scene, candidate);
+    if (!lifted) continue;
+    const up = snapComponent(scene, lifted, catalogResolvers);
+    if (up.ok) return { component: { ...lifted, position: up.position, rotation: up.rotation }, snap: up };
+    const sized = matchTargetSize(scene, lifted, up);
+    const upSized = sized && snapComponent(scene, sized, catalogResolvers);
+    if (sized && upSized && upSized.ok) return { component: { ...sized, position: upSized.position, rotation: upSized.rotation }, snap: upSized };
+  }
   return { component: placed, snap };
+}
+
+/** Plan distance within which a raised port pulls a ground drop up to it, metres. */
+const PLAN_SNAP = 0.5;
+
+/** `placed` raised so one of its ports is level with the nearest higher port within PLAN_SNAP in plan. */
+function liftToRaisedPort(scene: ScadaScene, placed: ComponentInstance): ComponentInstance | undefined {
+  const mine = (catalogResolvers.resolvePorts(placed.type, placed.properties) ?? []).map((p) => portToWorld(placed, p).position);
+  let best: { plan: number; dy: number } | undefined;
+  for (const other of scene.components) {
+    if (other.id === placed.id) continue;
+    for (const port of catalogResolvers.resolvePorts(other.type, other.properties) ?? []) {
+      const t = portToWorld(other, port).position;
+      for (const m of mine) {
+        const plan = Math.hypot(t[0] - m[0], t[2] - m[2]);
+        const dy = t[1] - m[1];
+        if (dy > 0 && plan <= PLAN_SNAP && (!best || plan < best.plan)) best = { plan, dy };
+      }
+    }
+  }
+  return best && { ...placed, position: { ...placed.position, y: placed.position.y + best.dy } };
 }
 
 /** `placed` with its moving port resized to the nearest target port's size, if that is a valid choice. */

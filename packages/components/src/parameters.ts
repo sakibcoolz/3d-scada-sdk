@@ -1,5 +1,5 @@
 import type { ComponentInstance, ComponentKind, Quantity } from '@scada3d/core';
-import { componentCatalog, couplerDefinition, elbowDefinition, pipeDefinition, reducerDefinition, teeDefinition, valveDefinition } from './catalog.js';
+import { componentCatalog, couplerDefinition, elbowDefinition, pipeDefinition, reducerDefinition, tankDefinition, teeDefinition, valveDefinition } from './catalog.js';
 import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
 import type { PipeSize } from './sizes.js';
 
@@ -32,6 +32,7 @@ function effective(type: ComponentKind, properties: Properties): Record<string, 
 
 type Values = Record<string, string | number>;
 const builders: Partial<Record<ComponentKind, (v: Values) => IndustrialComponentDefinition>> = {
+  tank: (v) => tankDefinition(v.standHeight as number),
   pipe: (v) => pipeDefinition(v.length as number, v.size as PipeSize),
   elbow: (v) => elbowDefinition(v.size as PipeSize),
   tee: (v) => teeDefinition(v.size as PipeSize),
