@@ -1,5 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
-import { quaternionFromEuler, quaternionToEuler, type QuaternionLike, type Vector3Like } from '@scada3d/core';
+import { quaternionFromEuler, quaternionToEuler, type QuaternionLike, type Vector3Like } from '@sakibcoolz/core';
 
 const DEG = Math.PI / 180;
 

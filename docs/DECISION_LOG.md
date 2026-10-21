@@ -23,6 +23,7 @@ Use one ADR per significant decision. Accepted decisions are binding; proposals 
 | [0017](adr/0017-tank-family.md) | Accepted | Vertical tank `diameter`/`height`/`head` (flat or 2:1 dished), capacity on the name plate (`capacityUnit`), `vesselOf` follows dimensions, `componentPresets` in the palette |
 | [0018](adr/0018-tank-family-2.md) | Accepted | Horizontal tank (F&D heads, saddles), spherical tank and pool kinds; braced stands; `lathe` axis, `strut`, `holds` and `vesselProfile` for their volumes; cut liquids |
 | [0019](adr/0019-open-source-mit.md) | Accepted | Open source under MIT; public repository; `@scada3d/*` published to npm as public packages; v0.1.0 tag and GitHub Release (supersedes T-024's proprietary licence) |
+| [0019](adr/0019-open-source-mit.md) (amended) | Accepted | npm packages published under the owner's scope as `@sakibcoolz/*` from v0.1.1 (the `scada3d` organisation did not exist) |
 
 ## New ADR template
 Title / Status (Proposed/Accepted/Superseded) / Context / Options considered / Decision / Trade-offs / Consequences / Migration / Tests / Date / Approvers. Owner approval required before altering public schema or safety boundaries.

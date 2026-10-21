@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ComponentInstance } from '@scada3d/core';
+import type { ComponentInstance } from '@sakibcoolz/core';
 import { INSTANCE_CHUNK, spatialChunks } from './instancing.js';
 
 const valve = (i: number, x: number, z: number): ComponentInstance => ({ id: `v${i}`, type: 'valve', position: { x, y: 0.2, z }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} });

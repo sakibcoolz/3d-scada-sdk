@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rotateVector, type QuaternionLike, type Vector3Like } from '@scada3d/core';
+import { rotateVector, type QuaternionLike, type Vector3Like } from '@sakibcoolz/core';
 import { degreesFromRotation, rotationFromDegrees, turnAboutWorldAxis } from './rotationForm.js';
 
 const expectSameRotation = (a: QuaternionLike, b: QuaternionLike) => {

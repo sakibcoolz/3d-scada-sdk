@@ -1,5 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
-import type { ComponentInstance, Vector3Tuple } from '@scada3d/core';
+import type { ComponentInstance, Vector3Tuple } from '@sakibcoolz/core';
 
 const UP = new Vector3(0, 1, 0);
 const FINE = 0.1;

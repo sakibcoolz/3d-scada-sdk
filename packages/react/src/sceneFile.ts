@@ -1,6 +1,6 @@
-import { parseScene, upgradeDimensions, type ScadaScene, type SceneValidationError } from '@scada3d/core';
-import { catalogResolvers, legacyCatalogResolvers } from '@scada3d/components';
-import { sanitizeSvg } from '@scada3d/asset-import';
+import { parseScene, upgradeDimensions, type ScadaScene, type SceneValidationError } from '@sakibcoolz/core';
+import { catalogResolvers, legacyCatalogResolvers } from '@sakibcoolz/components';
+import { sanitizeSvg } from '@sakibcoolz/asset-import';
 
 /** Largest scene file the editor will read (bytes for files, characters for pasted text). */
 export const MAX_SCENE_FILE_BYTES = 10_000_000;

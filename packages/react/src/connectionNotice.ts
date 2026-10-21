@@ -1,5 +1,5 @@
-import { assemblyOf, type ComponentKind, type OpenJoint, type ScadaScene, type SceneConnection } from '@scada3d/core';
-import { componentCatalog } from '@scada3d/components';
+import { assemblyOf, type ComponentKind, type OpenJoint, type ScadaScene, type SceneConnection } from '@sakibcoolz/core';
+import { componentCatalog } from '@sakibcoolz/components';
 
 /** Display names in scene order: "Ball Valve 1", "Ball Valve 2", … */
 export function componentNames(scene: ScadaScene): Map<string, string> {

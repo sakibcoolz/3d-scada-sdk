@@ -1,4 +1,4 @@
-import type { ComponentInstance, ComponentKind } from '@scada3d/core';
+import type { ComponentInstance, ComponentKind } from '@sakibcoolz/core';
 import type { GeometryPart } from './geometry.js';
 
 /** A slice of a vessel's inner wall along +Y: radius r0 at y0 to r1 at y1 (a frustum). */

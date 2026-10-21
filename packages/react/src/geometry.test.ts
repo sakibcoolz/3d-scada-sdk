@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Box3, Vector3, type BufferGeometry } from 'three';
-import type { PipeRoute } from '@scada3d/core';
-import { componentCatalog, outerRadiusFor, pipeOuterRadius, sizeOfPort } from '@scada3d/components';
+import type { PipeRoute } from '@sakibcoolz/core';
+import { componentCatalog, outerRadiusFor, pipeOuterRadius, sizeOfPort } from '@sakibcoolz/components';
 import { createEquipmentGeometries, createPartGeometry, createRouteGeometries, createRouteGeometry, disposeGeometries } from './geometry.js';
 
 const definitions = Object.values(componentCatalog);
@@ -167,7 +167,7 @@ describe('createRouteGeometries', () => {
 
 describe('parametric pipe geometry', () => {
   it('builds a 5 m pipe that fills its bounds with openings at both ports', async () => {
-    const { definitionFor } = await import('@scada3d/components');
+    const { definitionFor } = await import('@sakibcoolz/components');
     const definition = definitionFor('pipe', { length: 5 });
     const geometries = createEquipmentGeometries(definition);
     const box = new Box3();

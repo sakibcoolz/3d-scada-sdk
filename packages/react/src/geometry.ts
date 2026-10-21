@@ -1,7 +1,7 @@
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BoxGeometry, CylinderGeometry, LatheGeometry, Vector2, Matrix4, Quaternion, SphereGeometry, TorusGeometry, Vector3, type BufferGeometry } from 'three';
-import type { PipeRoute } from '@scada3d/core';
-import type { GeometryPart, IndustrialComponentDefinition } from '@scada3d/components';
+import type { PipeRoute } from '@sakibcoolz/core';
+import type { GeometryPart, IndustrialComponentDefinition } from '@sakibcoolz/components';
 
 /**
  * Low-poly geometry for joint hardware (ADR-0015): thousands of bolts and flanges must stay cheap,

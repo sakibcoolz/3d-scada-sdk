@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createEmptyScene, validateScene, type ScadaScene } from '@scada3d/core';
-import { componentCatalog } from '@scada3d/components';
-import { Scada3DEditor, Scada3DViewer, type ScadaHandle } from '@scada3d/react';
+import { createEmptyScene, validateScene, type ScadaScene } from '@sakibcoolz/core';
+import { componentCatalog } from '@sakibcoolz/components';
+import { Scada3DEditor, Scada3DViewer, type ScadaHandle } from '@sakibcoolz/react';
 import { demoScene, demoTagRows, generatedScene } from './demo';
 import { useDemoFeed } from './DemoFeed';
 import { useSimulation } from './SimulationPanel';

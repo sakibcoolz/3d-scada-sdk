@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installThreeHook, renderedParts, waitForCanvas } from './helpers';
 
-// Playground `?simulate`: the demo plant driven by @scada3d/simulation through the `simulation` prop (ADR-0010).
+// Playground `?simulate`: the demo plant driven by @sakibcoolz/simulation through the `simulation` prop (ADR-0010).
 const liquid = async (page: Page) => (await renderedParts(page)).find((p) => p.componentId === 'tank' && p.role === 'liquid')!.scaleY;
 const flowSummary = (page: Page) => page.getByLabel('Flow summary');
 

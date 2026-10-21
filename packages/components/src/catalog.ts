@@ -1,4 +1,4 @@
-import type { ComponentKind, ConnectionPort, Vector3Tuple } from '@scada3d/core';
+import type { ComponentKind, ConnectionPort, Vector3Tuple } from '@sakibcoolz/core';
 import type { GeometryPart, IndustrialComponentDefinition } from './geometry.js';
 import { DEFAULT_SIZE, outerRadiusFor, pipeSizes, SIZE_PARAMETER, type PipeSize } from './sizes.js';
 import { asme } from './asme.js';

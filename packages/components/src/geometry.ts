@@ -1,4 +1,4 @@
-import type { ComponentDefinition, Vector3Tuple } from '@scada3d/core';
+import type { ComponentDefinition, Vector3Tuple } from '@sakibcoolz/core';
 
 export type Axis = 'x' | 'y' | 'z';
 

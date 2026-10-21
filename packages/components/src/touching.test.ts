@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { connectTouchingPorts, findTouchingPorts, parseScene, routeScene, upgradeDimensions } from '@scada3d/core';
+import { connectTouchingPorts, findTouchingPorts, parseScene, routeScene, upgradeDimensions } from '@sakibcoolz/core';
 import { catalogResolvers, legacyCatalogResolvers } from './index.js';
 
 // A real plant layout exported from the playground with every part placed port-to-port but no

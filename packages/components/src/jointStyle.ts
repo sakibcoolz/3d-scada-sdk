@@ -1,4 +1,4 @@
-import type { ComponentKind } from '@scada3d/core';
+import type { ComponentKind } from '@sakibcoolz/core';
 import { asme } from './asme.js';
 import type { GeometryPart } from './geometry.js';
 import { outerRadiusFor, type PipeSize } from './sizes.js';

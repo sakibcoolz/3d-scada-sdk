@@ -1,13 +1,13 @@
-# @scada3d/react
+# @sakibcoolz/react
 
-React Three Fiber viewer and editor for 3D SCADA scenes built with `@scada3d/core` and `@scada3d/components`: drag-and-drop palette, snapping, routed pipes with flanges and welds, view modes, telemetry and simulation overlays.
+React Three Fiber viewer and editor for 3D SCADA scenes built with `@sakibcoolz/core` and `@sakibcoolz/components`: drag-and-drop palette, snapping, routed pipes with flanges and welds, view modes, telemetry and simulation overlays.
 
 ```sh
-npm install @scada3d/react
+npm install @sakibcoolz/react
 ```
 
 ```ts
-import { Scada3DEditor, Scada3DViewer } from '@scada3d/react';
+import { Scada3DEditor, Scada3DViewer } from '@sakibcoolz/react';
 ```
 
 Part of the [3D SCADA SDK](https://github.com/sakibcoolz/3d-scada-sdk). API reference: [docs/API.md](https://github.com/sakibcoolz/3d-scada-sdk/blob/develop/docs/API.md). ESM only, Node.js 20+.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ComponentInstance, ComponentKind, ScadaScene, SceneConnection } from '@scada3d/core';
+import type { ComponentInstance, ComponentKind, ScadaScene, SceneConnection } from '@sakibcoolz/core';
 import { createSimulation, MODEL, TANK } from './index.js';
 
 const part = (id: string, type: ComponentKind, properties: ComponentInstance['properties'] = {}): ComponentInstance => ({

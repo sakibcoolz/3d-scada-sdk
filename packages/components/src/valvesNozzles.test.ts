@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { upgradeDimensions, type ComponentInstance, type ScadaScene } from '@scada3d/core';
+import { upgradeDimensions, type ComponentInstance, type ScadaScene } from '@sakibcoolz/core';
 import { asme, catalogResolvers, sizeParameterFor, definitionFor, legacyCatalogResolvers, outerRadiusFor, pipeSizes, sizeOfPort, type PipeSize } from './index.js';
 
 const sizes = Object.keys(pipeSizes) as PipeSize[];

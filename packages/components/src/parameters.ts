@@ -1,4 +1,4 @@
-import type { ComponentInstance, ComponentKind, Quantity } from '@scada3d/core';
+import type { ComponentInstance, ComponentKind, Quantity } from '@sakibcoolz/core';
 import { componentCatalog, conicalTankDefinition, horizontalTankDefinition, poolDefinition, sphericalTankDefinition, couplerDefinition, pumpDefinition, elbowDefinition, pipeDefinition, reducerDefinition, tankDefinition, teeDefinition, valveDefinition } from './catalog.js';
 import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
 import { pipeSizes, type PipeSize } from './sizes.js';

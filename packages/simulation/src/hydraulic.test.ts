@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { quaternionFromEuler, type ComponentInstance, type ComponentKind, type QuaternionLike, type ScadaScene, type SceneConnection } from '@scada3d/core';
+import { quaternionFromEuler, type ComponentInstance, type ComponentKind, type QuaternionLike, type ScadaScene, type SceneConnection } from '@sakibcoolz/core';
 import { createSimulation, frictionFactor, HYDRAULIC, TANK } from './index.js';
 
 const I = { x: 0, y: 0, z: 0, w: 1 };

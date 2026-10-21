@@ -1,7 +1,7 @@
 {
-  "name": "@scada3d/components",
-  "version": "0.1.0",
-  "description": "Industrial component catalog (tank, pipe, valve, fittings) for @scada3d/core.",
+  "name": "@sakibcoolz/components",
+  "version": "0.1.1",
+  "description": "Industrial component catalog (tank, pipe, valve, fittings) for @sakibcoolz/core.",
   "license": "MIT",
   "author": "sakibcoolz",
   "repository": {
@@ -37,7 +37,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@scada3d/core": "workspace:*"
+    "@sakibcoolz/core": "workspace:*"
   },
   "exports": {
     ".": "./src/index.ts"

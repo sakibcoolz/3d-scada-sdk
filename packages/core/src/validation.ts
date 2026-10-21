@@ -96,7 +96,7 @@ export interface SceneValidationOptions {
   validateProperties?: (type: ComponentKind, properties: ComponentInstance['properties']) => readonly { property: string; message: string }[];
   limits?: Partial<SceneLimits>;
   /**
-   * Checks the content of `underlay.svg` (e.g. `sanitizeSvg` from @scada3d/asset-import) and returns a
+   * Checks the content of `underlay.svg` (e.g. `sanitizeSvg` from @sakibcoolz/asset-import) and returns a
    * reason to reject it, or undefined. Core checks only structure and size. Optional.
    */
   validateUnderlay?: (svg: string) => string | undefined;

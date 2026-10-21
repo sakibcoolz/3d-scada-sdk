@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Object3D, Quaternion, Vector3 } from 'three';
-import { portToWorld, quaternionFromEuler, type QuaternionLike, type Vector3Like } from '@scada3d/core';
-import { componentCatalog } from '@scada3d/components';
+import { portToWorld, quaternionFromEuler, type QuaternionLike, type Vector3Like } from '@sakibcoolz/core';
+import { componentCatalog } from '@sakibcoolz/components';
 
 // The renderer places equipment with <group position quaternion>, so core's world-port math must
 // agree with Three.js for the same instance transform.

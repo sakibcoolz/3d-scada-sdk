@@ -1,5 +1,5 @@
-import type { ComponentInstance, ComponentKind } from '@scada3d/core';
-import { definitionFor, vesselProfile, type IndustrialComponentDefinition } from '@scada3d/components';
+import type { ComponentInstance, ComponentKind } from '@sakibcoolz/core';
+import { definitionFor, vesselProfile, type IndustrialComponentDefinition } from '@sakibcoolz/components';
 
 /**
  * Liquid geometry of a vessel, read from its definition (`vesselProfile`: vertical walls, dished

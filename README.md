@@ -11,11 +11,11 @@ Reusable industrial 3D visualization SDK for Three.js, with a React editor/viewe
 **Transport-neutral and offline-capable:** the SDK requires no WebSocket, MQTT, PLC or network connection. Host applications may inject optional values; there is no direct PLC control API.
 
 ## Workspace
-- `@scada3d/core`: definitions, ports, registry and scene data
-- `@scada3d/components`: procedural industrial geometry
-- `@scada3d/react`: React Three Fiber rendering and editor
-- `@scada3d/asset-import`: SVG sanitizer for reference underlays (no DOM; shapes and paths only)
-- `@scada3d/simulation`: optional deterministic mass-balance simulation (always labelled SIMULATED; playground `?simulate`)
+- `@sakibcoolz/core`: definitions, ports, registry and scene data
+- `@sakibcoolz/components`: procedural industrial geometry
+- `@sakibcoolz/react`: React Three Fiber rendering and editor
+- `@sakibcoolz/asset-import`: SVG sanitizer for reference underlays (no DOM; shapes and paths only)
+- `@sakibcoolz/simulation`: optional deterministic mass-balance simulation (always labelled SIMULATED; playground `?simulate`)
 - `apps/playground`: Vite research playground
 - `examples/consumer-vite`: stand-alone app that installs the packed SDK tarballs (see [release packaging](docs/RELEASE.md))
 
@@ -23,8 +23,8 @@ Reusable industrial 3D visualization SDK for Three.js, with a React editor/viewe
 
 ## Install
 ```sh
-npm install @scada3d/core @scada3d/components @scada3d/react three @react-three/fiber @react-three/drei react react-dom
-npm install @scada3d/simulation   # optional
+npm install @sakibcoolz/core @sakibcoolz/components @sakibcoolz/react three @react-three/fiber @react-three/drei react react-dom
+npm install @sakibcoolz/simulation   # optional
 ```
 ESM only, Node.js 20+. Releases are verified against a stand-alone consumer app before publishing (`pnpm verify:consumer`, see [release packaging](docs/RELEASE.md)). Component dimensions follow common ASME tables and must be verified before engineering use; the SDK is not a certified design tool.
 

@@ -1220,3 +1220,25 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - `pnpm -r publish --access public --no-git-checks --dry-run` 0: five packages, no tests, fixtures or benchmarks; README and LICENSE in each; MIT; `workspace:*` rewritten to 0.1.0.
   - GitHub Actions CI not awaited (owner direction).
+
+## 2026-10-21 — T-059 Publish under the owner's npm scope `@sakibcoolz/*` (ADR-0019 amendment)
+- Branch: `chore/T-059-npm-scope` from `develop` (after #57, v0.1.0 tag and release, repository made public).
+- Why: `npm whoami` gives `sakibcoolz`, but `npm org ls scada3d` gives "Scope not found". The owner chose their own scope over creating an organisation.
+- Changes:
+  - `@scada3d/` becomes `@sakibcoolz/` in sources, tests, configs, scripts, the playground, the consumer example, the lockfile and current docs. Historical records (ADRs, WORK_LOG, DECISION_LOG, backlog) keep the old names.
+  - Version 0.1.1 for the workspace and all packages.
+  - The `.scada3d-editor` CSS class is unchanged (theming API).
+  - ADR-0019 amendment, DECISION_LOG, backlog (T-058 DONE, T-059 REVIEW), RELEASE publish step.
+- Found by the consumer check:
+  - `verify-consumer.mjs` derived package names from tarball names with a `scada3d-` prefix, so npm went to the registry for `@sakibcoolz/asset-import@0.1.0`. The prefix is now `sakibcoolz-`.
+  - The example now pins 0.1.1.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1234 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (118 tests).
+  - `pnpm verify:consumer` 0 (after the fix; 1 before).
+  - `pnpm test:consumer` 0 (1 test).
+  - `pnpm -r publish --dry-run` 0 (five `@sakibcoolz/*@0.1.1` packages).
+  - GitHub Actions CI not awaited (owner direction).

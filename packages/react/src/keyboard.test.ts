@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { quaternionFromEuler, rotateVector, type ComponentInstance, type Vector3Like } from '@scada3d/core';
+import { quaternionFromEuler, rotateVector, type ComponentInstance, type Vector3Like } from '@sakibcoolz/core';
 import { nudge } from './keyboard.js';
 
 const valve: ComponentInstance = { id: 'v', type: 'valve', position: { x: 1, y: 0.2, z: 2 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} };

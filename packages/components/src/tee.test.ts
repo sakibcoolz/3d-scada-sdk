@@ -11,7 +11,7 @@ import {
   type ComponentKind,
   type ConnectionPort,
   type ScadaScene,
-} from '@scada3d/core';
+} from '@sakibcoolz/core';
 import { catalogResolvers, componentCatalog, definitionFor, pipeOuterRadius } from './index.js';
 
 // Cross-check of the T-junction against every fluid port in the catalog: same size at every

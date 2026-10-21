@@ -1,7 +1,7 @@
 {
-  "name": "@scada3d/react",
-  "version": "0.1.0",
-  "description": "React viewer and editor for @scada3d scenes, built on three.js and React Three Fiber.",
+  "name": "@sakibcoolz/react",
+  "version": "0.1.1",
+  "description": "React viewer and editor for 3D SCADA SDK scenes, built on three.js and React Three Fiber.",
   "license": "MIT",
   "author": "sakibcoolz",
   "repository": {
@@ -38,9 +38,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@scada3d/asset-import": "workspace:*",
-    "@scada3d/components": "workspace:*",
-    "@scada3d/core": "workspace:*",
+    "@sakibcoolz/asset-import": "workspace:*",
+    "@sakibcoolz/components": "workspace:*",
+    "@sakibcoolz/core": "workspace:*",
     "@react-three/drei": "^10.0.6",
     "@react-three/fiber": "^9.1.2",
     "@types/three": "^0.175.0",

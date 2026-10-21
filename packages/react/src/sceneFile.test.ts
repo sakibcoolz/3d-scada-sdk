@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { serializeScene, type ScadaScene, type SceneValidationError } from '@scada3d/core';
-import { asme } from '@scada3d/components';
+import { serializeScene, type ScadaScene, type SceneValidationError } from '@sakibcoolz/core';
+import { asme } from '@sakibcoolz/components';
 import { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile.js';
 
 const linked: ScadaScene = {

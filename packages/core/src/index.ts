@@ -1,4 +1,4 @@
-// Public API of @scada3d/core. Everything not listed here is internal. See docs/API.md;
+// Public API of @sakibcoolz/core. Everything not listed here is internal. See docs/API.md;
 // `api.test.ts` fails when the runtime surface changes.
 
 // Scene model and units

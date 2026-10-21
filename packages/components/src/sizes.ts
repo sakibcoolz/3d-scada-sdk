@@ -1,4 +1,4 @@
-import type { ConnectionPort } from '@scada3d/core';
+import type { ConnectionPort } from '@sakibcoolz/core';
 import type { ChoiceParameterSpec } from './geometry.js';
 import { asme } from './asme.js';
 

@@ -1,13 +1,13 @@
 {
   "name": "3d-scada-sdk",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm --filter @scada3d/playground dev",
+    "dev": "pnpm --filter @sakibcoolz/playground dev",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck && tsc --noEmit -p tsconfig.tests.json",
     "test": "vitest run",

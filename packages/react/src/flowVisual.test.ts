@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { FlowState } from '@scada3d/core';
+import type { FlowState } from '@sakibcoolz/core';
 import { flowAppearance, markerDistances, pathLengths, pointAt, pointAtInto, summarizeFlow } from './flowVisual.js';
 
 const known = (direction: 'forward' | 'reverse' | 'stopped', overrides: Partial<FlowState> = {}): FlowState =>

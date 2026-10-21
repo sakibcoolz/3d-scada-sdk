@@ -1,4 +1,4 @@
-import type { ScadaScene } from '@scada3d/core';
+import type { ScadaScene } from '@sakibcoolz/core';
 
 /**
  * Immutable editor history of whole scenes. Scenes are immutable values that share unchanged

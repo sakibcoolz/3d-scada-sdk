@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { componentKinds } from '@scada3d/core';
+import { componentKinds } from '@sakibcoolz/core';
 import { capacityOf, catalogResolvers, componentCatalog, componentPresets, definitionFor, formatCapacity, vesselSegments, type GeometryPart } from './index.js';
 
 const plate = (parts: readonly GeometryPart[]) => parts.find((p): p is Extract<GeometryPart, { shape: 'box' }> => p.role === 'plate' && p.shape === 'box');

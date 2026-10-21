@@ -1,7 +1,7 @@
 {
-  "name": "@scada3d/asset-import",
-  "version": "0.1.0",
-  "description": "Optional allow-list SVG sanitizer and shape model for @scada3d (no DOM dependency).",
+  "name": "@sakibcoolz/asset-import",
+  "version": "0.1.1",
+  "description": "Optional allow-list SVG sanitizer and shape model for the 3D SCADA SDK (no DOM dependency).",
   "license": "MIT",
   "author": "sakibcoolz",
   "repository": {

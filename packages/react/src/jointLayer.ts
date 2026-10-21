@@ -1,6 +1,6 @@
 import { Matrix4, Vector3 } from 'three';
-import { portToWorld, type PipeRoute, type ScadaScene, type SceneConnection, type Vector3Tuple } from '@scada3d/core';
-import { catalogResolvers, hasFlangedEnds, jointStyle, sizeOfPort, type PipeSize } from '@scada3d/components';
+import { portToWorld, type PipeRoute, type ScadaScene, type SceneConnection, type Vector3Tuple } from '@sakibcoolz/core';
+import { catalogResolvers, hasFlangedEnds, jointStyle, sizeOfPort, type PipeSize } from '@sakibcoolz/components';
 
 /**
  * Where to draw joint hardware (ADR-0015): a bolted flange pair, a single flange on a free

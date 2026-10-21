@@ -1,4 +1,4 @@
-import type { ComponentInstance, ComponentKind, ConnectionPort } from '@scada3d/core';
+import type { ComponentInstance, ComponentKind, ConnectionPort } from '@sakibcoolz/core';
 import { definitionFor } from './parameters.js';
 import { pipeSizes, type PipeSize } from './sizes.js';
 

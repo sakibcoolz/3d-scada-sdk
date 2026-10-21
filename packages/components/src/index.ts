@@ -1,4 +1,4 @@
-// Public API of @scada3d/components. See docs/API.md; `api.test.ts` fails when the runtime surface changes.
+// Public API of @sakibcoolz/components. See docs/API.md; `api.test.ts` fails when the runtime surface changes.
 export { componentCatalog, nominalBore, pipeOuterRadius } from './catalog.js';
 export { catalogResolvers, definitionFor, sizeParameterFor, validateProperties } from './parameters.js';
 export { DEFAULT_SIZE, isPipeSize, outerRadiusFor, pipeSizes, sizeOfPort } from './sizes.js';

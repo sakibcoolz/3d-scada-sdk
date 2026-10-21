@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { routeScene, type ComponentInstance, type ComponentKind, type ScadaScene, type SceneConnection } from '@scada3d/core';
-import { asme, catalogResolvers } from '@scada3d/components';
+import { routeScene, type ComponentInstance, type ComponentKind, type ScadaScene, type SceneConnection } from '@sakibcoolz/core';
+import { asme, catalogResolvers } from '@sakibcoolz/components';
 import { jointPlacements } from './jointLayer.js';
 
 const I = { x: 0, y: 0, z: 0, w: 1 };

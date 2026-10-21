@@ -21,18 +21,18 @@ run('pnpm', ['-r', '--filter', './packages/*', 'build'], root);
 mkdirSync(pack, { recursive: true });
 for (const p of packages) run('pnpm', ['pack', '--pack-destination', pack], join(root, 'packages', p));
 
-const tarballs = Object.fromEntries(readdirSync(pack).filter((f) => f.endsWith('.tgz')).map((f) => [`@scada3d/${f.replace(/^scada3d-/, '').replace(/-\d+\.\d+\.\d+.*\.tgz$/, '')}`, `file:${join(pack, f)}`]));
+const tarballs = Object.fromEntries(readdirSync(pack).filter((f) => f.endsWith('.tgz')).map((f) => [`@sakibcoolz/${f.replace(/^sakibcoolz-/, '').replace(/-\d+\.\d+\.\d+.*\.tgz$/, '')}`, `file:${join(pack, f)}`]));
 if (Object.keys(tarballs).length !== packages.length) throw new Error(`expected ${packages.length} tarballs, found ${JSON.stringify(tarballs)}`);
 
 cpSync(join(root, 'examples', 'consumer-vite'), app, { recursive: true, filter: (src) => !/node_modules|[\\/]dist([\\/]|$)/.test(src) });
 const manifest = JSON.parse(readFileSync(join(app, 'package.json'), 'utf8'));
 Object.assign(manifest.dependencies, tarballs);
-// The packed components and react depend on @scada3d/core@0.1.0 by version; point those at the tarballs too.
+// The packed components and react depend on @sakibcoolz/core by exact version; point those at the tarballs too.
 manifest.overrides = { ...tarballs };
 writeFileSync(join(app, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
 run('npm', ['install', '--no-audit', '--no-fund'], app);
-run('npm', ['ls', '@scada3d/core', '@scada3d/components', '@scada3d/asset-import', '@scada3d/react', '@scada3d/simulation'], app);
+run('npm', ['ls', '@sakibcoolz/core', '@sakibcoolz/components', '@sakibcoolz/asset-import', '@sakibcoolz/react', '@sakibcoolz/simulation'], app);
 run('npm', ['run', 'typecheck'], app);
 run('npm', ['run', 'build'], app);
 run('npm', ['run', 'node-check'], app);
