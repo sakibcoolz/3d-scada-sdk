@@ -12,11 +12,11 @@
     "node-check": "node node-check.mjs"
   },
   "dependencies": {
-    "@sakibcoolz/asset-import": "0.1.2",
-    "@sakibcoolz/components": "0.1.2",
-    "@sakibcoolz/core": "0.1.2",
-    "@sakibcoolz/react": "0.1.2",
-    "@sakibcoolz/simulation": "0.1.2",
+    "@sakibcoolz/asset-import": "0.1.3",
+    "@sakibcoolz/components": "0.1.3",
+    "@sakibcoolz/core": "0.1.3",
+    "@sakibcoolz/react": "0.1.3",
+    "@sakibcoolz/simulation": "0.1.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
