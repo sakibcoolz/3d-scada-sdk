@@ -1264,3 +1264,22 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm -r publish --dry-run` 0 (five packages at 0.1.2).
   - `pnpm test:e2e` NOT RUN (version-only change).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-061: floor slab
+- Owner request: "add floor in app".
+- Branch `feat/T-061-floor` from `develop`. It is independent of T-060, which is still in review.
+- Change:
+  - New `floorSlab(scene)` in `packages/react/src/floor.ts`. It sizes the slab to the plan extent of every component's rotated bounds plus a 3 m margin, at least 20 m × 20 m, rounded outward to whole metres so that small moves do not resize it.
+  - New `floor?: boolean` prop on `Scada3DViewer` and `Scada3DEditor`, default false, so existing consumers see no change. The slab is a 0.2 m concrete box whose top is just below y = 0, so the grid and underlay draw on it. Clicks pass through it, and it is not saved in the scene.
+  - Playground: the floor is on by default, with a "Floor" checkbox and `?floor=off`.
+- Tests:
+  - New unit tests in `floor.test.ts` (4) cover the empty scene, the margin, rotated bounds and rounding stability.
+  - New e2e tests in `e2e/floor.spec.ts` (2) check that the slab grows with the plant, is not saved, is hidden by the toggle, and that `?floor=off` works.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1238 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (120 tests).
+  - Browser check in the owner's Chrome: the Floor toggle is visible and the slab is drawn.
+  - `pnpm verify:consumer` NOT RUN.
+  - GitHub Actions CI not awaited.
