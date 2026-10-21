@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { waitForCanvas } from './helpers';
+import { sceneJson, waitForCanvas } from './helpers';
 
 // A real immersive session needs a headset; these cover the button's states and the start request.
 
@@ -78,4 +78,31 @@ test('Walk puts a first-person walker on the floor; keys walk it, not the parts,
   await page.keyboard.press('Escape');
   await expect(status).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Walk', exact: true })).toBeVisible();
+});
+
+test('in Walk the crosshair picks parts and C connects the aimed part to the selected one', async ({ page }) => {
+  await page.goto('/');
+  await waitForCanvas(page);
+  await page.getByRole('button', { name: 'Vertical Tank +' }).click();
+  await page.getByRole('button', { name: 'Ball Valve +' }).click();
+  expect((await sceneJson(page)).connections).toHaveLength(0);
+
+  // The valve is selected; the walker starts facing the plant, with the tank under the crosshair.
+  await page.getByRole('button', { name: 'Walk', exact: true }).click();
+  const aim = page.getByRole('status', { name: 'Aim' });
+  await expect(aim).toContainText('Vertical Tank 1');
+  await expect(aim).toContainText('C connects to Ball Valve 1');
+
+  await page.keyboard.press('KeyC');
+  await expect.poll(async () => (await sceneJson(page)).connections.length).toBe(1);
+  await expect(page.getByRole('status', { name: 'Connection message' })).toContainText('Vertical Tank 1');
+
+  // A click selects the aimed part instead.
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Ball Valve 1' }).click();
+  await page.getByRole('button', { name: 'Walk', exact: true }).click();
+  await expect(aim).toContainText('Vertical Tank 1');
+  const box = (await page.locator('canvas').first().boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page.getByRole('button', { name: 'Vertical Tank 1' })).toHaveAttribute('aria-pressed', 'true');
 });

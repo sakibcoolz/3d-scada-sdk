@@ -1,6 +1,6 @@
 # ADR-0020: First-person walkthrough on the desktop and in WebXR (view only)
 
-Status: Accepted (owner, 2026-10-22); implemented in T-062. Connecting components in VR is planned as T-063.
+Status: Accepted (owner, 2026-10-22); implemented in T-062. Picking and connecting in first person were added by T-063 (see Amendment).
 
 ## Context
 The owner asked whether the SDK can do a VR walkthrough of a plant, and later connect components in VR. The owner tests on a Meta Quest and chose a walkthrough first, with connect-in-VR to follow. The owner then asked for the same sense of being in the plant in a desktop browser, without a headset.
@@ -35,4 +35,18 @@ The owner asked whether the SDK can do a VR walkthrough of a plant, and later co
 ## Consequences
 - The pure geometry is unit-tested in `xr.ts` and `walk.ts` (obstacles, steps, sliding, floor edge, look, key map). In `xr.ts` the tests cover: start pose, ray to floor, the offset as the inverse of the pose, teleport and turn about the head, and snap-turn arming.
 - Playwright cannot open an immersive session. The e2e tests cover the button states and the session request, and the walk itself is checked on the owner's Quest. Desktop Walk is covered end to end: walking, a tap step, keys not reaching the editor, and Esc.
-- Picking in VR (controller ray against equipment) is not part of this ADR; T-063 will reuse the editor's attach rules.
+- Picking in first person is covered by the amendment below (T-063).
+
+## Amendment (T-063, owner, 2026-10-22): pick and connect in first person
+- **Picking:** `componentHit` (pick.ts) returns the first tagged component a ray meets. It looks through untagged geometry (grid, routed pipes, rays) and ignores markers (open joints, floor).
+- **Same path as a click:** first-person picks call the view's `onSelect(id, { additive })`. In the editor, `additive` is Shift+click attach, so the attach rules, size checks, connection message, edit lock and undo are the editor's own. A view without `onSelect` cannot pick.
+- **Desktop Walk:**
+  - A click picks the part under the crosshair, whether the pointer is locked or (in drag mode) the press is not a drag.
+  - **C** connects the part under the crosshair to the selected one.
+  - The view's own pointer picking is off while walking, so only the crosshair picks.
+  - The crosshair turns green on a part. A label names it and shows what a click and C will do.
+- **VR:**
+  - A trigger pulled with the ray on a part selects it instead of teleporting.
+  - The grip on a part connects it to the selected one.
+  - A ray on a part stops there and turns green; the teleport ring is shown only for the floor.
+- **Tests:** `pick.test.ts` (5) covers occlusion, ancestors, instanced members, markers and misses. The Walk e2e test checks the aim label, connecting with C (one new connection and the editor's message) and selecting by click. VR picking needs the owner's Quest.
