@@ -19,7 +19,14 @@ Reusable industrial 3D visualization SDK for Three.js, with a React editor/viewe
 - `apps/playground`: Vite research playground
 - `examples/consumer-vite`: stand-alone app that installs the packed SDK tarballs (see [release packaging](docs/RELEASE.md))
 
-**Licence:** proprietary, all rights reserved (`UNLICENSED`; see [LICENSE](LICENSE)). The packages are not published to npm; releases are verified and shared as tarballs (`pnpm verify:consumer`).
+**Licence:** [MIT](LICENSE). Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md); report vulnerabilities as in [SECURITY.md](SECURITY.md).
+
+## Install
+```sh
+npm install @scada3d/core @scada3d/components @scada3d/react three @react-three/fiber @react-three/drei react react-dom
+npm install @scada3d/simulation   # optional
+```
+ESM only, Node.js 20+. Releases are verified against a stand-alone consumer app before publishing (`pnpm verify:consumer`, see [release packaging](docs/RELEASE.md)). Component dimensions follow common ASME tables and must be verified before engineering use; the SDK is not a certified design tool.
 
 ## Quick start
 Install Node.js 20+ and pnpm 9+.

@@ -1,9 +1,9 @@
 import type { ComponentInstance, ComponentKind } from '@scada3d/core';
-import { definitionFor, segmentVolume, vesselSegments, type IndustrialComponentDefinition } from '@scada3d/components';
+import { definitionFor, vesselProfile, type IndustrialComponentDefinition } from '@scada3d/components';
 
 /**
- * Liquid geometry of a vertical vessel, read from its definition (`vesselSegments`: open cylinder
- * and cone shells and dished lathe heads stacked along +Y), so tank dimensions are followed.
+ * Liquid geometry of a vessel, read from its definition (`vesselProfile`: vertical walls, dished
+ * heads, and horizontal shells, spheres and basins that hold liquid), so tank dimensions are followed.
  * Heights are measured from the lowest point the liquid can reach.
  */
 export interface Vessel {
@@ -30,21 +30,18 @@ const cache = new WeakMap<IndustrialComponentDefinition, Vessel | null>();
 export function vesselOf(type: ComponentKind, properties: ComponentInstance['properties'] = {}): Vessel | undefined {
   const def = definitionFor(type, properties);
   if (cache.has(def)) return cache.get(def) ?? undefined;
-  const segments = def.bindable?.level === undefined ? [] : vesselSegments(def.parts);
-  if (segments.length === 0) {
+  const profile = def.bindable?.level === undefined ? undefined : vesselProfile(def.parts);
+  if (!profile) {
     cache.set(def, null);
     return undefined;
   }
   const round = (n: number) => Math.round(n * 1e9) / 1e9;
-  const bottom = segments[0].y0;
-  const height = round(segments[segments.length - 1].y1 - bottom);
-  const volumeAt = (h: number) => {
-    const y = bottom + Math.min(height, Math.max(0, h));
-    return segments.reduce((sum, s) => sum + (y <= s.y0 ? 0 : segmentVolume(s, Math.min(y, s.y1) - s.y0)), 0);
-  };
+  const bottom = profile.bottom;
+  const height = round(profile.top - bottom);
+  const volumeAt = (h: number) => profile.volumeAt(bottom + Math.min(height, Math.max(0, h)));
   const maxVolume = volumeAt(height);
-  // A single straight cylinder: volume is proportional to height, so keep the exact ratio.
-  const cylinder = segments.length === 1 && segments[0].r0 === segments[0].r1;
+  // A plain cylinder or box: volume is proportional to height, so keep the exact ratio.
+  const cylinder = profile.linear;
   const vessel: Vessel = {
     height,
     bottom,

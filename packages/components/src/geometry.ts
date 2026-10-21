@@ -9,7 +9,7 @@ export type PartRole = 'shell' | 'liquid' | 'valve-ball' | 'valve-handle' | 'gau
  * Framework-neutral geometry in component-local metres. Renderers turn these into meshes;
  * ports and bounds are declared from the same dimensions so they stay aligned.
  */
-export type GeometryPart =
+export type GeometryPart = (
   | { shape: 'cylinder'; role: PartRole; center: Vector3Tuple; axis: Axis; radius: number; length: number; openEnded?: boolean }
   | { shape: 'sphere'; role: PartRole; center: Vector3Tuple; radius: number }
   /** `text` (a name plate's capacity) is drawn on the box's faces. */
@@ -18,10 +18,16 @@ export type GeometryPart =
   | { shape: 'bend'; role: PartRole; center: Vector3Tuple; bendRadius: number; tubeRadius: number; startAngle: number }
   /** Frustum along an axis: `radiusStart` at the −axis end, `radiusEnd` at the +axis end. */
   | { shape: 'cone'; role: PartRole; center: Vector3Tuple; axis: Axis; radiusStart: number; radiusEnd: number; length: number; openEnded?: boolean }
-  /** Solid of revolution about local +Y: profile points [radius, y] with y increasing. */
-  | { shape: 'lathe'; role: PartRole; center: Vector3Tuple; points: [number, number][] }
+  /** Solid of revolution about `axis` (default y): profile points [radius, along the axis], increasing. */
+  | { shape: 'lathe'; role: PartRole; center: Vector3Tuple; points: [number, number][]; axis?: Axis }
+  /** A round rod from `from` to `to`, e.g. a stand's cross brace. */
+  | { shape: 'strut'; role: PartRole; from: Vector3Tuple; to: Vector3Tuple; radius: number }
   /** Full torus around an axis: a weld bead of tube radius `tube` at `radius` from the axis. */
-  | { shape: 'ring'; role: PartRole; center: Vector3Tuple; axis: Axis; radius: number; tube: number };
+  | { shape: 'ring'; role: PartRole; center: Vector3Tuple; axis: Axis; radius: number; tube: number }
+) & {
+  /** Its inside holds the vessel's liquid (a horizontal shell, a sphere, a basin's inside) (ADR-0018). */
+  holds?: boolean;
+};
 
 export interface Bounds {
   min: Vector3Tuple;

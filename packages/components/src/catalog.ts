@@ -154,19 +154,39 @@ export function couplerDefinition(size: PipeSize = DEFAULT_SIZE, length: number 
  * column inside it that follows the level, ticks every 10 % on its right (longer at 0/50/100 %)
  * and a name plate across it at `plateY` showing `plateText` (the capacity).
  */
-function levelGauge(centreY: number, columnLength: number, plateY: number, z: number, plateText: string): GeometryPart[] {
-  const centre: Vector3Tuple = [0, centreY, z];
+function levelGauge(centreY: number, columnLength: number, plateY: number, z: number, plateText: string, x = 0): GeometryPart[] {
+  const centre: Vector3Tuple = [x, centreY, z];
   const bottom = centreY - columnLength / 2;
   const ticks: GeometryPart[] = Array.from({ length: 11 }, (_, i) => {
     const major = i % 5 === 0;
     const length = major ? 0.08 : 0.045;
-    return { shape: 'box', role: 'scale', center: [0.05 + length / 2, Math.round((bottom + (i / 10) * columnLength) * 1e9) / 1e9, z], size: [length, major ? 0.008 : 0.005, 0.01] };
+    return { shape: 'box', role: 'scale', center: [Math.round((x + 0.05 + length / 2) * 1e9) / 1e9, Math.round((bottom + (i / 10) * columnLength) * 1e9) / 1e9, z], size: [length, major ? 0.008 : 0.005, 0.01] };
   });
   return [
     { shape: 'cylinder', role: 'gauge', center: centre, axis: 'y', radius: 0.04, length: columnLength + 0.04 },
     { shape: 'cylinder', role: 'liquid', center: centre, axis: 'y', radius: 0.025, length: columnLength },
     ...ticks,
-    { shape: 'box', role: 'plate', center: [0, plateY, Math.round((z + 0.055) * 1e9) / 1e9], size: [0.5, 0.16, 0.02], text: plateText },
+    { shape: 'box', role: 'plate', center: [x, plateY, Math.round((z + 0.055) * 1e9) / 1e9], size: [0.5, 0.16, 0.02], text: plateText },
+  ];
+}
+
+/**
+ * An X brace between each pair of neighbouring legs (`legs` as [x, z], in order round the stand,
+ * `closed` joining the last to the first): from the top of one to the foot of the next and back.
+ */
+function crossBraces(legs: readonly [number, number][], top: number, bottom: number, radius: number, closed = true): GeometryPart[] {
+  const pairs = legs.slice(0, closed ? legs.length : legs.length - 1).map((a, i) => [a, legs[(i + 1) % legs.length]] as const);
+  return pairs.flatMap(([[ax, az], [bx, bz]]): GeometryPart[] => [
+    { shape: 'strut', role: 'shell', from: [ax, top, az], to: [bx, bottom, bz], radius },
+    { shape: 'strut', role: 'shell', from: [bx, top, bz], to: [ax, bottom, az], radius },
+  ]);
+}
+
+/** A leg from `top` down to `floor` with a square foot, both scaled by `k`. */
+function legWithFoot(x: number, z: number, top: number, floor: number, k: number): GeometryPart[] {
+  return [
+    { shape: 'cylinder', role: 'shell', center: [x, round9((top + floor) / 2), z], axis: 'y', radius: round9(0.05 * k), length: round9(top - floor) },
+    { shape: 'box', role: 'shell', center: [x, round9(floor + 0.01), z], size: [round9(0.16 * k), 0.02, round9(0.16 * k)] },
   ];
 }
 
@@ -226,6 +246,8 @@ export function tankDefinition(shape: TankShape = {}): IndustrialComponentDefini
         ];
       })
     : [];
+  // Stands of 0.3 m and more are braced with an X on each side (ADR-0018).
+  const braces = standHeight >= 0.3 ? crossBraces([45, 135, 225, 315].map(legAt), round9(bottom - 0.1 * standHeight), round9(floor + 0.1 * standHeight), round9(0.025 * leg)) : [];
   const walls: GeometryPart[] = [
     { shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'y', radius: R, length: height, openEnded: true },
     { shape: 'cylinder', role: 'shell', center: [0, -h, 0], axis: 'y', radius: R, length: 0.07 },
@@ -252,6 +274,7 @@ export function tankDefinition(shape: TankShape = {}): IndustrialComponentDefini
       liquid,
       ...levelGauge(0, round9(height - 0.24), round9((0.4 * height) / 3), round9(R + 0.08), formatCapacity(capacityOf(walls), capacityUnit)),
       ...stand,
+      ...braces,
     ],
     parameters: { diameter: { ...TANK_DIAMETER }, height: { ...TANK_HEIGHT }, head: TANK_HEAD, standHeight: { ...TANK_STAND }, nozzleSize: nozzleParameter('Nozzle size'), capacityUnit: CAPACITY_UNIT },
   });
@@ -307,10 +330,179 @@ export function pumpDefinition(suctionSize: PipeSize = DEFAULT_SIZE, dischargeSi
   });
 }
 
+/** Horizontal tank: shell diameter and straight length, metres; legs below (ADR-0018). */
+export const HORIZONTAL_DIAMETER = { label: 'Diameter', unit: 'm', default: 2, min: 0.6, max: 6, step: 0.1, keepsBottom: true } as const;
+export const HORIZONTAL_LENGTH = { label: 'Shell length', unit: 'm', default: 3, min: 1, max: 20, step: 0.1, keepsBottom: true } as const;
+export const HORIZONTAL_STAND = { label: 'Stand height', unit: 'm', default: 0.6, min: 0.3, max: 3, step: 0.1, keepsBottom: true } as const;
+
+/**
+ * ASME flanged-and-dished (torispherical) head for a shell of radius `R`: crown radius D, knuckle
+ * radius 0.06 D, depth about 0.169 D. Profile [radius, depth] from the rim (R, 0) to the crown.
+ */
+function torisphericalHead(R: number): { depth: number; points: [number, number][] } {
+  const [rc, rk] = [2 * R, 0.12 * R];
+  const c = -Math.sqrt((rc - rk) ** 2 - (R - rk) ** 2); // crown centre on the axis
+  const turn = Math.atan2(-c, R - rk); // where the knuckle meets the crown
+  const knuckle = Array.from({ length: 9 }, (_, k): [number, number] => { const t = (k / 8) * turn; return [round9(R - rk + rk * Math.cos(t)), round9(rk * Math.sin(t))]; });
+  const crown = Array.from({ length: 12 }, (_, k): [number, number] => { const t = turn + ((k + 1) / 12) * (Math.PI / 2 - turn); return [round9(rc * Math.cos(t)), round9(c + rc * Math.sin(t))]; });
+  return { depth: round9(c + rc), points: [...knuckle, ...crown] };
+}
+
+/** How far along the axis a head profile reaches at radius `rho`. */
+function headDepthAt(points: readonly [number, number][], rho: number): number {
+  const i = points.findIndex(([r]) => r <= rho);
+  if (i <= 0) return 0;
+  const [[r0, a0], [r1, a1]] = [points[i - 1], points[i]];
+  return a0 + ((a1 - a0) * (r0 - rho)) / (r0 - r1);
+}
+
+/**
+ * Horizontal tank along X: a `length` straight shell, `diameter` across, with ASME F&D heads and
+ * weld seams where they meet the shell. It rests on two saddles just inside the seams, each on two
+ * legs reaching `standHeight` below the shell, X-braced front and back. Inlet on top near the −X
+ * end, outlet out of the +X head low down (0.75 R below the axis). The capacity plate is flat on
+ * the middle of the front; a full-height sight glass on two brackets is at the +X end (ADR-0018).
+ * Origin on the axis, mid-length.
+ */
+export function horizontalTankDefinition(diameter: number = HORIZONTAL_DIAMETER.default, length: number = HORIZONTAL_LENGTH.default, standHeight: number = HORIZONTAL_STAND.default, nozzleSize: PipeSize = DEFAULT_SIZE, capacityUnit: CapacityUnit = 'm³'): IndustrialComponentDefinition {
+  const r = outerRadiusFor(nozzleSize);
+  const R = diameter / 2;
+  const h = length / 2;
+  const head = torisphericalHead(R);
+  // Profile along x: crown of the −X head to its rim, the straight shell, rim to crown of the +X head.
+  const profile = (points: readonly [number, number][]): [number, number][] => [
+    ...[...points].reverse().map(([rho, a]): [number, number] => [rho, round9(-h - a)]),
+    ...points.map(([rho, a]): [number, number] => [rho, round9(h + a)]),
+  ];
+  const shell: GeometryPart = { shape: 'lathe', role: 'shell', center: [0, 0, 0], axis: 'x', points: profile(head.points), holds: true };
+  const floor = round9(-R - standHeight);
+  const k = Math.max(1, R);
+  const saddleX = round9(h - 0.1);
+  const saddleBottom = round9(-R - 0.06);
+  const legZ = round9(0.6 * R);
+  const legs: [number, number][] = [[-saddleX, legZ], [saddleX, legZ], [saddleX, -legZ], [-saddleX, -legZ]];
+  const outletY = round9(-0.75 * R);
+  const headAt = round9(h + headDepthAt(head.points, 0.75 * R) - 0.03);
+  const outletX = round9(h + head.depth + 0.2);
+  const inletX = round9(-h + 0.4);
+  const gaugeX = round9(h - 0.25);
+  const gaugeZ = round9(R + 0.08);
+  const bracketFrom = round9(R * Math.sqrt(1 - 0.49) - 0.02);
+  const gauge = levelGauge(0, round9(1.7 * R), 0, gaugeZ, formatCapacity(capacityOf([shell]), capacityUnit), gaugeX)
+    // The plate goes flat on the middle of the shell instead of across the glass.
+    .map((p): GeometryPart => (p.role === 'plate' && p.shape === 'box' ? { ...p, center: [0, 0, round9(R + 0.012)] } : p));
+  return define({
+    type: 'horizontalTank',
+    label: 'Horizontal Tank',
+    bindable: { level: 'percent', temperature: 'temperature' },
+    ports: [fluidPort('inlet', [inletX, round9(R + 0.2), 0], [0, 1, 0], nozzleSize), fluidPort('outlet', [outletX, outletY, 0], [1, 0, 0], nozzleSize)],
+    // The weld seams stand 12 mm proud of the shell at the back.
+    bounds: { min: [round9(-h - head.depth), floor, round9(-R - 0.012)], max: [outletX, round9(R + 0.2), round9(R + 0.12)] },
+    parts: [
+      shell,
+      { shape: 'ring', role: 'shell', center: [round9(-h), 0, 0], axis: 'x', radius: R, tube: 0.012 },
+      { shape: 'ring', role: 'shell', center: [round9(h), 0, 0], axis: 'x', radius: R, tube: 0.012 },
+      { shape: 'cylinder', role: 'shell', center: [inletX, round9(R + 0.075), 0], axis: 'y', radius: r, length: 0.25 },
+      { shape: 'cylinder', role: 'shell', center: [round9((headAt + outletX) / 2), outletY, 0], axis: 'x', radius: r, length: round9(outletX - headAt) },
+      { shape: 'lathe', role: 'liquid', center: [0, 0, 0], axis: 'x', points: profile(torisphericalHead(round9(R - 0.05)).points) },
+      ...gauge,
+      ...[-0.7, 0.7].map((f): GeometryPart => ({ shape: 'cylinder', role: 'shell', center: [gaugeX, round9(f * R), round9((bracketFrom + gaugeZ) / 2)], axis: 'z', radius: 0.015, length: round9(gaugeZ - bracketFrom) })),
+      // Saddles cradle the bottom of the shell (their tops are hidden inside it).
+      ...[-saddleX, saddleX].map((x): GeometryPart => ({ shape: 'box', role: 'shell', center: [x, round9((saddleBottom - 0.55 * R) / 2), 0], size: [round9(0.2 * k), round9(0.45 * R + 0.06), round9(1.5 * R)] })),
+      ...legs.flatMap(([x, z]) => legWithFoot(x, z, saddleBottom, floor, k)),
+      ...crossBraces([legs[0], legs[1]], saddleBottom, round9(floor + 0.05), round9(0.025 * k), false),
+      ...crossBraces([legs[3], legs[2]], saddleBottom, round9(floor + 0.05), round9(0.025 * k), false),
+    ],
+    parameters: { diameter: { ...HORIZONTAL_DIAMETER }, length: { ...HORIZONTAL_LENGTH }, standHeight: { ...HORIZONTAL_STAND }, nozzleSize: nozzleParameter('Nozzle size'), capacityUnit: CAPACITY_UNIT },
+  });
+}
+
+/** Spherical tank: diameter, and how far its legs reach below the sphere, metres (ADR-0018). */
+export const SPHERE_DIAMETER = { label: 'Diameter', unit: 'm', default: 2.4, min: 1, max: 10, step: 0.1, keepsBottom: true } as const;
+export const SPHERE_STAND = { label: 'Stand height', unit: 'm', default: 0.5, min: 0.2, max: 3, step: 0.1, keepsBottom: true } as const;
+
+/**
+ * Spherical tank: a sphere `diameter` across on four legs that meet it at the equator and reach
+ * `standHeight` below it. Inlet on top, outlet out to +X at 0.7 R below the equator.
+ */
+export function sphericalTankDefinition(diameter: number = SPHERE_DIAMETER.default, standHeight: number = SPHERE_STAND.default, nozzleSize: PipeSize = DEFAULT_SIZE, capacityUnit: CapacityUnit = 'm³'): IndustrialComponentDefinition {
+  const r = outerRadiusFor(nozzleSize);
+  const R = diameter / 2;
+  const shell: GeometryPart = { shape: 'sphere', role: 'shell', center: [0, 0, 0], radius: R, holds: true };
+  const floor = round9(-R - standHeight);
+  const outletY = round9(-0.7 * R);
+  const surface = round9(R * Math.sqrt(1 - 0.49) - 0.03);
+  const outletX = round9(R + 0.2);
+  const legAt = (deg: number): [number, number] => [round9((R + 0.06) * Math.cos((deg * Math.PI) / 180)), round9((R + 0.06) * Math.sin((deg * Math.PI) / 180))];
+  return define({
+    type: 'sphericalTank',
+    label: 'Spherical Tank',
+    bindable: { level: 'percent', temperature: 'temperature' },
+    ports: [fluidPort('inlet', [0, round9(R + 0.2), 0], [0, 1, 0], nozzleSize), fluidPort('outlet', [outletX, outletY, 0], [1, 0, 0], nozzleSize)],
+    bounds: { min: [-R, floor, -R], max: [outletX, round9(R + 0.2), round9(R + 0.145)] },
+    parts: [
+      shell,
+      { shape: 'cylinder', role: 'shell', center: [0, round9(R + 0.075), 0], axis: 'y', radius: r, length: 0.25 },
+      { shape: 'cylinder', role: 'shell', center: [round9((surface + outletX) / 2), outletY, 0], axis: 'x', radius: r, length: round9(outletX - surface) },
+      { shape: 'sphere', role: 'liquid', center: [0, 0, 0], radius: round9(R - 0.04) },
+      ...levelGauge(0, round9(1.6 * R), round9(0.25 * R), round9(R + 0.08), formatCapacity(capacityOf([shell]), capacityUnit)),
+      ...[45, 135, 225, 315].flatMap((deg) => {
+        const [x, z] = legAt(deg);
+        return [
+          { shape: 'cylinder' as const, role: 'shell' as const, center: [x, round9(floor / 2), z] as Vector3Tuple, axis: 'y' as const, radius: 0.06, length: round9(-floor) },
+          { shape: 'box' as const, role: 'shell' as const, center: [x, round9(floor + 0.01), z] as Vector3Tuple, size: [0.18, 0.02, 0.18] as Vector3Tuple },
+        ];
+      }),
+    ],
+    parameters: { diameter: { ...SPHERE_DIAMETER }, standHeight: { ...SPHERE_STAND }, nozzleSize: nozzleParameter('Nozzle size'), capacityUnit: CAPACITY_UNIT },
+  });
+}
+
+/** Pool (open basin) outside length and width and depth, metres; walls and floor 0.15 m (ADR-0018). */
+export const POOL_LENGTH = { label: 'Length', unit: 'm', default: 6, min: 2, max: 50, step: 0.1, keepsBottom: true } as const;
+export const POOL_WIDTH = { label: 'Width', unit: 'm', default: 3, min: 1, max: 30, step: 0.1, keepsBottom: true } as const;
+export const POOL_DEPTH = { label: 'Depth', unit: 'm', default: 1.2, min: 0.5, max: 5, step: 0.1, keepsBottom: true } as const;
+
+/**
+ * Open rectangular basin standing on its floor (origin at ground level, centre): 0.15 m walls
+ * and floor, the inside holding the liquid. Inlet through the −X wall 0.25 m below the rim,
+ * outlet through the +X wall 0.3 m above the floor; the capacity plate is on the front wall.
+ */
+export function poolDefinition(length: number = POOL_LENGTH.default, width: number = POOL_WIDTH.default, depth: number = POOL_DEPTH.default, nozzleSize: PipeSize = DEFAULT_SIZE, capacityUnit: CapacityUnit = 'm³'): IndustrialComponentDefinition {
+  const r = outerRadiusFor(nozzleSize);
+  const t = 0.15;
+  const [x, z] = [length / 2, width / 2];
+  const inside: GeometryPart = { shape: 'box', role: 'liquid', center: [0, round9(t + (depth - t) / 2), 0], size: [round9(length - 2 * t), round9(depth - t), round9(width - 2 * t)], holds: true };
+  const [inletY, outletY] = [round9(depth - 0.25), round9(t + 0.3)];
+  const portX = round9(x + 0.2);
+  return define({
+    type: 'pool',
+    label: 'Pool',
+    bindable: { level: 'percent', temperature: 'temperature' },
+    ports: [fluidPort('inlet', [-portX, inletY, 0], [-1, 0, 0], nozzleSize), fluidPort('outlet', [portX, outletY, 0], [1, 0, 0], nozzleSize)],
+    bounds: { min: [-portX, 0, -z], max: [portX, depth, round9(z + 0.01)] },
+    parts: [
+      { shape: 'box', role: 'shell', center: [0, t / 2, 0], size: [length, t, width] },
+      { shape: 'box', role: 'shell', center: [round9(-x + t / 2), round9(depth / 2), 0], size: [t, depth, width] },
+      { shape: 'box', role: 'shell', center: [round9(x - t / 2), round9(depth / 2), 0], size: [t, depth, width] },
+      { shape: 'box', role: 'shell', center: [0, round9(depth / 2), round9(-z + t / 2)], size: [round9(length - 2 * t), depth, t] },
+      { shape: 'box', role: 'shell', center: [0, round9(depth / 2), round9(z - t / 2)], size: [round9(length - 2 * t), depth, t] },
+      { shape: 'cylinder', role: 'shell', center: [round9(-x - 0.025), inletY, 0], axis: 'x', radius: r, length: 0.35 },
+      { shape: 'cylinder', role: 'shell', center: [round9(x + 0.025), outletY, 0], axis: 'x', radius: r, length: 0.35 },
+      inside,
+      { shape: 'box', role: 'plate', center: [0, round9(0.6 * depth), round9(z + 0.005)], size: [0.5, 0.16, 0.01], text: formatCapacity(capacityOf([inside]), capacityUnit) },
+    ],
+    parameters: { length: { ...POOL_LENGTH }, width: { ...POOL_WIDTH }, depth: { ...POOL_DEPTH }, nozzleSize: nozzleParameter('Nozzle size'), capacityUnit: CAPACITY_UNIT },
+  });
+}
+
 export const componentCatalog: Record<ComponentKind, IndustrialComponentDefinition> = {
   // Vertical tank: radius 1 m, shell height 3 m, side nozzles 0.2 m long.
   tank: tankDefinition(),
   conicalTank: conicalTankDefinition(),
+  horizontalTank: horizontalTankDefinition(),
+  sphericalTank: sphericalTankDefinition(),
+  pool: poolDefinition(),
   pipe: pipeDefinition(PIPE_LENGTH.default),
   elbow: elbowDefinition(),
   tee: teeDefinition(),

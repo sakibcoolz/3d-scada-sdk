@@ -2,9 +2,31 @@
   "name": "@scada3d/components",
   "version": "0.1.0",
   "description": "Industrial component catalog (tank, pipe, valve, fittings) for @scada3d/core.",
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "author": "sakibcoolz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sakibcoolz/3d-scada-sdk.git",
+    "directory": "packages/components"
+  },
+  "homepage": "https://github.com/sakibcoolz/3d-scada-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/sakibcoolz/3d-scada-sdk/issues"
+  },
+  "keywords": [
+    "scada",
+    "3d",
+    "threejs",
+    "industrial",
+    "digital-twin",
+    "industrial-components",
+    "asme",
+    "procedural-geometry"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
-  "private": true,
   "sideEffects": false,
   "files": [
     "dist",
@@ -21,6 +43,7 @@
     ".": "./src/index.ts"
   },
   "publishConfig": {
+    "access": "public",
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",

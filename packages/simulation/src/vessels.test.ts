@@ -32,3 +32,19 @@ describe('vesselOf with tank dimensions (T-053)', () => {
     expect(fill({ diameter: 2 })).toBeCloseTo(4 * fill({ diameter: 4 }), 6);
   });
 });
+
+describe('vesselOf for tank family 2 (T-054 to T-056)', () => {
+  it.each(['horizontalTank', 'sphericalTank', 'pool'] as const)('%s is a vessel whose level and volume agree at the ends', (type) => {
+    const v = vesselOf(type)!;
+    expect(v.volumeAtPercent(0)).toBe(0);
+    expect(v.volumeAtPercent(100)).toBeCloseTo(v.maxVolume, 9);
+    expect(v.percentAt(v.volumeAtPercent(37))).toBeCloseTo(37, 3);
+  });
+
+  it('fills a horizontal tank fastest at mid height', () => {
+    const v = vesselOf('horizontalTank')!;
+    const slice = (h: number) => v.volumeAt(h + 0.01) - v.volumeAt(h);
+    expect(slice(v.height / 2)).toBeGreaterThan(slice(0.05));
+    expect(slice(v.height / 2)).toBeGreaterThan(slice(v.height - 0.06));
+  });
+});

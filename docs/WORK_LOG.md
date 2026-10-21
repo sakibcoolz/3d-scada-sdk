@@ -1126,3 +1126,97 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-053 REVIEW until merged. Next: T-054 (horizontal tank).
+
+## 2026-10-16 — T-054, T-055 and pool: horizontal and spherical tanks, pool, braced stands (ADR-0018)
+- Branch: `feat/T-054-tank-family-2`, stacked on uncommitted T-053. T-053's file state is saved as git tree `70d48727` so it can still be committed as its own PR. Graphify was not used.
+- Owner input: images of a horizontal tank, a small spherical tank, a pool, and braced stands, with "create 3D components". The elevated tank was not shown and stays in T-056.
+- Changes:
+  - **Core:** `componentKinds` gains `horizontalTank`, `sphericalTank` and `pool`.
+  - **Components:**
+    - `horizontalTankDefinition`, `sphericalTankDefinition` and `poolDefinition`, with their parameters;
+    - shared `crossBraces` and `legWithFoot`; vertical tank stands of 0.3 m and more are braced;
+    - `lathe.axis`, the `strut` part and the `holds` flag;
+    - `vesselProfile` (exact walls plus 1024-slice integration) behind `capacityOf`;
+    - the new vessels are flanged in `jointStyle`.
+  - **Simulation:** `vesselOf` uses `vesselProfile`.
+  - **React:**
+    - lathe axis and strut geometry;
+    - `liquidCut.ts` `cutBelow` (convex cut and cap) for horizontal and spherical liquids;
+    - basin liquid scaled from the floor;
+    - these vessels are kept out of instancing.
+  - **Docs:** ADR-0018, DECISION_LOG, COMPONENT_STANDARD, SCENE_AND_CONNECTIONS, API and RELEASE; backlog T-054 and T-055 REVIEW, T-056 narrowed to the elevated tank.
+- Tests:
+  - Written first and run red: `tankFamily2.test.ts` (12), the `vessels.test.ts` additions (4) and `liquidCut.test.ts` (3).
+  - Added after: `e2e/tank-family-2.spec.ts` (2).
+- Existing tests changed, with reasons:
+  - `tank-stand.spec.ts` and `view-modes.spec.ts`: vertical tank stands now have 8 brace struts (shell count 13 → 21);
+  - `sizes.test.ts` and `tankShape.test.ts`: struts have no `center`, so they are skipped or narrowed;
+  - the API snapshot gains `vesselProfile`.
+- Browser check: screenshots in glass view show the braced dished tank, the horizontal tank with a flat-cut liquid, the sphere with a cut liquid, and the pool's liquid. All plates show their capacity.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1233 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (118 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-054 and T-055 REVIEW, the pool done within them; T-056 (elevated tank) and T-057 (HP view) TODO.
+
+## 2026-10-16 — T-054 correction: horizontal tank to the owner's reference
+- Branch: `feat/T-054-tank-family-2` (PR #56).
+- Owner request: "please correct horizontal tank". Asked what was wrong; the owner picked all four:
+  - gauge and plate placement;
+  - legs and stand;
+  - head shape;
+  - nozzles.
+- Changes:
+  - **Heads:** ASME F&D (torispherical) heads (crown D, knuckle 0.06 D, depth about 0.169 D) replace the 2:1 ends; weld seam rings at both tangent lines.
+  - **Stand:** two saddles just inside the seams, legs under them, X-braced front and back.
+  - **Nozzles:** inlet on top 0.4 m from the −X seam; outlet from the +X head at 0.75 R below the axis.
+  - **Gauge and plate:** the plate is flat on the middle of the front; a 1.7 R sight glass on two brackets at the +X end.
+  - ADR-0018, COMPONENT_STANDARD and DECISION_LOG updated.
+- Tests:
+  - The horizontal tank tests were rewritten first and run red (4 failed): F&D depth, seams, ports, capacity "10.7 m³", plate and gauge placement, saddles.
+  - `e2e/tank-family-2.spec.ts`: the horizontal tank plate now reads "10.7 m³" (F&D heads hold less than 2:1 heads).
+  - Found by the geometry bounds test: the seams stand 12 mm proud at the back, so `bounds.min` z is now −(R + 0.012).
+- Browser check: screenshots in normal and glass view show the saddles, heads, seams, centred plate and bracketed gauge, with the liquid cut level in glass view.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1234 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (118 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited (owner direction).
+- Status: T-054 REVIEW in #56.
+
+## 2026-10-21 — T-058 Open source under MIT, publish and tag (ADR-0019)
+- Branch: `chore/T-058-open-source` from `feat/T-053-tank-dimensions`. #56 had merged into that branch rather than `develop`; `origin/develop` is merged in, so this PR also brings T-054/T-055 to `develop`. Graphify was not used.
+- Owner answers:
+  - MIT;
+  - publish the history as is;
+  - version tag and release, GitHub topics, and npm;
+  - make the repository public once this is merged.
+- Pre-publication scan of all 123 commits: no tokens, keys, passwords, private network addresses or home paths. The author email in 53 commits stays public (owner choice).
+- Changes:
+  - MIT `LICENSE` at the root and in every package;
+  - package metadata: `license`, `author`, `repository`, `homepage`, `bugs`, `keywords`, `engines` and `publishConfig.access: public`; `private` removed from the five SDK packages;
+  - a README in each package;
+  - `CONTRIBUTING.md` and `SECURITY.md`;
+  - README (licence and install) and RELEASE (publish procedure);
+  - ADR-0019 and DECISION_LOG;
+  - backlog: T-053, T-054 and T-055 DONE; T-058 REVIEW.
+- npm: this machine is not logged in (`npm whoami` gives ENEEDAUTH). Publishing waits for the owner's `npm login` and a `scada3d` npm organisation. None of the `@scada3d/*` names exist on npm yet.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1234 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (118 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - `pnpm -r publish --access public --no-git-checks --dry-run` 0: five packages, no tests, fixtures or benchmarks; README and LICENSE in each; MIT; `workspace:*` rewritten to 0.1.0.
+  - GitHub Actions CI not awaited (owner direction).
