@@ -75,6 +75,7 @@ function App() {
             instancing={instancing}
             joints={joints}
             floor={floor}
+            walkthrough
           />
         )}
       </div>

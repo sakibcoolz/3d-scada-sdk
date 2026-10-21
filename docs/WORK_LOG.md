@@ -1311,3 +1311,57 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:e2e` 0 (120 tests).
   - Browser check in the owner's Chrome: the Floor toggle is visible and the slab is drawn.
   - `pnpm verify:consumer` NOT RUN.
+  - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-062: VR walkthrough
+- Owner request: a VR walkthrough in the SDK and, if possible, connecting components in VR.
+  - The owner has a Meta Quest and chose the walkthrough first. Connect-in-VR is planned as T-063.
+- Branch `feat/T-062-vr-walkthrough`, from `feat/T-061-floor`; teleporting needs the floor.
+- ADR-0020. No new dependency: three.js WebXR plus React Three Fiber 9's XR loop.
+- Change:
+  - `xr.ts` holds the pure geometry: start pose, ray to floor, reference offset, teleport and turn about the head, snap turn.
+  - `xrWalk.tsx` holds the rig: controller rays, teleport ring, offset reference space, thumbstick snap turn.
+  - The `xr` prop on viewer and editor adds the Enter VR button. In VR the floor and scene background are forced on and the gizmos are hidden.
+  - Playground: `xr` is on, and HTTPS is used when `PLAYGROUND_TLS_CERT` and `PLAYGROUND_TLS_KEY` are set.
+- HTTPS for the Quest:
+  - The tailnet has HTTPS certificates enabled (`localhost-1.taildb081d.ts.net`).
+  - `tailscale cert` needs root or operator rights, so the owner must run it once.
+- Tests:
+  - `xr.test.ts`: 10 unit tests.
+  - `e2e/vr.spec.ts`: 2 tests, covering the disabled button with its reason and the session request with `local-floor`.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1248 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (122 tests).
+  - Real headset session NOT RUN (it needs the owner's Quest and HTTPS).
+  - `pnpm verify:consumer` NOT RUN.
+  - GitHub Actions CI not awaited.
+- Continued, same day. The owner asked for "vr reality in desktop browser", so a desktop **Walk** mode was added to T-062.
+  - `walk.ts`: obstacles from rotated bounds between 0.25 m and eye height, steps, sliding moves, the floor edge, look, the key map.
+  - `walkMode.tsx`: pointer lock or drag to look, capture-phase keys, and a 150 ms minimum press, so taps step.
+  - The prop `xr` was renamed `walkthrough` before release, because it now covers both modes.
+  - Tests: `walk.test.ts` (10 unit tests). `e2e/vr.spec.ts` became `e2e/walkthrough.spec.ts` with a new Walk test: walking, a tap step, keys not reaching the editor, and Esc.
+  - Browser check in the owner's Chrome:
+    - The eye-level view, crosshair and status line show; walking moves the walker and Esc leaves.
+    - The orbit camera came back to its pre-walk position. That view had already been turned before Walk, apparently by mouse movement in the window.
+    - An instrumented Playwright run showed an exact restore (7, 6, 9) with and without mouse and key input. The instrumentation was removed.
+- Verification after the desktop Walk (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1258 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (123 tests).
+  - Real Quest session NOT RUN.
+  - `pnpm verify:consumer` NOT RUN.
+- Owner request: "alt key for go down and space key go up". Applied to desktop Walk; a headset has no keyboard and keeps teleport.
+  - Space rises and Alt sinks at 1.4 m/s (3.5 m/s with Shift). The eye height stays between 0.6 m and 50 m.
+  - Rising stops under equipment overhead, and sinking stops when the walker stands on top of equipment.
+  - Blocking now depends on the eye height (`blocksAt`), so once risen the walker passes over equipment below the body.
+  - The status line shows the eye height and the new keys.
+  - Tests: `walk.test.ts` now has 14 tests (rising, sinking, limits, stopping under and on equipment, walking over once risen). The Walk e2e test checks Space and Alt and that the scene is unchanged.
+  - Verification (exit codes):
+    - `pnpm typecheck` 0.
+    - `pnpm test` 0 (1262 tests).
+    - `pnpm build` 0.
+    - `pnpm test:e2e` 0 (123 tests).
+    - Not checked in the owner's Chrome.
