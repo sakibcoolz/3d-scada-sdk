@@ -1387,3 +1387,8 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - VR picking on the Quest NOT RUN.
   - `pnpm verify:consumer` NOT RUN.
 - Observed (existing behaviour, not changed here): the attach moves the second part to fit, so the tank's stand went 0.5 m into the floor. This is a candidate for a follow-up: keep vessels on the floor, or move the smaller part instead.
+
+## 2026-10-22 — README screenshot
+- Owner request: "add this image in readme.md". This is a docs-only change on branch `docs/readme-screenshot`, from `develop`.
+- The owner's screenshot of the milk processing line (Glass view, floor, Walk/VR buttons) was added as `docs/images/milk-processing-line.png` (1923 × 965, 815 KB). It appears under the README intro with alt text and a caption.
+- Checks: none needed for code (no code change). The image renders on GitHub from the relative path; it does not appear in the npm package pages, which use the package READMEs.
