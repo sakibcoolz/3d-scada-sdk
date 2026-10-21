@@ -1264,3 +1264,32 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm -r publish --dry-run` 0 (five packages at 0.1.2).
   - `pnpm test:e2e` NOT RUN (version-only change).
   - GitHub Actions CI not awaited.
+
+## 2026-10-21 — T-059 done: all five packages on npm at 0.1.2
+- All five `@sakibcoolz/*@0.1.2` are live, published with browser approval by the owner.
+- Installed from the public registry into a clean copy of `examples/consumer-vite`, with exit codes:
+  - `npm install` 0;
+  - `npm run typecheck` 0;
+  - `npm run build` 0;
+  - `npm run node-check` 0.
+- The 0.1.1 versions also remain on npm.
+
+## 2026-10-21 — T-060 Detailed npm package pages (0.1.3)
+- Branch: `docs/T-060-npm-readmes`. Owner request: "update npmjs public with detail info". The npm page shows the README of the published version, so this needs a new version.
+- Changes:
+  - A full README for each package: purpose, install, quick start, parts or API tables, scene format (core), viewer and editor props (react), models (simulation), sanitizer rules (asset-import), and safety notes.
+  - Version 0.1.3 for the workspace, all packages and the example's pins.
+- Every README example was checked against the npm-installed 0.1.2 packages, which have the same API:
+  - `readme-check.mjs`: 17 checks pass;
+  - the React and simulation-viewer examples pass `tsc --noEmit`.
+- Found by those checks: the simulation viewer example passed `model: 'mass-balance'`, but the prop is `{ name, version }`. It is now `simulation={state}`, since the state carries the model. The React example lost the `ok` narrowing inside the component, so the scene is now taken out before the component.
+- Verification (exit codes):
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1234 tests).
+  - `pnpm build` 0.
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - `pnpm -r publish --dry-run` 0 (five packages at 0.1.3 with the new READMEs: 1.9–7.1 kB).
+  - `pnpm test:e2e` NOT RUN (README and version only).
+  - GitHub Actions CI not awaited.
