@@ -1242,3 +1242,25 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - `pnpm -r publish --dry-run` 0 (five `@sakibcoolz/*@0.1.1` packages).
   - GitHub Actions CI not awaited (owner direction).
+
+## 2026-10-21 — T-059 continued: npm publish of 0.1.1 and the bump to 0.1.2
+- Publishing 0.1.1 from the release tarballs:
+  - `pnpm -r publish` got E403: the account needs 2FA to publish.
+  - The owner set up 2FA with a passkey (iPhone Passwords), so there are no 6-digit codes.
+  - `npm publish --auth-type=web` in a pseudo-terminal printed an npmjs.com approval link. The agent opened it in the owner's Chrome; the owner approved.
+  - Result: `@sakibcoolz/core@0.1.1` is live.
+- The other four uploads waited for an approval that was never given:
+  - npm left them as `0.0.0-stage` placeholders ("awaiting a staged release").
+  - `npm stage list` (npm 12.2.0) shows no staged versions.
+  - Re-publishing 0.1.1 gets E409 "Cannot publish over previously staged version". npm does not reuse version numbers.
+- Change: version 0.1.2 for the workspace, all five packages and the example's pins, so that the five packages stay in step (components and react pin core exactly).
+- Verification (exit codes):
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1234 tests).
+  - `pnpm build` 0.
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - `pnpm -r publish --dry-run` 0 (five packages at 0.1.2).
+  - `pnpm test:e2e` NOT RUN (version-only change).
+  - GitHub Actions CI not awaited.
