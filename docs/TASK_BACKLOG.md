@@ -60,6 +60,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-058 | Release | P0 | T-024 | DONE | Open source (ADR-0019): MIT licence everywhere, public package metadata and READMEs, CONTRIBUTING/SECURITY, v0.1.0 tag and GitHub Release, repository topics, public repository, npm publish of `@scada3d/*` (needs owner `npm login`) |
 | T-059 | Release | P0 | T-058 | REVIEW | Rename packages to the owner's npm scope `@sakibcoolz/*`, release v0.1.1 and publish to npm (ADR-0019 amendment) |
 | T-061 | M7 (post-MVP) | P2 | T-024 | REVIEW | Floor (owner request): optional `floor` prop on viewer and editor draws a display-only concrete slab sized to the plant; playground shows it by default with a Floor toggle and `?floor=off` |
+| T-062 | M7 (post-MVP) | P2 | T-061 | REVIEW | First-person walkthrough (ADR-0020), via the opt-in `walkthrough` prop. Desktop Walk: mouse look, WASD/arrows, Space/Alt rise and sink, Shift runs, equipment blocks, Esc restores the orbit view. Enter VR on a WebXR headset: true scale, teleport and snap turn. View only. Playground HTTPS via `PLAYGROUND_TLS_CERT`/`KEY` |
+| T-063 | M7 (post-MVP) | P2 | T-062 | TODO | Connect components in VR: point a controller at one component and then another, and the trigger attaches them with the editor's attach rules (size checks, open-joint markers, undo) |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.
