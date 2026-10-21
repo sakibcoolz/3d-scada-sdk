@@ -1,9 +1,10 @@
-import type { ComponentKind } from '@scada3d/core';
-import { componentCatalog } from '@scada3d/components';
+import type { ComponentInstance, ComponentKind } from '@scada3d/core';
+import { definitionFor, segmentVolume, vesselSegments, type IndustrialComponentDefinition } from '@scada3d/components';
 
 /**
- * Liquid geometry of a vertical vessel, read from the catalog: the open cylinder and cone shell
- * parts stacked along +Y. Heights are measured from the lowest point the liquid can reach.
+ * Liquid geometry of a vertical vessel, read from its definition (`vesselSegments`: open cylinder
+ * and cone shells and dished lathe heads stacked along +Y), so tank dimensions are followed.
+ * Heights are measured from the lowest point the liquid can reach.
  */
 export interface Vessel {
   /** Liquid height range, metres. */
@@ -23,28 +24,15 @@ export interface Vessel {
   volumeAtPercent(percent: number): number;
 }
 
-type Segment = { y0: number; y1: number; r0: number; r1: number };
+const cache = new WeakMap<IndustrialComponentDefinition, Vessel | null>();
 
-const frustum = (s: Segment, t: number) => {
-  // Volume of the first t metres of a cone frustum.
-  const rt = s.r0 + ((s.r1 - s.r0) * t) / (s.y1 - s.y0);
-  return (Math.PI / 3) * t * (s.r0 * s.r0 + s.r0 * rt + rt * rt);
-};
-
-const cache = new Map<ComponentKind, Vessel | undefined>();
-
-/** The vessel shape of a component type, or undefined if it holds no liquid. */
-export function vesselOf(type: ComponentKind): Vessel | undefined {
-  if (cache.has(type)) return cache.get(type);
-  const def = componentCatalog[type];
-  const segments: Segment[] = def.bindable?.level === undefined ? [] : def.parts.flatMap((p): Segment[] => {
-    if (p.role !== 'shell') return [];
-    if (p.shape === 'cylinder' && p.axis === 'y' && p.openEnded) return [{ y0: p.center[1] - p.length / 2, y1: p.center[1] + p.length / 2, r0: p.radius, r1: p.radius }];
-    if (p.shape === 'cone' && p.axis === 'y' && p.openEnded) return [{ y0: p.center[1] - p.length / 2, y1: p.center[1] + p.length / 2, r0: p.radiusStart, r1: p.radiusEnd }];
-    return [];
-  }).sort((a, b) => a.y0 - b.y0);
+/** The vessel shape of a component, or undefined if it holds no liquid. Dimensions come from `properties`. */
+export function vesselOf(type: ComponentKind, properties: ComponentInstance['properties'] = {}): Vessel | undefined {
+  const def = definitionFor(type, properties);
+  if (cache.has(def)) return cache.get(def) ?? undefined;
+  const segments = def.bindable?.level === undefined ? [] : vesselSegments(def.parts);
   if (segments.length === 0) {
-    cache.set(type, undefined);
+    cache.set(def, null);
     return undefined;
   }
   const round = (n: number) => Math.round(n * 1e9) / 1e9;
@@ -52,7 +40,7 @@ export function vesselOf(type: ComponentKind): Vessel | undefined {
   const height = round(segments[segments.length - 1].y1 - bottom);
   const volumeAt = (h: number) => {
     const y = bottom + Math.min(height, Math.max(0, h));
-    return segments.reduce((sum, s) => sum + (y <= s.y0 ? 0 : frustum(s, Math.min(y, s.y1) - s.y0)), 0);
+    return segments.reduce((sum, s) => sum + (y <= s.y0 ? 0 : segmentVolume(s, Math.min(y, s.y1) - s.y0)), 0);
   };
   const maxVolume = volumeAt(height);
   // A single straight cylinder: volume is proportional to height, so keep the exact ratio.
@@ -83,6 +71,6 @@ export function vesselOf(type: ComponentKind): Vessel | undefined {
       return port ? round(Math.min(height, Math.max(0, port.position[1] - bottom))) : 0;
     },
   };
-  cache.set(type, vessel);
+  cache.set(def, vessel);
   return vessel;
 }

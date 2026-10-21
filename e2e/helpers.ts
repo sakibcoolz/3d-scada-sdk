@@ -72,6 +72,8 @@ export interface PartInfo {
   clippingPlanes: number;
   color: string;
   scaleY: number;
+  /** Text drawn on a name plate (the tank capacity), if any. */
+  plateText?: string;
 }
 
 /**
@@ -103,7 +105,7 @@ export async function renderedParts(page: Page): Promise<PartInfo[]> {
               const srgb = (v: number) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
               color = `#${hex(srgb(a[i * 3] * m.color.r))}${hex(srgb(a[i * 3 + 1] * m.color.g))}${hex(srgb(a[i * 3 + 2] * m.color.b))}`;
             }
-            parts.push({ componentId: ids[i], role: o.userData.role, visible: o.visible && scaleY > 1e-6, opacity: m.opacity, transparent: m.transparent, clippingPlanes: m.clippingPlanes?.length ?? 0, color, scaleY });
+            parts.push({ componentId: ids[i], role: o.userData.role, visible: o.visible && scaleY > 1e-6, opacity: m.opacity, transparent: m.transparent, clippingPlanes: m.clippingPlanes?.length ?? 0, color, scaleY, plateText: o.userData.plateText });
           }
           return;
         }
@@ -117,6 +119,7 @@ export async function renderedParts(page: Page): Promise<PartInfo[]> {
           clippingPlanes: m.clippingPlanes?.length ?? 0,
           color: m.color ? `#${m.color.getHexString()}` : '',
           scaleY: o.scale.y,
+          plateText: o.userData.plateText,
         });
       });
     }

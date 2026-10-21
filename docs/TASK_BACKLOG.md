@@ -22,7 +22,7 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-016 | M6 | P1 | T-012,T-013 | DONE | read-only telemetry, tag quality/timestamps (tagBindings per ADR-0006, `resolveTelemetry`, `displayScene`, binding editor; PR #25) |
 | T-017 | M6 | P1 | T-016 | DONE | optional DataProvider snapshot/subscribe or setTagValues API; no-network test and cleanup (`createObservationStore`, `connectProvider`, `telemetry.provider`, `ScadaHandle.setTagValues`; PR #26) |
 | T-018 | M6 (post-MVP) | P2 | T-017 | TODO | host-owned transport integration examples (REST, WebSocket, MQTT/backend OPC UA), not SDK dependencies; not an MVP release blocker |
-| T-019 | M7 (post-MVP) | P2 | T-006 | REVIEW | part a (ADR-0012): `@scada3d/asset-import` allow-list SVG sanitizer (no DOM), sanitized scene `underlay` drawn on the ground as a tracing reference, editor Underlay section; part b (extrusion) is T-047 |
+| T-019 | M7 (post-MVP) | P2 | T-006 | DONE | part a (ADR-0012): `@scada3d/asset-import` allow-list SVG sanitizer (no DOM), sanitized scene `underlay` drawn on the ground as a tracing reference, editor Underlay section; part b (extrusion) is T-047 |
 | T-020 | M7 (post-MVP) | P2 | T-019 | TODO | glTF importer, provenance and disposal |
 | T-021 | M7 | P2 | T-013,T-016 | DONE | optional `@scada3d/simulation` (ADR-0010): deterministic mass-balance model (gravity drain, feeds, pumps, equal tee split), verified against analytic drain and conservation; `simulation` prop on viewer/editor (SIMULATED badge, never mixed with measured); playground `?simulate`; packed and run in the consumer check |
 | T-022 | M7 | P2 | T-021 | DONE | `hydraulic` v1 model (ADR-0011, owner-confirmed assumptions): Darcy–Weisbach + Swamee–Jain (water 20 °C, steel), K-factor fittings, quadratic pump curves, head-driven tank flow and backflow, tee split by resistance, trees only (loops reported); verified against independent energy-equation solutions; playground model selector |
@@ -33,10 +33,10 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-027 | Tooling | P1 | T-001 | TODO | local Graphify index, source-linked query/freshness, agent integration, token benchmark |
 | T-028 | M7 (post-MVP) | P2 | T-018,T-020,T-023 | TODO | hardening for post-MVP surfaces: transport examples, SVG/glTF import (asset sanitisation, provenance, resource limits) |
 | T-029 | M7 (post-MVP) | P1 | T-023 | DONE | rendering scale part A: shared equipment geometry per definition, merged pipe runs with one shared material, one instanced mesh for all flow beads (allocation-free) and one for free-port markers; measured on a hardware GPU (Apple M2) and headless (docs/PERFORMANCE.md) |
-| T-030 | M7 (MVP) | P0 | T-005,T-023 | REVIEW | scene schema version 3: named `{x,y,z}`/`{x,y,z,w}` vectors in files and the model, v1/v2 migration (ADR-0007, owner request) |
-| T-031 | M7 (MVP) | P0 | T-006,T-011 | REVIEW | solid-body collision highlight, on by default: OBB overlap per catalog bounds, red shells, overlay, drop warning; non-blocking (owner request) |
-| T-032 | M7 (MVP) | P1 | T-011,T-030 | REVIEW | rotation form for every component: Euler XYZ degree fields, ±90° world-axis turns, reset (owner request) |
-| T-033 | M7 (MVP) | P1 | T-006,T-030 | REVIEW | adjustable pipe length: per-instance catalog definitions (`definitionFor`, `catalogResolvers`), `INVALID_PROPERTY` validation, Length field keeping the connected end fixed (owner request) |
+| T-030 | M7 (MVP) | P0 | T-005,T-023 | DONE | scene schema version 3: named `{x,y,z}`/`{x,y,z,w}` vectors in files and the model, v1/v2 migration (ADR-0007, owner request) |
+| T-031 | M7 (MVP) | P0 | T-006,T-011 | DONE | solid-body collision highlight, on by default: OBB overlap per catalog bounds, red shells, overlay, drop warning; non-blocking (owner request) |
+| T-032 | M7 (MVP) | P1 | T-011,T-030 | DONE | rotation form for every component: Euler XYZ degree fields, ±90° world-axis turns, reset (owner request) |
+| T-033 | M7 (MVP) | P1 | T-006,T-030 | DONE | adjustable pipe length: per-instance catalog definitions (`definitionFor`, `catalogResolvers`), `INVALID_PROPERTY` validation, Length field keeping the connected end fixed (owner request) |
 | T-038 | M7 (MVP) | P1 | T-011,T-033 | DONE | edit lock: view-only mode toggle, `defaultLocked` / controlled `locked` + `onLockedChange`, all edit paths refused while locked (owner request) |
 | T-039 | M7 (MVP) | P1 | T-008,T-033 | DONE | connect touching ports: explicit, user-triggered conversion of exactly meeting, facing, compatible ports into connections; doubtful pairs reported (owner request) |
 | T-040 | M7 (MVP) | P1 | T-008,T-039 | DONE | assemblies: parent/child locks from connections, rigid moves, saved `parentId` (ADR-0008, owner request); editor layout overflow fix |
@@ -51,7 +51,12 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-049 | M7 (post-MVP) | P2 | T-044 | DONE | Shift+click attach (owner request): core `attachComponents` (closest free compatible ports, connect + seat, assembly-aware); viewer `onSelect` gains `{ additive }`; editor attaches from the 3D view or scene list, one undo step, refused when locked |
 | T-050 | M7 (post-MVP) | P1 | T-045 | DONE | ASME phase 1 (ADR-0014): `asme` table (B36.10M OD/Sch 40, B16.9 LR elbow, equal tee, concentric reducer), fittings rebuilt to it, DN150 at 168.3 mm, `upgradeDimensions` re-seats older files on load, hydraulic lengths from geometry; values to be verified against the standard |
 | T-051 | M7 (post-MVP) | P1 | T-050 | DONE | ASME phase 2: flanged joints (B16.5 Class 150 flange pairs with bolts) on valves, pumps and tank nozzles; butt-weld beads on pipe-to-fitting joints; routed-run bends at 1.5D per size |
-| T-052 | M7 (post-MVP) | P1 | T-051 | REVIEW | ASME phase 3: valve face-to-face per B16.10, flanged pump and tank nozzles, with `upgradeDimensions` for older files |
+| T-052 | M7 (post-MVP) | P1 | T-051 | DONE | ASME phase 3: valve face-to-face per B16.10, flanged pump and tank nozzles, with `upgradeDimensions` for older files |
+| T-053 | M7 (post-MVP) | P1 | T-052 | REVIEW | Tank family 1 (owner image): vertical tank `diameter`/`height` parameters with Large/Small/Short palette presets, `head` flat or dished, capacity on the name plate (L, m³, US gal), simulation volume from the shape |
+| T-054 | M7 (post-MVP) | P2 | T-053 | TODO | Tank family 2: horizontal tank with dished ends, on saddles or a stand, sized by diameter/length, partial-cylinder volume |
+| T-055 | M7 (post-MVP) | P2 | T-053 | TODO | Tank family 3: spherical tank on legs, sized by diameter, spherical-cap volume |
+| T-056 | M7 (post-MVP) | P2 | T-053 | TODO | Tank family 4: elevated tank on a lattice tower, and an open pool (wide shallow basin) |
+| T-057 | M7 (post-MVP) | P3 | T-053 | TODO | High-performance HMI view mode: flat grey vessels with a blue level fill (owner: later) |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.

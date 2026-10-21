@@ -10,7 +10,7 @@ test('a new vertical tank comes on a 0.8 m stand with four legs', async ({ page 
   await waitForCanvas(page);
   await page.getByRole('button', { name: 'Vertical Tank +' }).click();
   const tank = (await sceneJson(page)).components[0];
-  expect(tank.properties).toEqual({ level: 45, standHeight: 0.8 });
+  expect(tank.properties).toEqual({ level: 45, diameter: 2, height: 3, standHeight: 0.8 });
   await expect(page.getByLabel('Stand height (m)')).toHaveValue('0.8');
   await expect.poll(() => shells(page, tank.id)).toBe(13);
 });

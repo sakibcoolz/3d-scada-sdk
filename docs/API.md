@@ -32,7 +32,7 @@ Pure functions take the current time (`now`) and the catalog lookups (`resolvePo
 
 | Runtime exports | Types |
 |---|---|
-| `componentCatalog` (tank, conicalTank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `liquidProfile`, `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `asme` (ASME dimensions per size), `legacyCatalogResolvers` (pre-ASME fitting ports for upgrades), `sizeParameterFor` (choice parameter sizing a port, ADR-0016), `asmeFlange`, `jointStyle`, `hasFlangedEnds`, `flangePairParts`, `flangeParts`, `weldParts` (joint hardware, ADR-0015), `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
+| `componentCatalog` (tank, conicalTank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `liquidProfile`, `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `asme` (ASME dimensions per size), `legacyCatalogResolvers` (pre-ASME fitting ports for upgrades), `sizeParameterFor` (choice parameter sizing a port, ADR-0016), `vesselSegments`, `segmentVolume`, `capacityOf`, `formatCapacity`, `CAPACITY_UNITS`, `componentPresets` (tank family, ADR-0017), `asmeFlange`, `jointStyle`, `hasFlangedEnds`, `flangePairParts`, `flangeParts`, `weldParts` (joint hardware, ADR-0015), `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
 
 ### `@scada3d/asset-import` (ADR-0012)
 | Runtime | Types |
@@ -49,7 +49,7 @@ It needs no DOM and runs in Node and browsers. It is an allow-list:
 ### `@scada3d/simulation` (optional, ADR-0010)
 | Runtime | Types |
 |---|---|
-| `createSimulation(scene, { model?, feeds?, pumps?, dt?, clock? })` → `{ state(), step(seconds), update(scene), configure({ feeds, pumps }), reset() }`, `MODEL` (mass-balance constants), `vesselOf(type)` (vessel shape from the catalog: `volumeAt`, `heightAt`, `portHeight`, `percentAt`, `volumeAtPercent`), `HYDRAULIC` (hydraulic constants: fluid, roughness, K-factors; flow lengths come from geometry), `frictionFactor(re, ε/D)`, `TANK` (radius, height, port heights) | `Simulation`, `SimulationOptions`, `SimulationState`, `SimulationNote`, `Feed`, `PumpCurve`, `Vessel` |
+| `createSimulation(scene, { model?, feeds?, pumps?, dt?, clock? })` → `{ state(), step(seconds), update(scene), configure({ feeds, pumps }), reset() }`, `MODEL` (mass-balance constants), `vesselOf(type, properties?)` (vessel shape from the component's definition, following its dimensions: `volumeAt`, `heightAt`, `portHeight`, `percentAt`, `volumeAtPercent`), `HYDRAULIC` (hydraulic constants: fluid, roughness, K-factors; flow lengths come from geometry), `frictionFactor(re, ε/D)`, `TANK` (radius, height, port heights) | `Simulation`, `SimulationOptions`, `SimulationState`, `SimulationNote`, `Feed`, `PumpCurve`, `Vessel` |
 
 The model is deterministic, and the host owns the clock.
 - **Gravity drain:** q = Cd·A·√(2 g Δh) through open paths, discharging to atmosphere.

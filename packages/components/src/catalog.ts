@@ -2,6 +2,7 @@ import type { ComponentKind, ConnectionPort, Vector3Tuple } from '@scada3d/core'
 import type { GeometryPart, IndustrialComponentDefinition } from './geometry.js';
 import { DEFAULT_SIZE, outerRadiusFor, pipeSizes, SIZE_PARAMETER, type PipeSize } from './sizes.js';
 import { asme } from './asme.js';
+import { CAPACITY_UNITS, capacityOf, formatCapacity, type CapacityUnit } from './vessel.js';
 
 /** Nominal bore of every MVP fluid port, metres (DN150). */
 export const nominalBore = 0.15;
@@ -149,68 +150,110 @@ export function couplerDefinition(size: PipeSize = DEFAULT_SIZE, length: number 
 }
 
 /**
- * Front sight gauge shared by the tanks: a glass tube 1.08 m in front of the axis (+Z), a liquid
+ * Front sight gauge shared by the tanks: a glass tube `z` in front of the axis (+Z), a liquid
  * column inside it that follows the level, ticks every 10 % on its right (longer at 0/50/100 %)
- * and a blank name plate across it at `plateY`.
+ * and a name plate across it at `plateY` showing `plateText` (the capacity).
  */
-function levelGauge(centreY: number, columnLength: number, plateY: number): GeometryPart[] {
-  const centre: Vector3Tuple = [0, centreY, 1.08];
+function levelGauge(centreY: number, columnLength: number, plateY: number, z: number, plateText: string): GeometryPart[] {
+  const centre: Vector3Tuple = [0, centreY, z];
   const bottom = centreY - columnLength / 2;
   const ticks: GeometryPart[] = Array.from({ length: 11 }, (_, i) => {
     const major = i % 5 === 0;
     const length = major ? 0.08 : 0.045;
-    return { shape: 'box', role: 'scale', center: [0.05 + length / 2, Math.round((bottom + (i / 10) * columnLength) * 1e9) / 1e9, 1.08], size: [length, major ? 0.008 : 0.005, 0.01] };
+    return { shape: 'box', role: 'scale', center: [0.05 + length / 2, Math.round((bottom + (i / 10) * columnLength) * 1e9) / 1e9, z], size: [length, major ? 0.008 : 0.005, 0.01] };
   });
   return [
     { shape: 'cylinder', role: 'gauge', center: centre, axis: 'y', radius: 0.04, length: columnLength + 0.04 },
     { shape: 'cylinder', role: 'liquid', center: centre, axis: 'y', radius: 0.025, length: columnLength },
     ...ticks,
-    { shape: 'box', role: 'plate', center: [0, plateY, 1.135], size: [0.5, 0.16, 0.02] },
+    { shape: 'box', role: 'plate', center: [0, plateY, Math.round((z + 0.055) * 1e9) / 1e9], size: [0.5, 0.16, 0.02], text: plateText },
   ];
 }
 
+/** Capacity unit on a tank's name plate. */
+const CAPACITY_UNIT = { label: 'Capacity unit', choices: CAPACITY_UNITS, default: 'm³' } as const;
+
 /** Stand under the vertical tank, metres; absent in older files means no stand (ADR-0013). */
 export const TANK_STAND = { label: 'Stand height', unit: 'm', default: 0, min: 0, max: 3, step: 0.1, initial: 0.8, keepsBottom: true } as const;
+/** Vertical tank shell diameter and straight height, metres (ADR-0017); defaults are the original tank. */
+export const TANK_DIAMETER = { label: 'Diameter', unit: 'm', default: 2, min: 0.6, max: 12, step: 0.1, keepsBottom: true } as const;
+export const TANK_HEIGHT = { label: 'Shell height', unit: 'm', default: 3, min: 0.8, max: 20, step: 0.1, keepsBottom: true } as const;
+/** Top of the vertical tank: flat plate or 2:1 semi-ellipsoidal (dished) head. */
+export const TANK_HEAD = { label: 'Top head', choices: ['flat', 'dished'], default: 'flat' } as const;
 
 /** Size of a vessel's or pump's flanged nozzles; ports keep their place at every size (ADR-0016). */
 const nozzleParameter = (label: string) => ({ ...SIZE_PARAMETER, label });
 
+export interface TankShape {
+  standHeight?: number;
+  nozzleSize?: PipeSize;
+  diameter?: number;
+  height?: number;
+  head?: 'flat' | 'dished';
+  capacityUnit?: CapacityUnit;
+}
+
+const round9 = (n: number) => Math.round(n * 1e9) / 1e9;
+/** Quarter of a 2:1 ellipse from the rim (radius `a`, at y0) to the crown (depth `b`), 24 steps. */
+const ellipseHead = (a: number, b: number, y0: number): [number, number][] =>
+  Array.from({ length: 25 }, (_, k) => {
+    const t = (k / 24) * (Math.PI / 2);
+    return [round9(a * Math.cos(t)), round9(y0 + b * Math.sin(t))];
+  });
+
 /**
- * Flat-bottomed vertical tank: radius 1 m, 3 m shell, side nozzles, front sight gauge. On a
- * stand of `standHeight` m it stands on four legs with feet. Nozzles are `nozzleSize`; its ports
- * never move.
+ * Flat-bottomed vertical tank, `diameter` across with a `height` straight shell (default 2 × 3 m),
+ * a flat or dished (2:1 semi-ellipsoidal) top, side nozzles 0.2 m long and a front sight gauge
+ * whose plate shows the capacity. On a stand of `standHeight` m it stands on four legs with feet.
+ * Nozzles are `nozzleSize`; nozzle size never moves the ports.
  */
-export function tankDefinition(standHeight = 0, nozzleSize: PipeSize = DEFAULT_SIZE): IndustrialComponentDefinition {
+export function tankDefinition(shape: TankShape = {}): IndustrialComponentDefinition {
+  const { standHeight = 0, nozzleSize = DEFAULT_SIZE, diameter = TANK_DIAMETER.default, height = TANK_HEIGHT.default, head = 'flat', capacityUnit = 'm³' } = shape;
   const r = outerRadiusFor(nozzleSize);
-  const bottom = -1.535;
+  const R = diameter / 2;
+  const h = height / 2;
+  const bottom = -h - 0.035;
   const floor = bottom - standHeight;
-  const legAt = (deg: number): [number, number] => [Math.round(0.75 * Math.cos((deg * Math.PI) / 180) * 1e9) / 1e9, Math.round(0.75 * Math.sin((deg * Math.PI) / 180) * 1e9) / 1e9];
+  const top = head === 'dished' ? h + R / 2 : h + 0.035;
+  const leg = Math.max(1, R);
+  const legAt = (deg: number): [number, number] => [round9(0.75 * R * Math.cos((deg * Math.PI) / 180)), round9(0.75 * R * Math.sin((deg * Math.PI) / 180))];
   const stand: GeometryPart[] = standHeight > 0
     ? [45, 135, 225, 315].flatMap((deg): GeometryPart[] => {
         const [x, z] = legAt(deg);
         return [
-          { shape: 'cylinder', role: 'shell', center: [x, bottom - standHeight / 2, z], axis: 'y', radius: 0.05, length: standHeight },
-          { shape: 'box', role: 'shell', center: [x, floor + 0.01, z], size: [0.16, 0.02, 0.16] },
+          { shape: 'cylinder', role: 'shell', center: [x, bottom - standHeight / 2, z], axis: 'y', radius: 0.05 * leg, length: standHeight },
+          { shape: 'box', role: 'shell', center: [x, floor + 0.01, z], size: [0.16 * leg, 0.02, 0.16 * leg] },
         ];
       })
     : [];
+  const walls: GeometryPart[] = [
+    { shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'y', radius: R, length: height, openEnded: true },
+    { shape: 'cylinder', role: 'shell', center: [0, -h, 0], axis: 'y', radius: R, length: 0.07 },
+    head === 'dished'
+      ? { shape: 'lathe', role: 'shell', center: [0, 0, 0], points: ellipseHead(R, R / 2, h) }
+      : { shape: 'cylinder', role: 'shell', center: [0, h, 0], axis: 'y', radius: R, length: 0.07 },
+  ];
+  // Liquid 6 cm inside the wall; a dished tank fills up into its head.
+  const liquid: GeometryPart = head === 'dished'
+    ? { shape: 'lathe', role: 'liquid', center: [0, 0, 0], points: [[round9(R - 0.06), round9(-h + 0.035)], ...ellipseHead(R - 0.06, R / 2 - 0.04, h)] }
+    : { shape: 'cylinder', role: 'liquid', center: [0, 0, 0], axis: 'y', radius: round9(R - 0.06), length: round9(height - 0.07) };
+  const [inletY, outletY] = [round9(h - Math.min(0.7, 0.25 * height)), round9(-h + Math.min(0.6, 0.2 * height))];
+  const x = round9(R + 0.2);
   return define({
     type: 'tank',
     label: 'Vertical Tank',
     bindable: { level: 'percent', temperature: 'temperature' },
-    ports: [fluidPort('inlet', [-1.2, 0.8, 0], [-1, 0, 0], nozzleSize), fluidPort('outlet', [1.2, -0.9, 0], [1, 0, 0], nozzleSize)],
-    bounds: { min: [-1.2, standHeight > 0 ? floor : bottom, -1], max: [1.2, 1.535, 1.145] },
+    ports: [fluidPort('inlet', [-x, inletY, 0], [-1, 0, 0], nozzleSize), fluidPort('outlet', [x, outletY, 0], [1, 0, 0], nozzleSize)],
+    bounds: { min: [-x, standHeight > 0 ? floor : bottom, -R], max: [x, round9(top), round9(R + 0.145)] },
     parts: [
-      { shape: 'cylinder', role: 'shell', center: [0, 0, 0], axis: 'y', radius: 1, length: 3, openEnded: true },
-      { shape: 'cylinder', role: 'shell', center: [0, -1.5, 0], axis: 'y', radius: 1, length: 0.07 },
-      { shape: 'cylinder', role: 'shell', center: [0, 1.5, 0], axis: 'y', radius: 1, length: 0.07 },
-      { shape: 'cylinder', role: 'shell', center: [-1.1, 0.8, 0], axis: 'x', radius: r, length: 0.2 },
-      { shape: 'cylinder', role: 'shell', center: [1.1, -0.9, 0], axis: 'x', radius: r, length: 0.2 },
-      { shape: 'cylinder', role: 'liquid', center: [0, 0, 0], axis: 'y', radius: 0.94, length: 2.93 },
-      ...levelGauge(0, 2.76, 0.4),
+      ...walls,
+      { shape: 'cylinder', role: 'shell', center: [-round9(R + 0.1), inletY, 0], axis: 'x', radius: r, length: 0.2 },
+      { shape: 'cylinder', role: 'shell', center: [round9(R + 0.1), outletY, 0], axis: 'x', radius: r, length: 0.2 },
+      liquid,
+      ...levelGauge(0, round9(height - 0.24), round9((0.4 * height) / 3), round9(R + 0.08), formatCapacity(capacityOf(walls), capacityUnit)),
       ...stand,
     ],
-    parameters: { standHeight: { ...TANK_STAND }, nozzleSize: nozzleParameter('Nozzle size') },
+    parameters: { diameter: { ...TANK_DIAMETER }, height: { ...TANK_HEIGHT }, head: TANK_HEAD, standHeight: { ...TANK_STAND }, nozzleSize: nozzleParameter('Nozzle size'), capacityUnit: CAPACITY_UNIT },
   });
 }
 
@@ -219,7 +262,7 @@ export function tankDefinition(standHeight = 0, nozzleSize: PipeSize = DEFAULT_S
  * top; the outlet leaves the cone tip, bends and runs out horizontally to +X, 0.4 m above the
  * ground. The front (+Z) carries the shared sight gauge, scale and name plate (`levelGauge`).
  */
-export function conicalTankDefinition(nozzleSize: PipeSize = DEFAULT_SIZE): IndustrialComponentDefinition {
+export function conicalTankDefinition(nozzleSize: PipeSize = DEFAULT_SIZE, capacityUnit: CapacityUnit = 'm³'): IndustrialComponentDefinition {
   const r = outerRadiusFor(nozzleSize);
   const legAt = (deg: number): [number, number, number] => [0.9 * Math.cos((deg * Math.PI) / 180), -1.5, 0.9 * Math.sin((deg * Math.PI) / 180)];
   const round = (n: number) => Math.round(n * 1e9) / 1e9;
@@ -239,11 +282,11 @@ export function conicalTankDefinition(nozzleSize: PipeSize = DEFAULT_SIZE): Indu
       { shape: 'bend', role: 'shell', center: [0.3, -1.8, 0], bendRadius: 0.3, tubeRadius: r, startAngle: Math.PI },
       { shape: 'cylinder', role: 'shell', center: [0.7, -2.1, 0], axis: 'x', radius: r, length: 0.8 },
       ...[90, 210, 330].map((deg) => ({ shape: 'cylinder' as const, role: 'shell' as const, center: legAt(deg).map(round) as [number, number, number], axis: 'y' as const, radius: 0.05, length: 2 })),
-      ...levelGauge(0.5, 1.86, 0.9),
+      ...levelGauge(0.5, 1.86, 0.9, 1.08, formatCapacity(Math.PI * 2 + (Math.PI / 3) * (1 + r + r * r), capacityUnit)),
       // Liquid 4 cm inside the walls, from just above the cone tip to just below the cap.
       { shape: 'lathe', role: 'liquid', center: [0, 0, 0], points: [[round(coneRadiusAt(-1.46) - 0.04), -1.46], [0.96, -0.5], [0.96, 1.46]] },
     ],
-    parameters: { nozzleSize: nozzleParameter('Nozzle size') },
+    parameters: { nozzleSize: nozzleParameter('Nozzle size'), capacityUnit: CAPACITY_UNIT },
   });
 }
 

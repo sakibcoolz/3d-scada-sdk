@@ -22,7 +22,7 @@ export const HYDRAULIC = {
 import { vesselOf } from './vessels.js';
 
 const NU = HYDRAULIC.viscosity / HYDRAULIC.density;
-const isVessel = (c: ComponentInstance) => vesselOf(c.type) !== undefined;
+const isVessel = (c: ComponentInstance) => vesselOf(c.type, c.properties) !== undefined;
 const G = HYDRAULIC.gravity;
 
 /**
@@ -339,9 +339,9 @@ export function createHydraulicSimulation(initial: ScadaScene, options: Simulati
 
   const components = () => new Map(scene.components.map((c) => [c.id, c]));
   const tanks = () => scene.components.filter(isVessel);
-  const vessel = (id: string) => vesselOf(components().get(id)!.type)!;
+  const vessel = (id: string) => vesselOf(components().get(id)!.type, components().get(id)!.properties)!;
   const authored = (c: ComponentInstance) => (typeof c.properties.level === 'number' && Number.isFinite(c.properties.level) ? Math.min(100, Math.max(0, c.properties.level)) : 0);
-  const bottomOf = (c: ComponentInstance) => c.position.y + vesselOf(c.type)!.bottom;
+  const bottomOf = (c: ComponentInstance) => c.position.y + vesselOf(c.type, c.properties)!.bottom;
 
   function rebuild() {
     const fedPorts = new Set(feeds.filter((f) => { const c = components().get(f.at.instanceId); return c && !isVessel(c); }).map((f) => key(f.at)));
@@ -484,7 +484,7 @@ export function createHydraulicSimulation(initial: ScadaScene, options: Simulati
 
   function load(next: ScadaScene, keep: boolean) {
     scene = next;
-    volumes = new Map(tanks().map((c) => [c.id, keep && volumes.has(c.id) ? volumes.get(c.id)! : vesselOf(c.type)!.volumeAtPercent(authored(c))]));
+    volumes = new Map(tanks().map((c) => [c.id, keep && volumes.has(c.id) ? volumes.get(c.id)! : vesselOf(c.type, c.properties)!.volumeAtPercent(authored(c))]));
     heads = new Map();
   }
 
