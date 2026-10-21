@@ -58,7 +58,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-056 | M7 (post-MVP) | P2 | T-053 | TODO | Tank family 4: elevated tank on a lattice tower (the open pool was delivered with T-054/T-055, ADR-0018) |
 | T-057 | M7 (post-MVP) | P3 | T-053 | TODO | High-performance HMI view mode: flat grey vessels with a blue level fill (owner: later) |
 | T-058 | Release | P0 | T-024 | DONE | Open source (ADR-0019): MIT licence everywhere, public package metadata and READMEs, CONTRIBUTING/SECURITY, v0.1.0 tag and GitHub Release, repository topics, public repository, npm publish of `@scada3d/*` (needs owner `npm login`) |
-| T-059 | Release | P0 | T-058 | REVIEW | Rename packages to the owner's npm scope `@sakibcoolz/*`, release v0.1.1 and publish to npm (ADR-0019 amendment) |
+| T-059 | Release | P0 | T-058 | DONE | Rename packages to the owner's npm scope `@sakibcoolz/*`, release v0.1.1 and publish to npm (ADR-0019 amendment) |
+| T-060 | Release | P1 | T-059 | REVIEW | Detailed npm package pages: full README per package (purpose, install, verified quick start, API overview, safety notes), released as 0.1.3 |
 | T-061 | M7 (post-MVP) | P2 | T-024 | REVIEW | Floor (owner request): optional `floor` prop on viewer and editor draws a display-only concrete slab sized to the plant; playground shows it by default with a Floor toggle and `?floor=off` |
 
 ## Release-path change (owner-approved 2026-10-15)
