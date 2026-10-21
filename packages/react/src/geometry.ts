@@ -50,8 +50,20 @@ export function createPartGeometry(part: GeometryPart): BufferGeometry {
       if (part.axis === 'y') geometry.rotateX(Math.PI / 2);
       return geometry.translate(...part.center);
     }
-    case 'lathe':
-      return new LatheGeometry(part.points.map(([r, y]) => new Vector2(r, y)), 32).translate(...part.center);
+    case 'lathe': {
+      // Three lathes turn about +Y; a lathe along x or z is turned so +Y becomes that axis.
+      const geometry = new LatheGeometry(part.points.map(([r, y]) => new Vector2(r, y)), 32);
+      if (part.axis === 'x') geometry.rotateZ(-Math.PI / 2);
+      if (part.axis === 'z') geometry.rotateX(Math.PI / 2);
+      return geometry.translate(...part.center);
+    }
+    case 'strut': {
+      const from = new Vector3(...part.from), to = new Vector3(...part.to);
+      const along = to.clone().sub(from);
+      const geometry = new CylinderGeometry(part.radius, part.radius, along.length(), 8, 1, false);
+      geometry.applyQuaternion(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), along.normalize()));
+      return geometry.translate(...from.add(to).multiplyScalar(0.5).toArray());
+    }
     case 'cone': {
       // Three's top is +Y; turning to X puts the top at -X, turning to Z puts it at +Z.
       const [top, bottom] = part.axis === 'x' ? [part.radiusStart, part.radiusEnd] : [part.radiusEnd, part.radiusStart];

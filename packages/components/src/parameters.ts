@@ -1,5 +1,5 @@
 import type { ComponentInstance, ComponentKind, Quantity } from '@scada3d/core';
-import { componentCatalog, conicalTankDefinition, couplerDefinition, pumpDefinition, elbowDefinition, pipeDefinition, reducerDefinition, tankDefinition, teeDefinition, valveDefinition } from './catalog.js';
+import { componentCatalog, conicalTankDefinition, horizontalTankDefinition, poolDefinition, sphericalTankDefinition, couplerDefinition, pumpDefinition, elbowDefinition, pipeDefinition, reducerDefinition, tankDefinition, teeDefinition, valveDefinition } from './catalog.js';
 import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
 import { pipeSizes, type PipeSize } from './sizes.js';
 import { asme } from './asme.js';
@@ -52,6 +52,9 @@ type Values = Record<string, string | number>;
 const builders: Partial<Record<ComponentKind, (v: Values) => IndustrialComponentDefinition>> = {
   tank: (v) => tankDefinition({ standHeight: v.standHeight as number, nozzleSize: v.nozzleSize as PipeSize, diameter: v.diameter as number, height: v.height as number, head: v.head as 'flat' | 'dished', capacityUnit: v.capacityUnit as CapacityUnit }),
   conicalTank: (v) => conicalTankDefinition(v.nozzleSize as PipeSize, v.capacityUnit as CapacityUnit),
+  horizontalTank: (v) => horizontalTankDefinition(v.diameter as number, v.length as number, v.standHeight as number, v.nozzleSize as PipeSize, v.capacityUnit as CapacityUnit),
+  sphericalTank: (v) => sphericalTankDefinition(v.diameter as number, v.standHeight as number, v.nozzleSize as PipeSize, v.capacityUnit as CapacityUnit),
+  pool: (v) => poolDefinition(v.length as number, v.width as number, v.depth as number, v.nozzleSize as PipeSize, v.capacityUnit as CapacityUnit),
   pump: (v) => pumpDefinition(v.suctionSize as PipeSize, v.dischargeSize as PipeSize),
   pipe: (v) => pipeDefinition(v.length as number, v.size as PipeSize),
   elbow: (v) => elbowDefinition(v.size as PipeSize),

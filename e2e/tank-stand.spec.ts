@@ -12,7 +12,7 @@ test('a new vertical tank comes on a 0.8 m stand with four legs', async ({ page 
   const tank = (await sceneJson(page)).components[0];
   expect(tank.properties).toEqual({ level: 45, diameter: 2, height: 3, standHeight: 0.8 });
   await expect(page.getByLabel('Stand height (m)')).toHaveValue('0.8');
-  await expect.poll(() => shells(page, tank.id)).toBe(13);
+  await expect.poll(() => shells(page, tank.id)).toBe(21); // shell, caps, nozzles, 4 legs and feet, 8 braces
 });
 
 test('a tank from an older file has no stand, and giving it one lifts it so the feet stay on the floor', async ({ page }) => {
@@ -30,7 +30,7 @@ test('a tank from an older file has no stand, and giving it one lifts it so the 
   const after = (await sceneJson(page)).components.find((c: { id: string }) => c.id === 'tank');
   expect(after.properties.standHeight).toBe(1);
   expect(after.position.y).toBeCloseTo(2.535, 9);
-  await expect.poll(() => shells(page, 'tank')).toBe(13);
+  await expect.poll(() => shells(page, 'tank')).toBe(21);
   await page.getByRole('button', { name: 'Undo' }).click();
   expect((await sceneJson(page)).components.find((c: { id: string }) => c.id === 'tank').position.y).toBe(1.535);
 });

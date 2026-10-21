@@ -18,15 +18,15 @@ test('view modes change shell drawing but never the saved scene', async ({ page 
   const viewMode = page.getByLabel('View mode', { exact: true });
 
   const shells = async () => partsOf(page, tank, 'shell');
-  // Five body parts plus the stand's four legs and four feet.
-  await expect.poll(async () => (await shells()).map((p) => p.opacity)).toEqual(Array(13).fill(1));
+  // Five body parts plus the stand's four legs, four feet and eight cross braces.
+  await expect.poll(async () => (await shells()).map((p) => p.opacity)).toEqual(Array(21).fill(1));
 
   await viewMode.selectOption('glass');
   await expect.poll(async () => (await shells()).every((p) => p.transparent && p.opacity === 0.21)).toBe(true);
 
   await viewMode.selectOption('xray');
   await expect.poll(async () => (await shells()).every((p) => p.opacity === 0.06)).toBe(true);
-  await expect.poll(async () => (await partsOf(page, tank, 'edges')).length).toBe(13);
+  await expect.poll(async () => (await partsOf(page, tank, 'edges')).length).toBe(21);
 
   await viewMode.selectOption('cutaway');
   await expect.poll(async () => (await shells()).every((p) => p.clippingPlanes === 1 && p.opacity === 1)).toBe(true);

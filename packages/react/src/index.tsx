@@ -3,10 +3,11 @@ import { CanvasTexture, Color, DoubleSide, LatheGeometry, Vector2, Matrix4, Mesh
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
 import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, attachComponents, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
-import { catalogResolvers, componentCatalog, componentPresets, definitionFor, flangePairParts, flangeParts, isChoiceParameter, liquidProfile, weldParts, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type NumberParameterSpec } from '@scada3d/components';
+import { catalogResolvers, componentCatalog, componentPresets, definitionFor, flangePairParts, flangeParts, isChoiceParameter, liquidProfile, weldParts, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type GeometryPart, type NumberParameterSpec } from '@scada3d/components';
 import { createEquipmentGeometries, createJointPartGeometry, createRouteGeometry, disposeGeometries } from './geometry.js';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop.js';
 import { usePlateTexture } from './plateText.js';
+import { cutBelow } from './liquidCut.js';
 import { EDITOR_CSS, formatMetres } from './editorStyles.js';
 import { spatialChunks } from './instancing.js';
 import { jointPlacements, type JointPlacement } from './jointLayer.js';
@@ -158,6 +159,25 @@ function Plate({ geometry, text, userData }: { geometry: BufferGeometry; text?: 
   </mesh>;
 }
 
+/** Liquid that fills a horizontal or round shape (horizontal and spherical tanks): drawn as a cut. */
+const isCutLiquid = (part: GeometryPart) => part.role === 'liquid' && (part.shape === 'sphere' || (part.shape === 'lathe' && (part.axis ?? 'y') !== 'y'));
+
+/** Liquid in a horizontal or spherical tank: the full liquid shape cut flat at the level (ADR-0018). */
+function CutLiquid({ geometry, fraction, color, tag }: { geometry: BufferGeometry; fraction: number; color: string; tag: Record<string, string> }) {
+  // Rounded to 0.1 % so a live feed does not rebuild the mesh for invisible changes.
+  const step = Math.round(fraction * 1000) / 1000;
+  const cut = useMemo(() => {
+    if (!(step > 0)) return undefined;
+    geometry.computeBoundingBox();
+    const { min, max } = geometry.boundingBox!;
+    return step >= 1 ? geometry.clone() : cutBelow(geometry, min.y + step * (max.y - min.y));
+  }, [geometry, step]);
+  useEffect(() => () => cut?.dispose(), [cut]);
+  return <mesh geometry={cut} visible={!!cut} userData={{ ...tag, levelFraction: step }}>
+    <meshStandardMaterial color={color} transparent opacity={0.65} depthWrite={false}/>
+  </mesh>;
+}
+
 function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown, colliding }: { component:ComponentInstance; viewMode:ViewMode; selected:boolean; onSelect:(additive:boolean)=>void; objectRef?:(object:Object3D|null)=>void; /** Bound properties whose live value cannot be trusted. */ unknown?:ReadonlySet<string>; /** Overlaps another solid component. */ colliding?:boolean }) {
   // Per-instance definition: parametric types (pipe length) change ports, bounds and parts.
   const definition = definitionFor(component.type, component.properties);
@@ -181,6 +201,13 @@ function Equipment({ component, viewMode, selected, onSelect, objectRef, unknown
         const bottom = part.center[1] - part.length / 2;
         return <mesh key={i} geometry={geometry} userData={tag('liquid')} visible={(fill.fraction ?? 0) > 0} scale={[1, height, 1]} position={[0, bottom * (1 - height), 0]}><meshStandardMaterial color={liquidColor} transparent opacity={0.65} depthWrite={false}/></mesh>;
       }
+      if (part.role === 'liquid' && part.shape === 'box') {
+        // A basin's liquid: scaled from its floor like the cylinder column.
+        const height = Math.max(0.001, fill.fraction ?? 0);
+        const bottom = part.center[1] - part.size[1] / 2;
+        return <mesh key={i} geometry={geometry} userData={tag('liquid')} visible={(fill.fraction ?? 0) > 0} scale={[1, height, 1]} position={[0, bottom * (1 - height), 0]}><meshStandardMaterial color={liquidColor} transparent opacity={0.65} depthWrite={false}/></mesh>;
+      }
+      if (isCutLiquid(part)) return <CutLiquid key={i} geometry={geometry} fraction={fill.fraction ?? 0} color={liquidColor} tag={tag('liquid')}/>;
       if (part.role === 'liquid' && part.shape === 'lathe') return <LatheLiquid key={i} points={part.points} fraction={fill.fraction ?? 0} color={liquidColor} tag={tag('liquid')}/>;
       if (part.role === 'gauge') return <mesh key={i} geometry={geometry} userData={tag('gauge')}><meshStandardMaterial color="#d8eefc" transparent opacity={0.3} depthWrite={false} roughness={0.1}/></mesh>;
       if (part.role === 'plate') return <Plate key={i} geometry={geometry} text={part.shape === 'box' ? part.text : undefined} userData={tag('plate')}/>;
@@ -630,8 +657,8 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   // Plain equipment of large scenes is instanced; selected, colliding and non-normal views keep their own meshes.
   const instanced = useMemo(() => {
     const on = instancing === 'always' || (instancing === 'auto' && shown.components.length >= INSTANCING_THRESHOLD);
-    // Lathe liquids (conical tanks) are rebuilt per level, so those vessels keep their own meshes.
-    return on ? shown.components.filter((c) => c.id !== selectedId && !collision?.collidingIds.has(c.id) && effectiveViewMode(viewMode, viewOverrides?.[c.id]) === 'normal' && !definitionFor(c.type, c.properties).parts.some((p) => p.shape === 'lathe')) : [];
+    // Lathe, cut and basin liquids are rebuilt or scaled per level, so those vessels keep their own meshes.
+    return on ? shown.components.filter((c) => c.id !== selectedId && !collision?.collidingIds.has(c.id) && effectiveViewMode(viewMode, viewOverrides?.[c.id]) === 'normal' && !definitionFor(c.type, c.properties).parts.some((p) => p.shape === 'lathe' || (p.role === 'liquid' && p.shape !== 'cylinder'))) : [];
   }, [instancing, shown, selectedId, collision, viewMode, viewOverrides]);
   const instancedIds = useMemo(() => new Set(instanced.map((c) => c.id)), [instanced]);
   const gesture = useRef(0);
