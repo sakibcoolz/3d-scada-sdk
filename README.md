@@ -2,6 +2,10 @@
 
 Reusable industrial 3D visualization SDK for Three.js, with a React editor/viewer layer.
 
+![A milk processing line built in the playground editor: horizontal, vertical, conical and spherical tanks on braced stands, each filled and emptied through bottom valves and pumps, with transfer lines on an overhead pipe rack, shown in Glass view on the floor slab with the Walk and VR buttons.](docs/images/milk-processing-line.png)
+
+*A milk processing line in the playground editor (Glass view). 49 components and 50 connections, DN80 lines on a 7 ft pipe rack.*
+
 ## Start here
 - [Project summary](docs/PROJECT_SUMMARY.md): purpose, capabilities, existing code and future architecture.
 - [MVP specification](docs/MVP.md): scope, acceptance demo and release boundary.
