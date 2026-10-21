@@ -286,9 +286,12 @@ function useSharedGeometries(definition: ReturnType<typeof definitionFor>): Buff
 const walkButtonStyle = (ready: boolean): React.CSSProperties => ({padding:'6px 14px',borderRadius:4,border:'1px solid #7fd6ff',background:ready?'#0f3a52':'transparent',color:ready?'#e6f7ff':'#7d93a6',fontSize:13,fontWeight:600,cursor:ready?'pointer':'not-allowed'});
 
 /** Crosshair, position and keys while walking on the desktop. */
-function WalkHud({ walker, onExit }: { walker?: WalkerState; onExit: () => void }) {
+function WalkHud({ walker, onExit, picking }: { walker?: WalkerState; onExit: () => void; /** Names under the crosshair and selected, when the view can pick. */ picking?: { aim?: string; selected?: string } }) {
   return <>
-    <div aria-hidden style={{position:'absolute',top:'50%',left:'50%',width:6,height:6,margin:-3,borderRadius:3,background:'#e6f7ffcc',boxShadow:'0 0 0 1px #0b1725',pointerEvents:'none'}}/>
+    <div aria-hidden style={{position:'absolute',top:'50%',left:'50%',width:6,height:6,margin:-3,borderRadius:3,background:picking?.aim?'#3ccf7e':'#e6f7ffcc',boxShadow:'0 0 0 1px #0b1725',pointerEvents:'none'}}/>
+    {picking&&<div role="status" aria-label="Aim" aria-live="polite" style={{position:'absolute',top:'calc(50% + 14px)',left:'50%',transform:'translateX(-50%)',padding:'3px 8px',borderRadius:4,background:'#0b1725cc',color:'#e6f7ff',fontSize:12,whiteSpace:'nowrap',pointerEvents:'none',textAlign:'center'}}>
+      {picking.aim?<><b>{picking.aim}</b> · click selects{picking.selected&&picking.selected!==picking.aim?<> · C connects to {picking.selected}</>:''}</>:picking.selected?`Selected: ${picking.selected} · aim at a part, C connects`:'Aim at a part and click to select it'}
+    </div>}
     <div role="status" aria-label="Walk status" aria-live="polite" style={{position:'absolute',bottom:10,left:'50%',transform:'translateX(-50%)',display:'flex',gap:12,alignItems:'center',padding:'6px 12px',borderRadius:4,background:'#0b1725e6',border:'1px solid #7fd6ff',color:'#e6f7ff',fontSize:12,whiteSpace:'nowrap'}}>
       <span>{walker?`Walking · x ${walker.x.toFixed(1)} m, z ${walker.z.toFixed(1)} m · eye ${walker.eye.toFixed(1)} m · heading ${walker.heading}°`:'Walking'}</span>
       <span style={{opacity:0.75}}>WASD or arrows move · Space up · Alt down · mouse looks · Shift faster · Esc leaves</span>
@@ -713,8 +716,9 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   const presenting = useXrPresenting(gl);
   const [walker, setWalker] = useState<WalkerState>();
   const [walking, setWalking] = useState(false);
+  const [aim, setAim] = useState<string>();
   useEffect(() => { if (!walkthrough || presenting) setWalking(false); }, [walkthrough, presenting]);
-  useEffect(() => { if (!walking) setWalker(undefined); }, [walking]);
+  useEffect(() => { if (!walking) { setWalker(undefined); setAim(undefined); } }, [walking]);
   const firstPerson = presenting || walking;
   return <div role="region" aria-label="3D scene view" aria-describedby={descriptionId} style={{position:'relative',width:'100%',height:'100%'}}>
   <p id={descriptionId} style={visuallyHidden}>{count(scene.components.length, 'component')}, {count(scene.connections.length, 'connection')}.</p>
@@ -722,8 +726,8 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
     {presenting&&<color attach="background" args={['#101d2d']}/>}
     {(floor||firstPerson)&&<Floor scene={scene}/>}
-    {walkthrough&&<XrWalk scene={scene}/>}
-    {walking&&<DesktopWalk scene={scene} onExit={()=>setWalking(false)} onMove={setWalker}/>}
+    {walkthrough&&<XrWalk scene={scene} onPick={onSelect?(id,connect)=>onSelect(id,{additive:connect}):undefined}/>}
+    {walking&&<DesktopWalk scene={scene} onExit={()=>setWalking(false)} onMove={setWalker} onPick={onSelect?(id,connect)=>onSelect(id,{additive:connect}):undefined} onAim={onSelect?setAim:undefined}/>}
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
     {scene.underlay&&<Underlay underlay={scene.underlay}/>}
     {instanced.length>0&&<InstancedEquipment components={instanced} unknown={unknownByComponent} onSelect={onSelect}/>}
@@ -744,7 +748,7 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     <button type="button" aria-label="Walk" onClick={()=>setWalking(true)} style={walkButtonStyle(true)}>🚶 Walk</button>
     <VrButton gl={gl} presenting={presenting}/>
   </div>}
-  {walking&&<WalkHud walker={walker} onExit={()=>setWalking(false)}/>}
+  {walking&&<WalkHud walker={walker} onExit={()=>setWalking(false)} picking={onSelect?{aim:aim&&names.get(aim),selected:selectedId&&names.get(selectedId)}:undefined}/>}
   {simulation?<div aria-label="Simulation badge" style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED{simulation.model?` · ${simulation.model.name} v${simulation.model.version}`:''}</div>
     :(flow?.source??telemetry?.source)==='SIMULATED'&&<div style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED FLOW</div>}
   {((collision&&collision.pairs.length>0)||open.length>0)&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',display:'flex',flexDirection:'column',gap:4,alignItems:'center',pointerEvents:'none'}}>

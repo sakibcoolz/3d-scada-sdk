@@ -1365,3 +1365,25 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
     - `pnpm build` 0.
     - `pnpm test:e2e` 0 (123 tests).
     - Not checked in the owner's Chrome.
+
+## 2026-10-22 — T-063: pick and connect in first person
+- Owner: "can i do building in vr mode?" The owner agreed to step 1 (connect), with T-062 committed first: PR #62, stacked on #61.
+- Branch `feat/T-063-connect-first-person`, from `feat/T-062-vr-walkthrough`.
+- Change:
+  - `pick.ts`: `componentHit` over three.js intersections.
+  - Walk: click selects the part under the crosshair, and C connects it to the selected one. The view's pointer picking is off while walking, and an aim label is added.
+  - VR: trigger on a part selects it, and grip on a part connects it. The ray stops on parts and turns green.
+  - Picks go through `onSelect(id, { additive })`, so the editor's attach code is unchanged.
+  - ADR-0020 amended.
+- Tests:
+  - `pick.test.ts`: 5 tests.
+  - Walk e2e: the aim label, C connects (one connection plus the editor's message), and click selects.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1267 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (124 tests).
+  - Browser check in the owner's Chrome: aiming at a tank with a valve selected showed "C connects to Ball Valve 1", and C attached them, with the message "Attached Vertical Tank 1 "outlet" to Ball Valve 1 "in" (moved 1.69 m)".
+  - VR picking on the Quest NOT RUN.
+  - `pnpm verify:consumer` NOT RUN.
+- Observed (existing behaviour, not changed here): the attach moves the second part to fit, so the tank's stand went 0.5 m into the floor. This is a candidate for a follow-up: keep vessels on the floor, or move the smaller part instead.
