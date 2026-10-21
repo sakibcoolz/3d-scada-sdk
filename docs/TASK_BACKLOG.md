@@ -63,6 +63,7 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-061 | M7 (post-MVP) | P2 | T-024 | REVIEW | Floor (owner request): optional `floor` prop on viewer and editor draws a display-only concrete slab sized to the plant; playground shows it by default with a Floor toggle and `?floor=off` |
 | T-062 | M7 (post-MVP) | P2 | T-061 | REVIEW | First-person walkthrough (ADR-0020), via the opt-in `walkthrough` prop. Desktop Walk: mouse look, WASD/arrows, Space/Alt rise and sink, Shift runs, equipment blocks, Esc restores the orbit view. Enter VR on a WebXR headset: true scale, teleport and snap turn. View only. Playground HTTPS via `PLAYGROUND_TLS_CERT`/`KEY` |
 | T-063 | M7 (post-MVP) | P2 | T-062 | REVIEW | Pick and connect in first person (ADR-0020 amendment): in Walk, click selects and C connects at the crosshair; in VR, trigger selects and grip connects; the editor's attach rules apply (size checks, message, lock, undo) |
+| T-064 | M7 (post-MVP) | P2 | T-063 | REVIEW | Edit the selected part while walking (ADR-0020 amendment): editor shortcuts R, Delete, PageUp/PageDown and undo/redo work in Walk; aim label lists them; mouse-look ignores bogus pointer-lock jumps |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.

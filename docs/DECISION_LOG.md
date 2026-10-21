@@ -26,6 +26,7 @@ Use one ADR per significant decision. Accepted decisions are binding; proposals 
 | [0019](adr/0019-open-source-mit.md) (amended) | Accepted | npm packages published under the owner's scope as `@sakibcoolz/*` from v0.1.1 (the `scada3d` organisation did not exist) |
 | [0020](adr/0020-webxr-walkthrough.md) | Accepted | Opt-in first-person walkthrough (`walkthrough` prop): desktop Walk (mouse look, WASD, equipment blocks) and WebXR Enter VR (true scale on `local-floor`, teleport, snap turn); view only; no new dependency, no network |
 | [0020](adr/0020-webxr-walkthrough.md) (amended) | Accepted | Pick and connect in first person: click selects and C connects at the crosshair (Walk); trigger selects and grip connects (VR); through the view's `onSelect`, so the editor's attach rules apply |
+| [0020](adr/0020-webxr-walkthrough.md) (amended, T-064) | Accepted | Edit the selected part while walking: focus returns to the editor, so its R, Delete, PageUp/PageDown, undo/redo and copy/paste shortcuts work; walk keys are taken first |
 
 ## New ADR template
 Title / Status (Proposed/Accepted/Superseded) / Context / Options considered / Decision / Trade-offs / Consequences / Migration / Tests / Date / Approvers. Owner approval required before altering public schema or safety boundaries.

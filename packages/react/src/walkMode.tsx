@@ -15,6 +15,11 @@ const MIN_PRESS_MS = 150;
 const AIM_EVERY_MS = 100;
 /** A press that moves less than this, pixels, is a click rather than a drag-to-look. */
 const CLICK_SLOP_PX = 4;
+/**
+ * Mouse movement larger than this in one event, pixels, is ignored: Chrome can report one bogus
+ * jump of hundreds of pixels just after the pointer locks, which would spin the walker.
+ */
+const MAX_LOOK_STEP_PX = 200;
 const NO_KEYS: MoveKeys = { forward: false, back: false, left: false, right: false, run: false, up: false, down: false };
 
 /** The walker's place and heading, reported to the view for its status line. */
@@ -35,6 +40,9 @@ export interface WalkerState {
  * With `onPick`, a click picks the part under the crosshair and C asks to connect it to the
  * selected one (T-063); the host applies the editor's attach rules. The view's own pointer
  * picking is off while walking, so only the crosshair picks.
+ * Inside the editor, keyboard focus moves to it while walking (T-064), so its shortcuts for the
+ * selected part (R turns, Delete removes, PageUp/PageDown raise and lower, Ctrl/Cmd+Z undoes) keep
+ * working; movement keys, plain C and Esc are taken by the walk first.
  */
 export function DesktopWalk({ scene, onExit, onMove, onPick, onAim }: { scene: ScadaScene; onExit: () => void; onMove: (state: WalkerState) => void; onPick?: (id: string, connect: boolean) => void; onAim?: (id: string | undefined) => void }) {
   const gl = useThree((s) => s.gl);
@@ -76,6 +84,8 @@ export function DesktopWalk({ scene, onExit, onMove, onPick, onAim }: { scene: S
     let locked = false;
     let dragging = false;
     let pressAt: { x: number; y: number } | undefined;
+    // Let the editor hear its shortcuts: the Walk button that had focus is gone.
+    (canvas.closest('.scada3d-editor') as HTMLElement | null)?.focus({ preventScroll: true });
     const events = getState().events;
     const eventsWere = events.enabled;
     getState().setEvents({ enabled: false });
@@ -91,6 +101,7 @@ export function DesktopWalk({ scene, onExit, onMove, onPick, onAim }: { scene: S
     };
     const onMouseMove = (e: MouseEvent) => {
       if (document.pointerLockElement !== canvas && !dragging) return;
+      if (Math.abs(e.movementX) > MAX_LOOK_STEP_PX || Math.abs(e.movementY) > MAX_LOOK_STEP_PX) return;
       Object.assign(walker.current, look(walker.current.yaw, walker.current.pitch, e.movementX, e.movementY));
     };
     const onDown = (e: PointerEvent) => {
@@ -110,7 +121,7 @@ export function DesktopWalk({ scene, onExit, onMove, onPick, onAim }: { scene: S
     const timers = new Set<ReturnType<typeof setTimeout>>();
     const onKey = (down: boolean) => (e: KeyboardEvent) => {
       if (e.code === 'Escape' && down) { e.preventDefault(); e.stopPropagation(); exit.current(); return; }
-      if (e.code === 'KeyC' && pick.current) {
+      if (e.code === 'KeyC' && pick.current && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         e.stopPropagation();
         if (down && !e.repeat) pickAimed(true);
