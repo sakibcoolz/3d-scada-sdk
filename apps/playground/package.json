@@ -1,6 +1,6 @@
 {
-  "name": "@scada3d/playground",
-  "version": "0.1.0",
+  "name": "@sakibcoolz/playground",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,10 +9,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@scada3d/components": "workspace:*",
-    "@scada3d/core": "workspace:*",
-    "@scada3d/react": "workspace:*",
-    "@scada3d/simulation": "workspace:*",
+    "@sakibcoolz/components": "workspace:*",
+    "@sakibcoolz/core": "workspace:*",
+    "@sakibcoolz/react": "workspace:*",
+    "@sakibcoolz/simulation": "workspace:*",
     "@react-three/drei": "^10.0.6",
     "@react-three/fiber": "^9.1.2",
     "@vitejs/plugin-react": "^4.3.4",

@@ -1,19 +1,19 @@
 # Release packaging and consumer verification (T-024)
 
-The SDK packages ship as compiled ES modules with type declarations and are published to npm as public `@scada3d/*` packages (T-058, ADR-0019). Licence: MIT (see `LICENSE`, copied into every package).
+The SDK packages ship as compiled ES modules with type declarations and are published to npm as public `@sakibcoolz/*` packages (T-058, T-059, ADR-0019). Licence: MIT (see `LICENSE`, copied into every package).
 
 ## What a package contains
 | Package | Depends on | Tarball contents |
 |---|---|---|
-| `@scada3d/core` | nothing | `dist/` (JS, `.d.ts`, source maps with inlined sources), `LICENSE`, `package.json` |
-| `@scada3d/components` | `@scada3d/core` | same layout |
-| `@scada3d/react` | core, components, asset-import, `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`; peers `react`/`react-dom` 19 | same layout |
-| `@scada3d/asset-import` | nothing | same layout |
-| `@scada3d/simulation` (optional) | core, components | same layout |
+| `@sakibcoolz/core` | nothing | `dist/` (JS, `.d.ts`, source maps with inlined sources), `LICENSE`, `package.json` |
+| `@sakibcoolz/components` | `@sakibcoolz/core` | same layout |
+| `@sakibcoolz/react` | core, components, asset-import, `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`; peers `react`/`react-dom` 19 | same layout |
+| `@sakibcoolz/asset-import` | nothing | same layout |
+| `@sakibcoolz/simulation` (optional) | core, components | same layout |
 
 - Inside the workspace, `exports` still points at `src/` so the playground, Vitest and Playwright use source directly. `pnpm pack` applies `publishConfig`, so the tarball's `exports`/`types`/`main` point at `dist/`, and `workspace:*` becomes the exact version.
 - Built with `tsc -p tsconfig.build.json` per package. Relative imports in source carry `.js` extensions, so the output also runs in plain Node, without a bundler. That matters for core, e.g. validating scenes on a server.
-- `@types/three` is a runtime dependency of `@scada3d/react` because its public declarations use three's `Camera` type.
+- `@types/three` is a runtime dependency of `@sakibcoolz/react` because its public declarations use three's `Camera` type.
 - Tests, benchmarks and fixtures are not packed.
 
 ## Verify a release
@@ -24,7 +24,7 @@ CONSUMER_APP=<printed dir> pnpm test:consumer   # browser check of that app's pr
 `scripts/verify-consumer.mjs`:
 1. builds the packages and packs the tarballs;
 2. copies `examples/consumer-vite` to a new temporary directory (or `CONSUMER_WORKDIR`);
-3. points its `@scada3d/*` dependencies and npm `overrides` at the tarballs;
+3. points its `@sakibcoolz/*` dependencies and npm `overrides` at the tarballs;
 4. runs `npm install` (plain npm, no pnpm workspace; needs the npm registry for React, three and Vite);
 5. lists the installed SDK packages (one copy each), then runs `npm run typecheck`, `npm run build` and `npm run node-check`.
 
@@ -55,7 +55,7 @@ Licences of everything installed in the consumer app (2026-10-15):
 ## Publish (T-058, ADR-0019)
 1. All checks green on `develop`, including `pnpm verify:consumer` and `pnpm test:consumer`.
 2. `git tag -a vX.Y.Z` on `develop`, push the tag, and create the GitHub Release with the packed tarballs attached.
-3. `npm login` (the publishing account must belong to the `scada3d` npm organisation), then from the repository root:
+3. `npm login` as the owner of the `@sakibcoolz` scope (T-059: the packages are published under the owner's npm user scope), then from the repository root:
 
    ```sh
    pnpm -r publish --access public --no-git-checks --dry-run   # check contents first

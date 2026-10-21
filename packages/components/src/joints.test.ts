@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { findOpenJoints, parseScene, routeScene, seatOnConnection, upgradeDimensions } from '@scada3d/core';
+import { findOpenJoints, parseScene, routeScene, seatOnConnection, upgradeDimensions } from '@sakibcoolz/core';
 import { catalogResolvers, legacyCatalogResolvers } from './index.js';
 import { demoScene } from '../../../apps/playground/src/demo.js';
 

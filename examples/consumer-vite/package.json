@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Stand-alone app that installs the packed @scada3d tarballs, outside the workspace (T-024).",
+  "description": "Stand-alone app that installs the packed @sakibcoolz SDK tarballs, outside the workspace (T-024).",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,11 +12,11 @@
     "node-check": "node node-check.mjs"
   },
   "dependencies": {
-    "@scada3d/asset-import": "0.1.0",
-    "@scada3d/components": "0.1.0",
-    "@scada3d/core": "0.1.0",
-    "@scada3d/react": "0.1.0",
-    "@scada3d/simulation": "0.1.0",
+    "@sakibcoolz/asset-import": "0.1.1",
+    "@sakibcoolz/components": "0.1.1",
+    "@sakibcoolz/core": "0.1.1",
+    "@sakibcoolz/react": "0.1.1",
+    "@sakibcoolz/simulation": "0.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

@@ -1,5 +1,5 @@
-import type { ComponentInstance, ScadaScene } from '@scada3d/core';
-import { definitionFor } from '@scada3d/components';
+import type { ComponentInstance, ScadaScene } from '@sakibcoolz/core';
+import { definitionFor } from '@sakibcoolz/components';
 import { type Endpoint, type Feed, type Simulation, type SimulationNote, type SimulationOptions, type SimulationState } from './shared.js';
 import { createHydraulicSimulation } from './hydraulic.js';
 import { vesselOf, type Vessel } from './vessels.js';

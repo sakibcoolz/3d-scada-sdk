@@ -29,16 +29,16 @@ importers:
       '@react-three/fiber':
         specifier: ^9.1.2
         version: 9.8.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.175.0)
-      '@scada3d/components':
+      '@sakibcoolz/components':
         specifier: workspace:*
         version: link:../../packages/components
-      '@scada3d/core':
+      '@sakibcoolz/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@scada3d/react':
+      '@sakibcoolz/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@scada3d/simulation':
+      '@sakibcoolz/simulation':
         specifier: workspace:*
         version: link:../../packages/simulation
       '@vitejs/plugin-react':
@@ -71,7 +71,7 @@ importers:
 
   packages/components:
     dependencies:
-      '@scada3d/core':
+      '@sakibcoolz/core':
         specifier: workspace:*
         version: link:../core
 
@@ -85,13 +85,13 @@ importers:
       '@react-three/fiber':
         specifier: ^9.1.2
         version: 9.8.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.175.0)
-      '@scada3d/asset-import':
+      '@sakibcoolz/asset-import':
         specifier: workspace:*
         version: link:../asset-import
-      '@scada3d/components':
+      '@sakibcoolz/components':
         specifier: workspace:*
         version: link:../components
-      '@scada3d/core':
+      '@sakibcoolz/core':
         specifier: workspace:*
         version: link:../core
       '@types/three':
@@ -116,10 +116,10 @@ importers:
 
   packages/simulation:
     dependencies:
-      '@scada3d/components':
+      '@sakibcoolz/components':
         specifier: workspace:*
         version: link:../components
-      '@scada3d/core':
+      '@sakibcoolz/core':
         specifier: workspace:*
         version: link:../core
 

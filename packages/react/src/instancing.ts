@@ -1,4 +1,4 @@
-import type { ComponentInstance } from '@scada3d/core';
+import type { ComponentInstance } from '@sakibcoolz/core';
 
 /** Instances per mesh: small enough that off-screen chunks are culled, large enough to stay few. */
 export const INSTANCE_CHUNK = 64;

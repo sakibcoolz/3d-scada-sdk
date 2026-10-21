@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { routeScene, snapComponent, validateScene, type ComponentInstance, type ScadaScene } from '@scada3d/core';
+import { routeScene, snapComponent, validateScene, type ComponentInstance, type ScadaScene } from '@sakibcoolz/core';
 import { catalogResolvers, componentCatalog, definitionFor, pipeOuterRadius, validateProperties } from './index.js';
 
 const pipe = (id: string, x: number, length?: number): ComponentInstance => ({

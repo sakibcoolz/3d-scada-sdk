@@ -1,5 +1,5 @@
-import type { FlowReading, ScadaScene, SceneConnection } from '@scada3d/core';
-import { componentCatalog } from '@scada3d/components';
+import type { FlowReading, ScadaScene, SceneConnection } from '@sakibcoolz/core';
+import { componentCatalog } from '@sakibcoolz/components';
 
 export type Endpoint = SceneConnection['from'];
 

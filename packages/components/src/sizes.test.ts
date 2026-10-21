@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { portToWorld, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@scada3d/core';
+import { portToWorld, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@sakibcoolz/core';
 import {
   catalogResolvers,
   componentCatalog,

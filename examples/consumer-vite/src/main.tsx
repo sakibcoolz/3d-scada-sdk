@@ -1,8 +1,8 @@
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { parseScene, upgradeDimensions, type ScadaScene } from '@scada3d/core';
-import { catalogResolvers, legacyCatalogResolvers } from '@scada3d/components';
-import { Scada3DEditor, Scada3DViewer } from '@scada3d/react';
+import { parseScene, upgradeDimensions, type ScadaScene } from '@sakibcoolz/core';
+import { catalogResolvers, legacyCatalogResolvers } from '@sakibcoolz/components';
+import { Scada3DEditor, Scada3DViewer } from '@sakibcoolz/react';
 
 // A tank feeding a valve, a reducer and a DN100 pipe: authored as plain JSON, checked by the core.
 const authored = {

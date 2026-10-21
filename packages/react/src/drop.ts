@@ -12,8 +12,8 @@ import {
   type SnapStatus,
   type Vector3Like,
   type Vector3Tuple,
-} from '@scada3d/core';
-import { catalogResolvers, componentCatalog, definitionFor, sizeOfPort, sizeParameterFor, type IndustrialComponentDefinition } from '@scada3d/components';
+} from '@sakibcoolz/core';
+import { catalogResolvers, componentCatalog, definitionFor, sizeOfPort, sizeParameterFor, type IndustrialComponentDefinition } from '@sakibcoolz/components';
 
 
 export interface ScreenRect {

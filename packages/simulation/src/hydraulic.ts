@@ -1,5 +1,5 @@
-import { portToWorld, routeScene, type ComponentInstance, type ScadaScene } from '@scada3d/core';
-import { catalogResolvers, definitionFor } from '@scada3d/components';
+import { portToWorld, routeScene, type ComponentInstance, type ScadaScene } from '@sakibcoolz/core';
+import { catalogResolvers, definitionFor } from '@sakibcoolz/components';
 import { type Endpoint, type Feed, type PumpCurve, type Simulation, type SimulationNote, type SimulationOptions, type SimulationState } from './shared.js';
 
 /** Constants of the `hydraulic` v1 model (ADR-0011): water at 20 °C in commercial steel pipe. */

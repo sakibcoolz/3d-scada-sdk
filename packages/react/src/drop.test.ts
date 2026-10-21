@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PerspectiveCamera } from 'three';
-import { validateScene, type ComponentKind, type ScadaScene, type Vector3Like, type Vector3Tuple } from '@scada3d/core';
-import { asme, componentCatalog } from '@scada3d/components';
+import { validateScene, type ComponentKind, type ScadaScene, type Vector3Like, type Vector3Tuple } from '@sakibcoolz/core';
+import { asme, componentCatalog } from '@sakibcoolz/components';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane } from './drop.js';
 
 const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;

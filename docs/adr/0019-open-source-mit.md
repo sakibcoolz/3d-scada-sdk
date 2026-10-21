@@ -20,3 +20,6 @@ The owner asked to open-source the SDK, publish the repository and update the ta
 
 ## Date / Approvers
 2026-10-21 / repository owner (sakibcoolz): MIT, history as is, version tag and release, GitHub topics, npm, public.
+
+## Amendment (2026-10-21, T-059): npm scope
+The `scada3d` npm organisation did not exist when publishing (npm: "Scope not found"). The owner chose to publish under their own user scope instead: the packages are renamed `@sakibcoolz/core`, `components`, `react`, `simulation` and `asset-import` and released as `v0.1.1`. `v0.1.0` (tag, GitHub Release and tarballs) keeps the `@scada3d` names and was never on npm. The editor's CSS class `.scada3d-editor` is a theming API, not the package scope, and is unchanged.

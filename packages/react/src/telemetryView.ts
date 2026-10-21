@@ -1,4 +1,4 @@
-import { canonicalUnits, type PropertyState, type Quantity, type TelemetryUnknownReason } from '@scada3d/core';
+import { canonicalUnits, type PropertyState, type Quantity, type TelemetryUnknownReason } from '@sakibcoolz/core';
 
 const reasonLabels: Record<TelemetryUnknownReason, string> = {
   STALE: 'stale',

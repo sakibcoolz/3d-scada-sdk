@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { ComponentInstance, ComponentKind, ScadaScene, SceneConnection } from '@scada3d/core';
-import { pipeOuterRadius } from '@scada3d/components';
+import type { ComponentInstance, ComponentKind, ScadaScene, SceneConnection } from '@sakibcoolz/core';
+import { pipeOuterRadius } from '@sakibcoolz/components';
 import { createSimulation, vesselOf } from './index.js';
 
 const part = (id: string, type: ComponentKind, at: [number, number, number], properties: ComponentInstance['properties'] = {}): ComponentInstance => ({

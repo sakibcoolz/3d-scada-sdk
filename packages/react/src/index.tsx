@@ -2,8 +2,8 @@ import React, { useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo,
 import { CanvasTexture, Color, DoubleSide, LatheGeometry, Vector2, Matrix4, MeshStandardMaterial, Plane, Quaternion, SphereGeometry, SRGBColorSpace, Vector3, type BufferGeometry, type Camera, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, attachComponents, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@scada3d/core';
-import { catalogResolvers, componentCatalog, componentPresets, definitionFor, flangePairParts, flangeParts, isChoiceParameter, liquidProfile, weldParts, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type GeometryPart, type NumberParameterSpec } from '@scada3d/components';
+import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, attachComponents, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentKind, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@sakibcoolz/core';
+import { catalogResolvers, componentCatalog, componentPresets, definitionFor, flangePairParts, flangeParts, isChoiceParameter, liquidProfile, weldParts, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type GeometryPart, type NumberParameterSpec } from '@sakibcoolz/components';
 import { createEquipmentGeometries, createJointPartGeometry, createRouteGeometry, disposeGeometries } from './geometry.js';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane, type DropPlan } from './drop.js';
 import { usePlateTexture } from './plateText.js';
@@ -11,7 +11,7 @@ import { cutBelow } from './liquidCut.js';
 import { EDITOR_CSS, formatMetres } from './editorStyles.js';
 import { spatialChunks } from './instancing.js';
 import { jointPlacements, type JointPlacement } from './jointLayer.js';
-import { sanitizeSvg } from '@scada3d/asset-import';
+import { sanitizeSvg } from '@sakibcoolz/asset-import';
 import { componentNames, describeAttach, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice.js';
 
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history.js';
@@ -22,7 +22,7 @@ import { degreesFromRotation, rotationFromDegrees, turnAboutWorldAxis } from './
 import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance.js';
 import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, pathLengths, pointAtInto, summarizeFlow } from './flowVisual.js';
 
-// Public API of @scada3d/react: the two components, their prop/handle types and scene import helpers.
+// Public API of @sakibcoolz/react: the two components, their prop/handle types and scene import helpers.
 // Editor internals (drop planning, history, visual helpers) stay private. See docs/API.md.
 export { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES, type SceneImport } from './sceneFile.js';
 export { viewModes, type ViewMode } from './appearance.js';
@@ -515,7 +515,7 @@ export interface FlowInput {
 }
 
 /**
- * Simulated state from a host-run simulator (e.g. `@scada3d/simulation`, ADR-0010). While it is
+ * Simulated state from a host-run simulator (e.g. `@sakibcoolz/simulation`, ADR-0010). While it is
  * set, tank levels and connection flows come only from here, never mixed with telemetry or `flow`.
  */
 export interface SimulationInput {

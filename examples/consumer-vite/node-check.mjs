@@ -1,8 +1,8 @@
 // Plain Node, no bundler: the core and catalog must load as ES modules and validate a scene.
-import { parseScene, serializeScene, findOpenJoints } from '@scada3d/core';
-import { catalogResolvers, pipeSizes } from '@scada3d/components';
-import { createSimulation } from '@scada3d/simulation';
-import { sanitizeSvg } from '@scada3d/asset-import';
+import { parseScene, serializeScene, findOpenJoints } from '@sakibcoolz/core';
+import { catalogResolvers, pipeSizes } from '@sakibcoolz/components';
+import { createSimulation } from '@sakibcoolz/simulation';
+import { sanitizeSvg } from '@sakibcoolz/asset-import';
 
 const scene = {
   schemaVersion: 3,

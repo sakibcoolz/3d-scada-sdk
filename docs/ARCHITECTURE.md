@@ -126,7 +126,7 @@ Examples:
 
 Procedural Three.js geometry and GLB/glTF assets are primary 3D paths. SVGs may be used for reference, selected path extrusion or template-assisted revolution, subject to sanitization and licensing. An SVG alone cannot automatically reveal internal geometry or mechanical connectivity.
 
-**Implemented (T-019a, ADR-0012):** `packages/asset-import` (`@scada3d/asset-import`):
+**Implemented (T-019a, ADR-0012):** `packages/asset-import` (`@sakibcoolz/asset-import`):
 - an allow-list SVG sanitizer with its own XML tokenizer (no DOM, no entity expansion);
 - a flat shape model and `toSvgMarkup`;
 - a scene `underlay` drawn on the ground plane as a tracing reference.
@@ -187,7 +187,7 @@ Public React API (proposed, subject to M7 contract review): `Scada3DEditor`, `Sc
 
 **Optional engineering simulator:** fixed-time-step tank mass-balance, bounded volume and documented pressure/valve/pump models, input assumptions, fixtures and validation tolerances. Always label results **SIMULATED**. Real CFD/particle fluid physics is not included in initial release; separate ADR and specialized solver evaluation required.
 
-**Implemented (T-021, ADR-0010):** `packages/simulation` (`@scada3d/simulation`, depends on core and components). Model `mass-balance` v1:
+**Implemented (T-021, ADR-0010):** `packages/simulation` (`@sakibcoolz/simulation`, depends on core and components). Model `mass-balance` v1:
 - gravity drain through open paths (Torricelli, Cd 0.62, discharge to atmosphere, no friction or back-pressure);
 - feeds at free ports, and pumps forcing their rate from the first tank upstream;
 - equal tee splits; closed valves and stopped pumps block;

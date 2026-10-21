@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ComponentInstance, ScadaScene } from '@scada3d/core';
+import type { ComponentInstance, ScadaScene } from '@sakibcoolz/core';
 import { createSimulation, vesselOf } from './index.js';
 
 describe('vesselOf with tank dimensions (T-053)', () => {

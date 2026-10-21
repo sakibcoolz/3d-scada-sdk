@@ -1,4 +1,4 @@
-import type { ComponentInstance, ScadaScene, Vector3Tuple } from '@scada3d/core';
+import type { ComponentInstance, ScadaScene, Vector3Tuple } from '@sakibcoolz/core';
 import type { TagRow } from './DemoFeed';
 
 // MVP demo network: tank -> valve -> pipe -> tee, tee run to valve A, tee branch up to valve B.

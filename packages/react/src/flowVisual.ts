@@ -1,4 +1,4 @@
-import type { FlowState, FlowUnknownReason, Vector3Tuple } from '@scada3d/core';
+import type { FlowState, FlowUnknownReason, Vector3Tuple } from '@sakibcoolz/core';
 
 /** Visual marker speed along a pipe, m/s. Fixed on purpose: it shows direction, not a measured velocity. */
 export const FLOW_MARKER_SPEED = 0.8;

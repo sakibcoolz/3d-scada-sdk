@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ScadaScene } from '@scada3d/core';
-import { createSimulation, type SimulationState } from '@scada3d/simulation';
-import { componentCatalog } from '@scada3d/components';
+import type { ScadaScene } from '@sakibcoolz/core';
+import { createSimulation, type SimulationState } from '@sakibcoolz/simulation';
+import { componentCatalog } from '@sakibcoolz/components';
 
 const speeds = [1, 10, 60] as const;
 const models = ['mass-balance', 'hydraulic'] as const;

@@ -4,7 +4,7 @@
 
 All geometry is right-handed, Y-up, metres. Scene components use named vectors (ADR-0007): `position`/`scale` are `Vector3Like` `{ x, y, z }` and `rotation` is a unit `QuaternionLike` `{ x, y, z, w }`; `THREE.Vector3`/`THREE.Quaternion` satisfy these types. Derived geometry (catalog ports, world ports, routes) uses tuples `[x, y, z]`. The SDK is read-only: it never writes tags or opens network connections (ADR-0003).
 
-## @scada3d/core (framework-neutral)
+## @sakibcoolz/core (framework-neutral)
 
 | Area | Runtime exports | Main types |
 |---|---|---|
@@ -28,13 +28,13 @@ All geometry is right-handed, Y-up, metres. Scene components use named vectors (
 
 Pure functions take the current time (`now`) and the catalog lookups (`resolvePorts`, `resolveBindable`) as parameters; core has no dependency on React, Three.js, the DOM or the component catalog.
 
-## @scada3d/components
+## @sakibcoolz/components
 
 | Runtime exports | Types |
 |---|---|
 | `componentCatalog` (tank, conicalTank, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor), `liquidProfile`, `definitionFor`, `validateProperties`, `catalogResolvers`, `nominalBore` (0.15 m), `pipeOuterRadius` (0.084 m), `pipeSizes`, `asme` (ASME dimensions per size), `legacyCatalogResolvers` (pre-ASME fitting ports for upgrades), `sizeParameterFor` (choice parameter sizing a port, ADR-0016), `vesselSegments`, `segmentVolume`, `vesselProfile` (any vessel's volume below a height), `capacityOf`, `formatCapacity`, `CAPACITY_UNITS`, `componentPresets` (tank family, ADR-0017), `asmeFlange`, `jointStyle`, `hasFlangedEnds`, `flangePairParts`, `flangeParts`, `weldParts` (joint hardware, ADR-0015), `DEFAULT_SIZE`, `isPipeSize`, `outerRadiusFor`, `sizeOfPort`, `isChoiceParameter` | `IndustrialComponentDefinition`, `ParameterSpec` (now `NumberParameterSpec \| ChoiceParameterSpec`), `NumberParameterSpec`, `ChoiceParameterSpec`, `PipeSize`, `GeometryPart` (adds `cone`), `PartRole`, `Bounds`, `Axis` |
 
-### `@scada3d/asset-import` (ADR-0012)
+### `@sakibcoolz/asset-import` (ADR-0012)
 | Runtime | Types |
 |---|---|
 | `sanitizeSvg(text, limits?)` → `{ ok, svg, markup, notes }` or `{ ok: false, errors }`; `toSvgMarkup(model)`; `defaultSvgLimits` (512 KiB, 5,000 elements, depth 32, 20,000 path commands) | `SanitizedSvg`, `SvgShape`, `SvgMatrix`, `SanitizeResult`, `SvgError`, `SvgErrorCode`, `SvgNote`, `SvgLimits` |
@@ -46,7 +46,7 @@ It needs no DOM and runs in Node and browsers. It is an allow-list:
 
 `toSvgMarkup` writes clean markup from the model only.
 
-### `@scada3d/simulation` (optional, ADR-0010)
+### `@sakibcoolz/simulation` (optional, ADR-0010)
 | Runtime | Types |
 |---|---|
 | `createSimulation(scene, { model?, feeds?, pumps?, dt?, clock? })` → `{ state(), step(seconds), update(scene), configure({ feeds, pumps }), reset() }`, `MODEL` (mass-balance constants), `vesselOf(type, properties?)` (vessel shape from the component's definition, following its dimensions: `volumeAt`, `heightAt`, `portHeight`, `percentAt`, `volumeAtPercent`), `HYDRAULIC` (hydraulic constants: fluid, roughness, K-factors; flow lengths come from geometry), `frictionFactor(re, ε/D)`, `TANK` (radius, height, port heights) | `Simulation`, `SimulationOptions`, `SimulationState`, `SimulationNote`, `Feed`, `PumpCurve`, `Vessel` |
@@ -73,7 +73,7 @@ Results are always `source: 'SIMULATED'`.
 
 Pass `catalogResolvers` to core functions (`validateScene(input, catalogResolvers)`, `routeScene(scene, catalogResolvers)`, `findCollisions(scene, catalogResolvers)` …). It resolves ports and bounds per instance, so parametric parts such as pipe length are respected, and validates their properties (`INVALID_PROPERTY`).
 
-## @scada3d/react
+## @sakibcoolz/react
 
 | Runtime exports | Types |
 |---|---|

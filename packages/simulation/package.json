@@ -1,6 +1,6 @@
 {
-  "name": "@scada3d/simulation",
-  "version": "0.1.0",
+  "name": "@sakibcoolz/simulation",
+  "version": "0.1.1",
   "description": "Optional deterministic mass-balance simulation for @scada3d scenes; results are always SIMULATED.",
   "license": "MIT",
   "author": "sakibcoolz",
@@ -37,8 +37,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@scada3d/core": "workspace:*",
-    "@scada3d/components": "workspace:*"
+    "@sakibcoolz/core": "workspace:*",
+    "@sakibcoolz/components": "workspace:*"
   },
   "exports": {
     ".": "./src/index.ts"

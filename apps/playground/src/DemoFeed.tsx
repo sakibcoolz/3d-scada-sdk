@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { DataProvider, Observation, Quality, ScadaScene, ValueSource } from '@scada3d/core';
+import type { DataProvider, Observation, Quality, ScadaScene, ValueSource } from '@sakibcoolz/core';
 
 /**
  * Stands in for a host application's data feed, delivered through a `DataProvider`: one row per
