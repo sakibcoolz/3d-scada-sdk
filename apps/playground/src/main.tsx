@@ -23,6 +23,8 @@ const defaultLocked = params.has('locked');
 const instancing = (['off', 'always'] as const).find((m) => m === params.get('instancing')) ?? 'auto';
 // `?joints=off` hides flanges, bolts and weld beads (ADR-0015).
 const joints = params.get('joints') !== 'off';
+// `?floor=off` starts without the floor slab (T-061).
+const floorDefault = params.get('floor') !== 'off';
 
 // `?demo` opens the MVP demo network, validated like any imported scene, with a demo tag feed.
 function initialScene(): ScadaScene | undefined {
@@ -43,6 +45,7 @@ function App() {
   const simulation = useSimulation(scene, simulate, simulateModel);
   const [mounted, setMounted] = useState(true);
   const [second, setSecond] = useState(false);
+  const [floor, setFloor] = useState(floorDefault);
   const editor = useRef<ScadaHandle>(null);
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -54,6 +57,7 @@ function App() {
       <div style={{ display: 'flex', gap: 14, padding: '4px 20px', background: '#0f1d2c', color: '#ebf2fa', fontFamily: 'system-ui', fontSize: 12 }}>
         <label><input type="checkbox" aria-label="Mount editor" checked={mounted} onChange={(e) => setMounted(e.target.checked)} /> Mount editor</label>
         <label><input type="checkbox" aria-label="Second viewer" checked={second} onChange={(e) => setSecond(e.target.checked)} /> Second viewer</label>
+        <label><input type="checkbox" aria-label="Floor" checked={floor} onChange={(e) => setFloor(e.target.checked)} /> Floor</label>
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         {mounted && (
@@ -70,12 +74,13 @@ function App() {
             defaultLocked={defaultLocked}
             instancing={instancing}
             joints={joints}
+            floor={floor}
           />
         )}
       </div>
       {second && (
         <div style={{ height: 220, borderTop: '1px solid #3c5366' }}>
-          <Scada3DViewer scene={scene} telemetry={demo ? telemetry : undefined} viewMode="glass" />
+          <Scada3DViewer scene={scene} telemetry={demo ? telemetry : undefined} viewMode="glass" floor={floor} />
         </div>
       )}
     </div>

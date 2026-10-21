@@ -21,6 +21,7 @@ import { nudge } from './keyboard.js';
 import { degreesFromRotation, rotationFromDegrees, turnAboutWorldAxis } from './rotationForm.js';
 import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance.js';
 import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, pathLengths, pointAtInto, summarizeFlow } from './flowVisual.js';
+import { FLOOR_THICKNESS, floorSlab } from './floor.js';
 
 // Public API of @sakibcoolz/react: the two components, their prop/handle types and scene import helpers.
 // Editor internals (drop planning, history, visual helpers) stay private. See docs/API.md.
@@ -278,6 +279,15 @@ function useSharedGeometries(definition: ReturnType<typeof definitionFor>): Buff
     };
   }, [definition, geometries]);
   return geometries;
+}
+
+/** The floor slab: its top sits just under y = 0 so the grid and underlay draw on it. Clicks pass through. */
+function Floor({ scene }: { scene: ScadaScene }) {
+  const slab = useMemo(() => floorSlab(scene), [scene]);
+  return <mesh position={[slab.centre.x, -0.004 - FLOOR_THICKNESS / 2, slab.centre.z]} userData={{ role: 'floor' }} raycast={() => null}>
+    <boxGeometry args={[slab.width, FLOOR_THICKNESS, slab.depth]}/>
+    <meshStandardMaterial color="#3b4a59" roughness={0.95} metalness={0}/>
+  </mesh>;
 }
 
 /** Longest side of the underlay texture, pixels. */
@@ -600,7 +610,7 @@ export type TransformHandler = (id: string, position: Vector3Like, rotation: Qua
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',joints=true,ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;/** Clicked component; `additive` is true when Shift was held (the editor attaches). */onSelect?:SelectHandler;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Draw flanges, bolts and weld beads at joints (ADR-0015). Default true. */joints?:boolean;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',joints=true,floor=false,ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;/** Clicked component; `additive` is true when Shift was held (the editor attaches). */onSelect?:SelectHandler;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Draw flanges, bolts and weld beads at joints (ADR-0015). Default true. */joints?:boolean;/** Draw a concrete floor slab under the equipment. Display only. Default false. */floor?:boolean;ref?:React.Ref<ScadaHandle>}) {
   const telemetry = useTelemetryFeed(telemetryInput, ref);
   const collision = useMemo(() => (collisions ? findCollisions(scene, { resolveBounds }) : undefined), [scene, collisions]);
   const previewCollides = useMemo(() => !!(collisions && preview && collidingWith({ ...scene, components: [...scene.components, preview.component] }, preview.component.id).length), [scene, preview, collisions]);
@@ -668,6 +678,7 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   <p id={descriptionId} style={visuallyHidden}>{count(scene.components.length, 'component')}, {count(scene.connections.length, 'connection')}.</p>
   <Canvas camera={{position:[7,6,9],fov:50}} onCreated={({gl})=>{gl.localClippingEnabled=true;}} style={{background:'#101d2d',width:'100%',height:'100%'}}>
     <ambientLight intensity={1.4}/><directionalLight position={[5,10,8]} intensity={2}/>
+    {floor&&<Floor scene={scene}/>}
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
     {scene.underlay&&<Underlay underlay={scene.underlay}/>}
     {instanced.length>0&&<InstancedEquipment components={instanced} unknown={unknownByComponent} onSelect={onSelect}/>}
@@ -1019,7 +1030,7 @@ function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
-export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',joints=true,locked,defaultLocked=false,onLockedChange,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Draw flanges, bolts and weld beads at joints (ADR-0015). Default true. */joints?:boolean;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',joints=true,floor=false,locked,defaultLocked=false,onLockedChange,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Draw flanges, bolts and weld beads at joints (ADR-0015). Default true. */joints?:boolean;/** Draw a concrete floor slab under the equipment. Display only. Default false. */floor?:boolean;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;ref?:React.Ref<ScadaHandle>}) {
   // The editor owns the feed; the viewer below only receives the merged observations.
   const telemetry=useTelemetryFeed(telemetryInput,ref);
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
@@ -1256,7 +1267,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     <main onDragOver={e=>{if(!dragKind.current||isLocked)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={select} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} simulation={simulation} collisions={collisions} openJoints={openJoints} instancing={instancing} joints={joints}/>
+      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={select} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} simulation={simulation} collisions={collisions} openJoints={openJoints} instancing={instancing} joints={joints} floor={floor}/>
       {isLocked&&<div style={{position:'absolute',bottom:10,right:110,padding:'4px 10px',borderRadius:4,background:'#0b1725e6',border:'1px solid #ffd166',color:'#ffd166',fontSize:12,pointerEvents:'none'}}>🔒 Editing locked</div>}
       {notice.length>0&&<ConnectionNotice lines={notice} onDismiss={()=>setNotice([])}/>}
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene)+previewOverlap:''}</div>
