@@ -1192,3 +1192,31 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited (owner direction).
 - Status: T-054 REVIEW in #56.
+
+## 2026-10-21 — T-058 Open source under MIT, publish and tag (ADR-0019)
+- Branch: `chore/T-058-open-source` from `feat/T-053-tank-dimensions`. #56 had merged into that branch rather than `develop`; `origin/develop` is merged in, so this PR also brings T-054/T-055 to `develop`. Graphify was not used.
+- Owner answers:
+  - MIT;
+  - publish the history as is;
+  - version tag and release, GitHub topics, and npm;
+  - make the repository public once this is merged.
+- Pre-publication scan of all 123 commits: no tokens, keys, passwords, private network addresses or home paths. The author email in 53 commits stays public (owner choice).
+- Changes:
+  - MIT `LICENSE` at the root and in every package;
+  - package metadata: `license`, `author`, `repository`, `homepage`, `bugs`, `keywords`, `engines` and `publishConfig.access: public`; `private` removed from the five SDK packages;
+  - a README in each package;
+  - `CONTRIBUTING.md` and `SECURITY.md`;
+  - README (licence and install) and RELEASE (publish procedure);
+  - ADR-0019 and DECISION_LOG;
+  - backlog: T-053, T-054 and T-055 DONE; T-058 REVIEW.
+- npm: this machine is not logged in (`npm whoami` gives ENEEDAUTH). Publishing waits for the owner's `npm login` and a `scada3d` npm organisation. None of the `@scada3d/*` names exist on npm yet.
+- Verification (Node v22.23.2, pnpm 9.15.4), with exit codes:
+  - `pnpm install --frozen-lockfile` 0.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1234 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (118 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - `pnpm -r publish --access public --no-git-checks --dry-run` 0: five packages, no tests, fixtures or benchmarks; README and LICENSE in each; MIT; `workspace:*` rewritten to 0.1.0.
+  - GitHub Actions CI not awaited (owner direction).

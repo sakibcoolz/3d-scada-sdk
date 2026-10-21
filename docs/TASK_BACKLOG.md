@@ -52,11 +52,12 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-050 | M7 (post-MVP) | P1 | T-045 | DONE | ASME phase 1 (ADR-0014): `asme` table (B36.10M OD/Sch 40, B16.9 LR elbow, equal tee, concentric reducer), fittings rebuilt to it, DN150 at 168.3 mm, `upgradeDimensions` re-seats older files on load, hydraulic lengths from geometry; values to be verified against the standard |
 | T-051 | M7 (post-MVP) | P1 | T-050 | DONE | ASME phase 2: flanged joints (B16.5 Class 150 flange pairs with bolts) on valves, pumps and tank nozzles; butt-weld beads on pipe-to-fitting joints; routed-run bends at 1.5D per size |
 | T-052 | M7 (post-MVP) | P1 | T-051 | DONE | ASME phase 3: valve face-to-face per B16.10, flanged pump and tank nozzles, with `upgradeDimensions` for older files |
-| T-053 | M7 (post-MVP) | P1 | T-052 | REVIEW | Tank family 1 (owner image): vertical tank `diameter`/`height` parameters with Large/Small/Short palette presets, `head` flat or dished, capacity on the name plate (L, m³, US gal), simulation volume from the shape |
-| T-054 | M7 (post-MVP) | P2 | T-053 | REVIEW | Tank family 2: horizontal tank with dished ends, on saddles or a stand, sized by diameter/length, partial-cylinder volume |
-| T-055 | M7 (post-MVP) | P2 | T-053 | REVIEW | Tank family 3: spherical tank on legs, sized by diameter, spherical-cap volume |
+| T-053 | M7 (post-MVP) | P1 | T-052 | DONE | Tank family 1 (owner image): vertical tank `diameter`/`height` parameters with Large/Small/Short palette presets, `head` flat or dished, capacity on the name plate (L, m³, US gal), simulation volume from the shape |
+| T-054 | M7 (post-MVP) | P2 | T-053 | DONE | Tank family 2: horizontal tank with dished ends, on saddles or a stand, sized by diameter/length, partial-cylinder volume |
+| T-055 | M7 (post-MVP) | P2 | T-053 | DONE | Tank family 3: spherical tank on legs, sized by diameter, spherical-cap volume |
 | T-056 | M7 (post-MVP) | P2 | T-053 | TODO | Tank family 4: elevated tank on a lattice tower (the open pool was delivered with T-054/T-055, ADR-0018) |
 | T-057 | M7 (post-MVP) | P3 | T-053 | TODO | High-performance HMI view mode: flat grey vessels with a blue level fill (owner: later) |
+| T-058 | Release | P0 | T-024 | REVIEW | Open source (ADR-0019): MIT licence everywhere, public package metadata and READMEs, CONTRIBUTING/SECURITY, v0.1.0 tag and GitHub Release, repository topics, public repository, npm publish of `@scada3d/*` (needs owner `npm login`) |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.

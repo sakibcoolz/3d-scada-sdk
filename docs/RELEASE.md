@@ -1,6 +1,6 @@
 # Release packaging and consumer verification (T-024)
 
-The three SDK packages ship as compiled ES modules with type declarations. They are **not published** to any registry: releases are verified and handed over as tarballs. Licence: proprietary (`UNLICENSED`, see `LICENSE`).
+The SDK packages ship as compiled ES modules with type declarations and are published to npm as public `@scada3d/*` packages (T-058, ADR-0019). Licence: MIT (see `LICENSE`, copied into every package).
 
 ## What a package contains
 | Package | Depends on | Tarball contents |
@@ -52,7 +52,17 @@ Licences of everything installed in the consumer app (2026-10-15):
 - **Tank family (T-053 to T-056, ADR-0017, ADR-0018):** new kinds `horizontalTank`, `sphericalTank` and `pool`; files using them need this SDK version. `vesselOf(type, properties?)` follows each tank's dimensions; existing calls without properties still give the default shape.
 - **ASME valves and nozzles (T-052, ADR-0016):** the ball valve is now its B16.10 face-to-face (DN150: 267 mm instead of 1.2 m), so its ports moved. The same `upgradeDimensions` call closes up older files, including those saved after T-050. Tanks take `nozzleSize` and the pump `suctionSize`/`dischargeSize` (absent = DN150, nothing changes). `HYDRAULIC.lengths` was removed; valve flow length comes from geometry. The editor's import message now reads "Updated N parts to ASME dimensions."
 
+## Publish (T-058, ADR-0019)
+1. All checks green on `develop`, including `pnpm verify:consumer` and `pnpm test:consumer`.
+2. `git tag -a vX.Y.Z` on `develop`, push the tag, and create the GitHub Release with the packed tarballs attached.
+3. `npm login` (the publishing account must belong to the `scada3d` npm organisation), then from the repository root:
+
+   ```sh
+   pnpm -r publish --access public --no-git-checks --dry-run   # check contents first
+   pnpm -r publish --access public --no-git-checks
+   ```
+   pnpm publishes in dependency order and rewrites `workspace:*` to the exact version, as `pnpm pack` does.
+
 ## Not done here
-- Publishing to npm or a private registry needs a separate owner decision.
 - Semantic-version policy and changelog.
 - CommonJS builds: ESM only.
