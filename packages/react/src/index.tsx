@@ -2,7 +2,7 @@ import React, { useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo,
 import { CanvasTexture, Color, DoubleSide, LatheGeometry, Vector2, Matrix4, MeshStandardMaterial, Plane, Quaternion, SphereGeometry, SRGBColorSpace, Vector3, type BufferGeometry, type Camera, type WebGLRenderer, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, attachComponents, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentType, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type SceneViews, type Vector3Tuple } from '@sakibcoolz/core';
+import { addAssociation, connect as connectPorts, disconnect as disconnectEdge, removeAssociation, type Relationship, type SceneConnection, assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, attachComponents, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentType, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type SceneViews, type Vector3Tuple } from '@sakibcoolz/core';
 import { builtInRegistry, componentPresets, flangePairParts, flangeParts, isChoiceParameter, liquidProfile, weldParts, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type ComponentRegistry, type GeometryPart, type IndustrialComponentDefinition, type NumberParameterSpec } from '@sakibcoolz/components';
 import { RegistryContext, useRegistry } from './registryContext.js';
 import { createEquipmentGeometries, createJointPartGeometry, createRouteGeometry, disposeGeometries } from './geometry.js';
@@ -22,6 +22,7 @@ import { describeProperty, summarizeTelemetry } from './telemetryView.js';
 import { PortsInspector, RelationsExplorer } from './inspector.js';
 import { describePorts } from './ports.js';
 import { describeRelations } from './relations.js';
+import { wiringCandidates } from './wiring.js';
 import { nudge } from './keyboard.js';
 import { degreesFromRotation, rotationFromDegrees, turnAboutWorldAxis } from './rotationForm.js';
 import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance.js';
@@ -1401,6 +1402,22 @@ function EditorBody({initialScene,onChange,selectedIds,onSelectionChange,flow,te
   const now=useNow(1000);
   const live=useTelemetry(scene,telemetry,now,registry);
   /** Sets or clears the tag for one target; each committed edit is its own undo step. */
+  /** Wiring and association edits (ADR-0027): core validates; a refusal becomes a notice, never a change. */
+  function edgeResult(result:{ok:true;scene:ScadaScene}|{ok:false;error:{message:string}},refusal:string){
+    if(result.ok) update(result.scene);
+    else setNotice([`${refusal}: ${result.error.message}`]);
+  }
+  /** A wire's relationship and properties, validated as on load before it is committed. */
+  function editConnection(id:string,changes:{relationship?:Relationship;properties?:SceneConnection['properties']}){
+    const connections=scene.connections.map(c=>{
+      if(c.id!==id) return c;
+      const {relationship:_r,properties:_p,...rest}=c;
+      return {...rest,...(changes.relationship?{relationship:changes.relationship}:{}),...(changes.properties?{properties:changes.properties}:{})};
+    });
+    const result=validateScene({...scene,connections},registry.resolvers);
+    if(result.ok) update({...scene,connections});
+    else setNotice([`Cannot change the connection: ${result.errors[0].message}`]);
+  }
   function setBinding(match:(b:TagBinding)=>boolean, make:(tagId:string)=>TagBinding, tagId:string){
     const others=(scene.tagBindings??[]).filter(b=>!match(b));
     const tag=tagId.trim();
@@ -1483,8 +1500,17 @@ function EditorBody({initialScene,onChange,selectedIds,onSelectionChange,flow,te
           <SeatControls component={component} scene={scene} onSeat={connectionId=>{const r=seatOnConnection(scene,connectionId,component.id,registry.resolvers);if(r.ok){update(r.scene);setNotice([describeSeat(scene,connectionId,component.id,r.moved,registry)]);}}}/>
         </>,isLocked)}
         {/* Read only, so open while locked too (ADR-0027). */}
-        {section('Ports',<PortsInspector rows={describePorts(scene,component.id,registry)} onGo={setSelected}/>)}
-        {section('Related',<RelationsExplorer relations={describeRelations(scene,component.id,registry)} onGo={setSelected}/>)}
+        {section('Ports',<PortsInspector key={component.id} rows={describePorts(scene,component.id,registry)} onGo={setSelected} editing={isLocked?undefined:{
+          candidates:portId=>wiringCandidates(scene,component.id,portId,registry),
+          onWire:(portId,to)=>edgeResult(connectPorts(scene,{id:newId(),from:{instanceId:component.id,portId},to:{instanceId:to.componentId,portId:to.portId}},registry.resolvers),'Cannot wire'),
+          onDisconnect:id=>edgeResult(disconnectEdge(scene,id),'Cannot disconnect'),
+          onEditConnection:editConnection,
+        }}/>)}
+        {section('Related',<RelationsExplorer key={component.id} relations={describeRelations(scene,component.id,registry)} onGo={setSelected} editing={isLocked?undefined:{
+          others:scene.components.filter(c=>c.id!==component.id).map(c=>({id:c.id,label:c.name??c.id})),
+          onAdd:(relationship,to)=>edgeResult(addAssociation(scene,{id:newId(),relationship,from:component.id,to},registry.resolvers),'Cannot add the relationship'),
+          onRemove:id=>edgeResult(removeAssociation(scene,id),'Cannot remove the relationship'),
+        }}/>)}
         {hasBindings(component)&&section('Tag bindings',<BindingsEditor component={component} scene={scene} live={live?.properties} onSet={setBinding}/>,isLocked)}
         {section('View',<label className="s3-stack">Component view <select aria-label="Component view" value={viewOverrides[component.id]??''} onChange={e=>{const value=e.target.value as ViewMode|'';setViewOverrides(({[component.id]:_,...rest})=>value?{...rest,[component.id]:value}:rest);}}><option value="">Use global</option>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>)}
         {section('Actions',<>
