@@ -1986,3 +1986,23 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-088: wiring and relationships in the editor (Phase 8b, ADR-0027)
+- Owner merged #89 (T-087). Branch `feat/T-088-wiring` from `origin/develop`.
+- Change:
+  - **react:** new `wiring.ts` (`wiringCandidates`, `parsePropertyValue`);
+  - the Ports section gains "Wire…" with a picker that gives reasons, plus "Details" (relationship and properties) and "Disconnect";
+  - the Related section gains adding and removing relationships;
+  - editor handlers go through core `connect`, `disconnect`, `addAssociation`, `removeAssociation` and `validateScene`, with refusals shown as notices;
+  - port rows carry `wired`, wire relationship and properties; association entries carry their ID.
+- Found in e2e: the picker stayed open across a change of selection, so the sections are now keyed by component.
+- Tests: `wiring.test.ts` (4); e2e `wiring.spec.ts` (3).
+- Docs: ADR-0027 T-088 notes; API.md; backlog T-087 DONE, T-088 REVIEW; plan Phase 8 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1611 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (153 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

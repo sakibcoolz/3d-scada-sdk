@@ -1,4 +1,4 @@
-import { portCapacity, type ConnectionPort, type PortFlow, type PortKind, type ScadaScene } from '@sakibcoolz/core';
+import { matesPhysically, portCapacity, type ConnectionPort, type PortFlow, type PortKind, type Relationship, type ScadaScene, type SceneConnection } from '@sakibcoolz/core';
 import { builtInRegistry, type ComponentRegistry } from '@sakibcoolz/components';
 
 // The port and terminal inspector's model (ADR-0027, T-087): one row per port of a component, with its
@@ -12,6 +12,8 @@ export interface PortJoin {
   componentLabel: string;
   portId: string;
   terminal?: string;
+  relationship?: Relationship;
+  properties?: SceneConnection['properties'];
 }
 
 export interface PortRow {
@@ -23,6 +25,8 @@ export interface PortRow {
   rating: string;
   used: number;
   capacity: number;
+  /** Power, signal or network: joined by wiring rather than by mating parts (ADR-0023). */
+  wired: boolean;
   joins: PortJoin[];
 }
 
@@ -72,6 +76,8 @@ export function describePorts(scene: ScadaScene, componentId: string, registry: 
           componentLabel: otherComponent?.name ?? other.instanceId,
           portId: other.portId,
           ...(otherPort?.terminal ? { terminal: otherPort.terminal } : {}),
+          ...(c.relationship ? { relationship: c.relationship } : {}),
+          ...(c.properties ? { properties: c.properties } : {}),
         });
       }
     }
@@ -83,6 +89,7 @@ export function describePorts(scene: ScadaScene, componentId: string, registry: 
       rating: describeRating(port),
       used: joins.length,
       capacity: portCapacity(port),
+      wired: !matesPhysically(port),
       joins,
     };
   });

@@ -1,6 +1,6 @@
 # ADR-0027: Editing ports, wiring, tags and relationships
 
-Status: Accepted (owner, 2026-10-23: wiring through a picker in the Properties panel, the tag editor as a dialog, and connection properties as a key and value list); T-087 implemented, T-088..T-089 pending. M9 Phase 8 of docs/INDUSTRIAL_SDK_PLAN.md (§9), tasks T-087..T-089.
+Status: Accepted (owner, 2026-10-23: wiring through a picker in the Properties panel, the tag editor as a dialog, and connection properties as a key and value list); T-087..T-088 implemented, T-089 pending. M9 Phase 8 of docs/INDUSTRIAL_SDK_PLAN.md (§9), tasks T-087..T-089.
 
 ## Context
 The document can now describe a whole control line:
@@ -125,3 +125,28 @@ But the editor can only **place** parts, join pipes by snapping, and bind a tag 
   - I/O modules sit in the panel with no modelled backplane, so the chain reaches the PLC through the `controls` association.
 - **Read only:** both sections stay open while editing is locked.
 - **Tests:** `inspector.test.ts` (6) and e2e `inspector.spec.ts` (2).
+
+## Implementation notes (T-088)
+- **`wiring.ts` (pure):**
+  - `wiringCandidates(scene, componentId, portId, registry)` lists ports of the **same kind** on other components, choosable ones first, each with a rating and, if refused, a reason:
+    - "already wired to this port";
+    - else `checkPorts`'s reason (for example "400 V cannot connect to 230 V", "protective earth connects only to protective earth");
+    - else "already has N connections, its maximum".
+  - Undefined for pipes and shafts (`matesPhysically`) and for unknown ports.
+  - Every choosable candidate is accepted by core's `connect`, which a test checks.
+  - `parsePropertyValue` reads a typed value as a finite number, `true`/`false`, else the text.
+- **Ports section (unlocked only):**
+  - "Wire…" on a wired port with free capacity opens a picker with a component filter. Refused entries are disabled, with their reason below them.
+  - Each wire has "Details" (relationship select, and a property name and value list) and "Disconnect".
+- **Related section (unlocked only):**
+  - "Add relationship" (a built-in relationship and a target component);
+  - × removes an association, so association entries carry their ID.
+- **Editor:**
+  - wiring uses core `connect` and `disconnect`, associations use `addAssociation` and `removeAssociation`, and wire details are validated with `validateScene` before commit;
+  - a refusal becomes the connection notice ("Cannot wire: …", "Cannot change the connection: …"), never a change;
+  - every success is one undo step.
+- **Fixed in testing:** an open picker stayed open while switching to another component. The sections are now keyed by component ID.
+- **Tests:** `wiring.test.ts` (4) and e2e `wiring.spec.ts` (3):
+  - the 230 V motor refused with its reason, then wired at 400 V, the electrical diagram redrawn, undo and redo;
+  - DO0 to the drive's run input, with the relationship and cable properties, a credential-like name refused, and disconnect;
+  - a relationship added, the duplicate refused, removal, and nothing offered while locked.

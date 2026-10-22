@@ -154,6 +154,13 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Editor: wiring and relationships (T-088, ADR-0027)
+- **Wiring:** in the Ports section, "Wire…" opens a picker of same-kind ports on other components. Incompatible or full ports are disabled with the reason. Choosing one uses core `connect`.
+- **Wire edits:** each wire has "Details" (relationship, and properties such as cable or length, validated as on load) and "Disconnect".
+- **Relationships:** the Related section adds associations (relationship plus component) and removes them.
+- **Locking:** every edit is one undo step and is hidden while editing is locked. Refusals appear as the connection notice.
+- **Public API:** no change.
+
 ## Editor: ports and relations (T-087, ADR-0027)
 - **Ports section:** the Properties panel lists each port of the selected component: terminal, ratings, connections used out of the maximum, and what each connection joins, with a link to select it.
 - **Related section:** neighbours grouped by pipes, power, signal, network and associations both ways, plus the upstream control chain. It uses explicit edges only and is readable while locked.

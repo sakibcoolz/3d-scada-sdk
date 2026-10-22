@@ -9,6 +9,8 @@ export interface RelatedComponent {
   id: string;
   /** Name, else id. Display text only. */
   label: string;
+  /** In an association group: the association, so it can be removed. */
+  associationId?: string;
 }
 
 export interface RelationGroup {
@@ -62,7 +64,7 @@ export function describeRelations(scene: ScadaScene, componentId: string, regist
 
   /** Neighbours of `id`: group key and label, and whether the neighbour acts on `id` (for the chain). */
   const around = (id: string) => {
-    const found: { key: string; label: string; other: string; upstream: boolean }[] = [];
+    const found: { key: string; label: string; other: string; upstream: boolean; associationId?: string }[] = [];
     for (const c of scene.connections) {
       for (const [self, other] of [[c.from, c.to], [c.to, c.from]] as const) {
         if (self.instanceId !== id) continue;
@@ -83,8 +85,8 @@ export function describeRelations(scene: ScadaScene, componentId: string, regist
       }
     }
     for (const a of scene.associations ?? []) {
-      if (a.from === id) found.push({ key: `association:${a.relationship}:out`, label: active(a.relationship), other: a.to, upstream: false });
-      if (a.to === id) found.push({ key: `association:${a.relationship}:in`, label: reverse(a.relationship), other: a.from, upstream: UPSTREAM.includes(a.relationship) });
+      if (a.from === id) found.push({ key: `association:${a.relationship}:out`, label: active(a.relationship), other: a.to, upstream: false, associationId: a.id });
+      if (a.to === id) found.push({ key: `association:${a.relationship}:in`, label: reverse(a.relationship), other: a.from, upstream: UPSTREAM.includes(a.relationship), associationId: a.id });
     }
     return found;
   };
@@ -93,7 +95,7 @@ export function describeRelations(scene: ScadaScene, componentId: string, regist
   for (const f of around(componentId)) {
     let group = groups.find((g) => g.key === f.key);
     if (!group) groups.push((group = { key: f.key, label: f.label, components: [] }));
-    if (!group.components.some((c) => c.id === f.other)) group.components.push(label(f.other));
+    if (!group.components.some((c) => c.id === f.other)) group.components.push({ ...label(f.other), ...(f.associationId ? { associationId: f.associationId } : {}) });
   }
 
   const seen = new Set([componentId]);

@@ -86,8 +86,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-084 | M9 (industrial model) | P0 | T-083 | DONE | Phase 7b (ADR-0026): `@sakibcoolz/views-2d` package, process symbols, `layoutView` and routes, `<ProcessView>` with selection, pan/zoom, live values and drag-to-place |
 | T-085 | M9 (industrial model) | P0 | T-084 | DONE | Phase 7c (ADR-0026): electrical symbols and `<ElectricalView>`; host `symbol2D`/`electricalSymbol`, sanitized at registration |
 | T-086 | M9 (industrial model) | P1 | T-085 | DONE | Phase 7d (ADR-0026): controlled selection in the editor, `<ScadaWorkspace>` split layout, playground `?control&layout=split`, e2e selection sync, layout round trip and 1,000-component budget |
-| T-087 | M9 (industrial model) | P0 | T-086 | REVIEW | Phase 8a (ADR-0027): port and terminal inspector and relationship explorer in the editor's Properties panel (`describePorts`, `describeRelations`) |
-| T-088 | M9 (industrial model) | P0 | T-087 | TODO | Phase 8b (ADR-0027): wiring picker with compatibility reasons, disconnect, connection relationship and properties, add and remove associations |
+| T-087 | M9 (industrial model) | P0 | T-086 | DONE | Phase 8a (ADR-0027): port and terminal inspector and relationship explorer in the editor's Properties panel (`describePorts`, `describeRelations`) |
+| T-088 | M9 (industrial model) | P0 | T-087 | REVIEW | Phase 8b (ADR-0027): wiring picker with compatibility reasons, disconnect, connection relationship and properties, add and remove associations |
 | T-089 | M9 (industrial model) | P1 | T-088 | TODO | Phase 8c (ADR-0027): tag and variable editor dialog (data sources, protocol address forms, scaling, inline errors, suggestions, review, binding datalists) |
 
 ## Release-path change (owner-approved 2026-10-15)
