@@ -22,6 +22,12 @@ import {
   type ScadaScene,
   type TagBinding,
   type SceneAssociation,
+  type SceneDataSource,
+  type RuntimeVariable,
+  type VariableAddress,
+  dataTypes,
+  modbusAreas,
+  protocols,
   type SceneConnection,
   type Vector3Tuple,
 } from './scene.js';
@@ -55,7 +61,11 @@ export type SceneValidationErrorCode =
   | 'UNKNOWN_PARENT'
   | 'PARENT_CYCLE'
   | 'INVALID_UNDERLAY'
-  | 'SECRET_FIELD';
+  | 'SECRET_FIELD'
+  | 'DUPLICATE_DATA_SOURCE_ID'
+  | 'DUPLICATE_VARIABLE_ID'
+  | 'UNKNOWN_DATA_SOURCE'
+  | 'INVALID_ADDRESS';
 
 export interface SceneValidationError {
   code: SceneValidationErrorCode;
@@ -74,6 +84,9 @@ export interface SceneLimits {
   maxConnections: number;
   /** Port-less associations (ADR-0023), counted separately from connections. */
   maxAssociations: number;
+  /** Acquisition sources and runtime variables (ADR-0024). */
+  maxDataSources: number;
+  maxVariables: number;
   maxBindings: number;
   maxIdLength: number;
   maxProperties: number;
@@ -86,6 +99,8 @@ export const defaultSceneLimits: Readonly<SceneLimits> = {
   maxComponents: 10_000,
   maxConnections: 20_000,
   maxAssociations: 20_000,
+  maxDataSources: 1_000,
+  maxVariables: 20_000,
   maxBindings: 20_000,
   maxIdLength: 128,
   maxProperties: 64,
@@ -94,6 +109,11 @@ export const defaultSceneLimits: Readonly<SceneLimits> = {
 };
 
 export interface SceneValidationOptions {
+  /**
+   * Checks the address of a runtime variable on a host's own (namespaced) protocol (ADR-0024) and
+   * returns its problems as sentences. Without it, such addresses are accepted as plain JSON.
+   */
+  validateAddress?: (protocol: string, address: JsonValue) => string[];
   /**
    * Declared ports for a component type. Core does not import the catalog, so the caller supplies it.
    * `properties` lets parametric types (e.g. pipe length) return per-instance ports.
@@ -131,7 +151,7 @@ const sceneKeys: Record<SchemaVersion, string[]> = {
   1: ['version', 'components', 'connections'],
   2: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings'],
   3: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings', 'underlay'],
-  4: ['schemaVersion', 'documentType', 'units', 'project', 'components', 'connections', 'associations', 'tagBindings', 'underlay', 'extensions'],
+  4: ['schemaVersion', 'documentType', 'units', 'project', 'components', 'connections', 'associations', 'dataSources', 'runtimeVariables', 'tagBindings', 'underlay', 'extensions'],
 };
 const projectKeys = ['id', 'name', 'revision', 'description'];
 const underlayKeys = ['svg', 'position', 'width', 'rotation', 'opacity'];
@@ -163,6 +183,17 @@ const connectionKeys: Record<SchemaVersion, string[]> = {
   4: ['id', 'domain', 'relationship', 'from', 'to', 'properties'],
 };
 const associationKeys = ['id', 'relationship', 'from', 'to', 'properties'];
+const dataSourceKeys = ['id', 'name', 'protocol', 'deviceId', 'endpointRef', 'properties'];
+const variableKeys = ['id', 'name', 'componentId', 'dataType', 'unit', 'access', 'source', 'scaling'];
+const variableSourceKeys = ['dataSourceId', 'variable', 'address'];
+const scalingKeys = ['kind', 'rawMin', 'rawMax', 'min', 'max'];
+const opcUaKeys = ['nodeId', 'namespaceUri'];
+const modbusKeys = ['area', 'address', 'unitId', 'byteOrder', 'wordOrder', 'bit'];
+/** Registers a Modbus value spans (ADR-0024); `string` is not addressable in Modbus. */
+const MODBUS_REGISTERS: Partial<Record<RuntimeVariable['dataType'], number>> = { bool: 1, int16: 1, uint16: 1, int32: 2, uint32: 2, float32: 2, float64: 4 };
+/** `scheme://user:password@host`: an endpoint carrying credentials. */
+const URL_WITH_USER_INFO = /^[a-z][a-z0-9+.-]*:\/\/[^/?#]*@/i;
+const MAX_UNIT_LENGTH = 32;
 const bindingKeys = {
   property: ['id', 'tagId', 'kind', 'instanceId', 'property', 'unit'],
   flow: ['id', 'tagId', 'kind', 'connectionId', 'unit'],
@@ -578,6 +609,168 @@ function readAssociation(value: unknown, path: string, limits: SceneLimits, erro
   return { id, relationship: value.relationship as SceneAssociation['relationship'], from, to, ...(properties ? { properties } : {}) };
 }
 
+function readDataSource(value: unknown, path: string, limits: SceneLimits, errors: Errors): SceneDataSource | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a data source object.' });
+    return undefined;
+  }
+  const before = errors.length;
+  checkKeys(value, dataSourceKeys, path, errors);
+  const id = readId(value.id, `${path}.id`, limits, errors);
+  const source: Partial<SceneDataSource> = {};
+  if (value.name !== undefined) source.name = readText(value.name, `${path}.name`, limits, errors);
+  if ((protocols as readonly unknown[]).includes(value.protocol) || isNamespacedType(value.protocol)) source.protocol = value.protocol as string;
+  else errors.push({ code: 'INVALID_FIELD', path: `${path}.protocol`, message: `Unknown protocol ${describe(value.protocol)}; expected one of ${protocols.join(', ')}, or a namespaced name such as "com.vendor.bus".` });
+  if (value.deviceId !== undefined) source.deviceId = readId(value.deviceId, `${path}.deviceId`, limits, errors);
+  if (value.endpointRef !== undefined) {
+    const ref = readText(value.endpointRef, `${path}.endpointRef`, limits, errors);
+    if (ref !== undefined && URL_WITH_USER_INFO.test(ref)) {
+      errors.push({ code: 'SECRET_FIELD', path: `${path}.endpointRef`, message: 'The endpoint carries a user name or password; store a reference the host resolves instead.' });
+    } else if (ref !== undefined) source.endpointRef = ref;
+  }
+  if (value.properties !== undefined) source.properties = readEdgeProperties(value.properties, `${path}.properties`, limits, errors);
+  if (errors.length > before || !id) return undefined;
+  return { id, ...source } as SceneDataSource;
+}
+
+function readFinite(value: unknown, path: string, errors: Errors): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return plusZero(value);
+  errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a finite number.' });
+  return undefined;
+}
+
+/** Reads a variable; its address stays plain JSON here and is checked against its source's protocol in `checkAcquisition`. */
+function readVariable(value: unknown, path: string, limits: SceneLimits, errors: Errors, budget: { left: number }): RuntimeVariable | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a runtime variable object.' });
+    return undefined;
+  }
+  const before = errors.length;
+  checkKeys(value, variableKeys, path, errors);
+  const id = readId(value.id, `${path}.id`, limits, errors);
+  const variable: Partial<RuntimeVariable> = {};
+  if (value.name !== undefined) variable.name = readText(value.name, `${path}.name`, limits, errors);
+  if (value.componentId !== undefined) variable.componentId = readId(value.componentId, `${path}.componentId`, limits, errors);
+  if ((dataTypes as readonly unknown[]).includes(value.dataType)) variable.dataType = value.dataType as RuntimeVariable['dataType'];
+  else errors.push({ code: 'INVALID_FIELD', path: `${path}.dataType`, message: `Unknown data type ${describe(value.dataType)}; expected one of ${dataTypes.join(', ')}.` });
+  if (value.unit !== undefined) {
+    if (typeof value.unit === 'string' && value.unit.length <= MAX_UNIT_LENGTH) variable.unit = value.unit;
+    else errors.push({ code: 'INVALID_FIELD', path: `${path}.unit`, message: `Expected a unit of at most ${MAX_UNIT_LENGTH} characters.` });
+  }
+  if (value.access === 'read') variable.access = 'read';
+  else errors.push({ code: 'INVALID_FIELD', path: `${path}.access`, message: `Expected access "read"; writable variables wait for an approved command boundary (ADR-0024, D5).` });
+  if (value.source !== undefined) {
+    const s = value.source;
+    if (!isObject(s)) errors.push({ code: 'INVALID_FIELD', path: `${path}.source`, message: 'Expected a source object.' });
+    else {
+      checkKeys(s, variableSourceKeys, `${path}.source`, errors);
+      const dataSourceId = readId(s.dataSourceId, `${path}.source.dataSourceId`, limits, errors);
+      const name = s.variable !== undefined ? readText(s.variable, `${path}.source.variable`, limits, errors) : undefined;
+      let address: JsonValue | undefined;
+      if (s.address !== undefined) {
+        if (!isObject(s.address)) errors.push({ code: 'INVALID_ADDRESS', path: `${path}.source.address`, message: 'Expected an address object.' });
+        else address = readJson(s.address, `${path}.source.address`, 1, budget, limits, errors);
+      }
+      if (dataSourceId) variable.source = { dataSourceId, ...(name !== undefined ? { variable: name } : {}), ...(address !== undefined ? { address: address as VariableAddress } : {}) };
+    }
+  }
+  if (value.scaling !== undefined) {
+    const sc = value.scaling;
+    if (!isObject(sc)) errors.push({ code: 'INVALID_FIELD', path: `${path}.scaling`, message: 'Expected a scaling object.' });
+    else {
+      checkKeys(sc, scalingKeys, `${path}.scaling`, errors);
+      if (sc.kind !== 'linear') errors.push({ code: 'INVALID_FIELD', path: `${path}.scaling.kind`, message: 'Expected scaling kind "linear".' });
+      const [rawMin, rawMax, min, max] = (['rawMin', 'rawMax', 'min', 'max'] as const).map((k) => readFinite(sc[k], `${path}.scaling.${k}`, errors));
+      if (rawMin !== undefined && rawMax !== undefined && rawMin === rawMax) errors.push({ code: 'INVALID_FIELD', path: `${path}.scaling.rawMax`, message: 'rawMin and rawMax must differ.' });
+      if (rawMin !== undefined && rawMax !== undefined && min !== undefined && max !== undefined) variable.scaling = { kind: 'linear', rawMin, rawMax, min, max };
+    }
+  }
+  if (errors.length > before || !id) return undefined;
+  return { id, ...variable } as RuntimeVariable;
+}
+
+/** Keys anywhere in plain JSON that name a credential. */
+function secretKeys(value: JsonValue, path: string, errors: Errors): void {
+  if (Array.isArray(value)) value.forEach((v, i) => secretKeys(v, `${path}[${i}]`, errors));
+  else if (value !== null && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) {
+      if (isSecretKey(k)) errors.push({ code: 'SECRET_FIELD', path: `${path}.${k}`, message: `"${k}" looks like a credential; store a reference in the host instead.` });
+      else secretKeys(v, `${path}.${k}`, errors);
+    }
+  }
+}
+
+/** Address rules per protocol (ADR-0024); every problem is `INVALID_ADDRESS` at the field's path. */
+function checkAddress(protocol: string, variable: RuntimeVariable, path: string, options: SceneValidationOptions, errors: Errors): void {
+  const address = variable.source?.address as Record<string, JsonValue> | undefined;
+  const bad = (at: string, message: string): void => {
+    errors.push({ code: 'INVALID_ADDRESS', path: at ? `${path}.${at}` : path, message });
+  };
+  const isInt = (v: unknown, lo: number, hi: number): v is number => typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi;
+  if (protocol === 'host') {
+    if (address !== undefined) bad('', 'A host source reads by tag id or `variable`; it takes no address.');
+    return;
+  }
+  if (protocol === 'opcua' || protocol === 'modbus-tcp' || protocol === 'modbus-rtu') {
+    if (address === undefined) return bad('', `A ${protocol} source needs an address.`);
+    if (protocol === 'opcua') {
+      for (const key of Object.keys(address)) if (!opcUaKeys.includes(key)) bad(key, `Unknown OPC UA address field "${key}".`);
+      if (typeof address.nodeId !== 'string' || address.nodeId.length === 0) bad('nodeId', 'Expected a node id such as "ns=2;s=Line2.Speed".');
+      if (address.namespaceUri !== undefined && (typeof address.namespaceUri !== 'string' || address.namespaceUri.length === 0)) bad('namespaceUri', 'Expected a namespace URI.');
+      return;
+    }
+    for (const key of Object.keys(address)) if (!modbusKeys.includes(key)) bad(key, `Unknown Modbus address field "${key}".`);
+    const area = address.area;
+    if (!(modbusAreas as readonly unknown[]).includes(area)) return bad('area', `Expected an area: ${modbusAreas.join(', ')}.`);
+    if (!isInt(address.unitId, 0, 255)) bad('unitId', 'Expected a unit id 0–255.');
+    if (address.byteOrder !== undefined && address.byteOrder !== 'big' && address.byteOrder !== 'little') bad('byteOrder', 'Expected "big" or "little".');
+    if (address.wordOrder !== undefined && address.wordOrder !== 'high-first' && address.wordOrder !== 'low-first') bad('wordOrder', 'Expected "high-first" or "low-first".');
+    const registers = MODBUS_REGISTERS[variable.dataType];
+    if (registers === undefined) return bad('', `A ${variable.dataType} cannot be read from Modbus.`);
+    if ((area === 'coil' || area === 'discrete') && variable.dataType !== 'bool') bad('area', `A ${area} holds only bool, not ${variable.dataType}.`);
+    if (!isInt(address.address, 0, 65535)) bad('address', 'Expected an address 0–65535.');
+    else if (address.address + registers - 1 > 65535) bad('address', `A ${variable.dataType} spans ${registers} registers and does not fit below 65536.`);
+    if (address.bit !== undefined) {
+      if (!isInt(address.bit, 0, 15)) bad('bit', 'Expected a bit 0–15.');
+      else if (variable.dataType !== 'bool' || (area !== 'holding' && area !== 'input')) bad('bit', 'A bit applies only to a bool in a holding or input register.');
+    }
+    return;
+  }
+  // A host's own protocol: plain JSON, checked by the host when it can.
+  if (address === undefined) return;
+  secretKeys(address, `${path}`, errors);
+  for (const message of options.validateAddress?.(protocol, address) ?? []) bad('', message);
+}
+
+/** References and address rules of data sources and runtime variables (ADR-0024). */
+function checkAcquisition(scene: ScadaScene, options: SceneValidationOptions, errors: Errors): void {
+  const components = new Set(scene.components.map((c) => c.id));
+  const sources = new Map<string, SceneDataSource>();
+  scene.dataSources?.forEach((s, i) => {
+    const path = `dataSources[${i}]`;
+    if (sources.has(s.id)) errors.push({ code: 'DUPLICATE_DATA_SOURCE_ID', path: `${path}.id`, message: `Duplicate data source id "${s.id}".` });
+    else sources.set(s.id, s);
+    if (s.deviceId !== undefined && !components.has(s.deviceId)) errors.push({ code: 'UNKNOWN_INSTANCE', path: `${path}.deviceId`, message: `No component "${s.deviceId}".` });
+  });
+  const ids = new Set<string>();
+  scene.runtimeVariables?.forEach((v, i) => {
+    const path = `runtimeVariables[${i}]`;
+    if (ids.has(v.id)) {
+      errors.push({ code: 'DUPLICATE_VARIABLE_ID', path: `${path}.id`, message: `Duplicate runtime variable id "${v.id}".` });
+      return;
+    }
+    ids.add(v.id);
+    if (v.componentId !== undefined && !components.has(v.componentId)) errors.push({ code: 'UNKNOWN_INSTANCE', path: `${path}.componentId`, message: `No component "${v.componentId}".` });
+    if (!v.source) return;
+    const source = sources.get(v.source.dataSourceId);
+    if (!source) {
+      errors.push({ code: 'UNKNOWN_DATA_SOURCE', path: `${path}.source.dataSourceId`, message: `No data source "${v.source.dataSourceId}".` });
+      return;
+    }
+    checkAddress(source.protocol, v, `${path}.source.address`, options, errors);
+  });
+}
+
 function readConnection(value: unknown, path: string, version: SchemaVersion, limits: SceneLimits, errors: Errors): SceneConnection | undefined {
   if (!isObject(value)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a connection object.' });
@@ -916,6 +1109,14 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
     version === 4 && input.associations !== undefined
       ? readList(input.associations, 'associations', limits.maxAssociations, errors, (item, path) => readAssociation(item, path, limits, errors))
       : undefined;
+  const dataSources =
+    version === 4 && input.dataSources !== undefined
+      ? readList(input.dataSources, 'dataSources', limits.maxDataSources, errors, (item, path) => readDataSource(item, path, limits, errors))
+      : undefined;
+  const runtimeVariables =
+    version === 4 && input.runtimeVariables !== undefined
+      ? readList(input.runtimeVariables, 'runtimeVariables', limits.maxVariables, errors, (item, path) => readVariable(item, path, limits, errors, extensionBudget))
+      : undefined;
   const tagBindings =
     version !== 1 && input.tagBindings !== undefined
       ? readList(input.tagBindings, 'tagBindings', limits.maxBindings, errors, (item, path) => readBinding(item, path, limits, errors))
@@ -932,12 +1133,15 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
     components,
     connections,
     ...(associations ? { associations } : {}),
+    ...(dataSources ? { dataSources } : {}),
+    ...(runtimeVariables ? { runtimeVariables } : {}),
     ...(tagBindings ? { tagBindings } : {}),
     ...(underlay ? { underlay } : {}),
     ...(extensions ? { extensions } : {}),
   };
   checkReferences(scene, options, errors);
   checkBindings(scene, options, errors);
+  checkAcquisition(scene, options, errors);
   if (errors.length > 0) return { ok: false, errors };
   return version === 4 ? { ok: true, scene } : { ok: true, scene, migratedFrom: version };
 }

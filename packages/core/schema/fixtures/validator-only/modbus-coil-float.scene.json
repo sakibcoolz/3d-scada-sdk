@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
+  "units": "m",
+  "components": [
+    {
+      "id": "T1",
+      "type": "tank",
+      "position": {
+        "x": 0,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "V1",
+      "type": "valve",
+      "position": {
+        "x": 2,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "id": "c",
+      "from": {
+        "instanceId": "T1",
+        "portId": "outlet"
+      },
+      "to": {
+        "instanceId": "V1",
+        "portId": "in"
+      }
+    }
+  ],
+  "dataSources": [
+    {
+      "id": "ds-plc",
+      "name": "Line PLC",
+      "protocol": "modbus-tcp",
+      "endpointRef": "host:gateway-3/plc-01",
+      "properties": {
+        "pollMs": 500
+      }
+    }
+  ],
+  "runtimeVariables": [
+    {
+      "id": "LT-101",
+      "name": "Tank level",
+      "componentId": "T1",
+      "dataType": "float32",
+      "unit": "%",
+      "access": "read",
+      "source": {
+        "dataSourceId": "ds-plc",
+        "address": {
+          "area": "coil",
+          "address": 40,
+          "unitId": 1,
+          "byteOrder": "big",
+          "wordOrder": "high-first"
+        }
+      },
+      "scaling": {
+        "kind": "linear",
+        "rawMin": 0,
+        "rawMax": 27648,
+        "min": 0,
+        "max": 100
+      }
+    }
+  ]
+}

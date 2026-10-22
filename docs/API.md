@@ -154,6 +154,19 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Data sources and runtime variables (T-077, ADR-0024)
+- **`scene.dataSources`:** optional `{ id, name?, protocol, deviceId?, endpointRef?, properties? }`. `endpointRef` is an opaque host reference and never holds credentials.
+- **`scene.runtimeVariables`:** optional `{ id, name?, componentId?, dataType, unit?, access: 'read', source?: { dataSourceId, variable?, address? }, scaling? }`.
+  - The address is typed by the source's protocol (`ModbusAddress`, `OpcUaAddress`, or plain JSON for a namespaced protocol).
+  - Scaling is descriptive only.
+- **`validateScene`:**
+  - checks references, uniqueness and the Modbus and OPC UA address rules;
+  - `validateAddress(protocol, address)` checks your own protocols;
+  - new codes: `DUPLICATE_DATA_SOURCE_ID`, `DUPLICATE_VARIABLE_ID`, `UNKNOWN_DATA_SOURCE` and `INVALID_ADDRESS`;
+  - new limits: `maxDataSources` and `maxVariables`.
+- **Exports:** `dataTypes`, `protocols` and `modbusAreas`.
+- **The SDK never connects to a source or writes a value.**
+
 ## Graph queries (T-076, ADR-0023)
 - **Queries:**
   - `neighbours(scene, id, filter?)`: one edge away;

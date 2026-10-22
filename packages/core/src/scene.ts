@@ -136,6 +136,57 @@ export interface SceneAssociation {
   to: string;
   properties?: Record<string, number | boolean | string>;
 }
+/** Data types of runtime variables (ADR-0024). */
+export const dataTypes = ['bool', 'int16', 'uint16', 'int32', 'uint32', 'float32', 'float64', 'string'] as const;
+export type DataType = (typeof dataTypes)[number];
+/** Built-in acquisition protocols; hosts add namespaced ones such as `com.vendor.bus` (ADR-0024). */
+export const protocols = ['opcua', 'modbus-tcp', 'modbus-rtu', 'host'] as const;
+export type Protocol = (typeof protocols)[number] | (string & {});
+/**
+ * Where values come from (ADR-0024): a PLC, drive or gateway the host reaches. Never holds
+ * credentials or opens a connection; `endpointRef` is an opaque reference the host resolves.
+ */
+export interface SceneDataSource {
+  id: string;
+  name?: string;
+  protocol: Protocol;
+  /** The component that is this source, e.g. the PLC. */
+  deviceId?: string;
+  endpointRef?: string;
+  properties?: Record<string, number | boolean | string>;
+}
+export const modbusAreas = ['coil', 'discrete', 'input', 'holding'] as const;
+export interface ModbusAddress {
+  area: (typeof modbusAreas)[number];
+  /** Zero-based register or coil number, 0–65535. */
+  address: number;
+  unitId: number;
+  byteOrder?: 'big' | 'little';
+  wordOrder?: 'high-first' | 'low-first';
+  /** Bit 0–15 of a holding or input register, for a `bool`. */
+  bit?: number;
+}
+export interface OpcUaAddress {
+  nodeId: string;
+  namespaceUri?: string;
+}
+/** Typed by the data source's protocol; a custom protocol's address is plain JSON checked by the host. */
+export type VariableAddress = ModbusAddress | OpcUaAddress | { [key: string]: JsonValue };
+/**
+ * A runtime variable (ADR-0024): what a tag is and where it comes from. `id` is the tag id that
+ * observations and bindings carry. Read-only: writes wait for the command ADR (D5).
+ */
+export interface RuntimeVariable {
+  id: string;
+  name?: string;
+  componentId?: string;
+  dataType: DataType;
+  unit?: string;
+  access: 'read';
+  source?: { dataSourceId: string; variable?: string; address?: VariableAddress };
+  /** How the host converts raw values; descriptive only, the SDK does not apply it. */
+  scaling?: { kind: 'linear'; rawMin: number; rawMax: number; min: number; max: number };
+}
 /** Physical quantity of a bindable value; fixes its canonical unit (see `canonicalUnits`). */
 export type Quantity = 'percent' | 'temperature' | 'boolean' | 'flow';
 
@@ -177,6 +228,10 @@ export interface ScadaScene {
   connections: SceneConnection[];
   /** Optional port-less logical links (ADR-0023); absent when there are none. */
   associations?: SceneAssociation[];
+  /** Optional acquisition sources (ADR-0024). */
+  dataSources?: SceneDataSource[];
+  /** Optional typed tags (ADR-0024). */
+  runtimeVariables?: RuntimeVariable[];
   /** Optional; absent when the scene has no bindings. */
   tagBindings?: TagBinding[];
   /** Optional reference drawing (ADR-0012); absent when there is none. */

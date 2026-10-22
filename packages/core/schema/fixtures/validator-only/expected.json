@@ -38,5 +38,17 @@
   "association-id-reuses-connection.scene.json": {
     "code": "DUPLICATE_CONNECTION_ID",
     "path": "associations[0].id"
+  },
+  "modbus-coil-float.scene.json": {
+    "code": "INVALID_ADDRESS",
+    "path": "runtimeVariables[0].source.address.area"
+  },
+  "endpoint-with-credentials.scene.json": {
+    "code": "SECRET_FIELD",
+    "path": "dataSources[0].endpointRef"
+  },
+  "unknown-data-source.scene.json": {
+    "code": "UNKNOWN_DATA_SOURCE",
+    "path": "runtimeVariables[0].source.dataSourceId"
   }
 }

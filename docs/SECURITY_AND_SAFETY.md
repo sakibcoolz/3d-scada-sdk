@@ -27,6 +27,11 @@ If requirements imply real actuator commands, emergency switching, disabling ala
 - `checkPorts` and validation compare the port details a host describes: signal direction and range, power kind, voltage and phases, network medium and protocols.
 - They are an engineering aid. They never verify physical wiring, protective earth, cable sizing or functional safety, and the SDK never claims they do.
 
+## Acquisition descriptions (ADR-0024)
+- Data sources hold an opaque `endpointRef`, never credentials. A URL with user info is rejected, as are credential-like keys in source properties and custom addresses.
+- Runtime variables are read-only (`access: "read"`). No document can claim a writable tag before an approved command boundary (D5).
+- The SDK describes acquisition and never performs it: no connections, polling or writes.
+
 ## Transport-independent SDK rule
 The SDK must never require a WebSocket connection, broker, network endpoint, credentials or OPC UA service to initialize, edit or render a scene. Host applications own acquisition and network connections, while the SDK accepts optional validated read-only observations through a snapshot, push call or host-supplied provider. Test offline operation and prevent socket creation from SDK core/render/editor modules.
 
