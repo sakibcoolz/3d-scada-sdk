@@ -79,7 +79,8 @@ test('migrates a pasted version 1 scene and reports it', async ({ page }) => {
   await page.getByRole('button', { name: 'Load text' }).click();
   await expect(page.getByText('Loaded 1 component and 0 connections (migrated from version 1).')).toBeVisible();
   const scene = await sceneJson(page);
-  expect(scene.schemaVersion).toBe(3);
+  expect(scene.schemaVersion).toBe(4);
+  expect(scene.documentType).toBe('industrial.scene');
   expect(scene.components[0]).toEqual(expect.objectContaining({ id: 'old-tank', type: 'tank', scale: { x: 1, y: 1, z: 1 } }));
   expect(scene.components[0].rotation.y).toBeCloseTo(Math.SQRT1_2, 12);
   await expect(page.getByRole('alert')).toHaveCount(0);

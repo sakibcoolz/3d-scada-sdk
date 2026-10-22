@@ -64,7 +64,7 @@ describe('validateProperties', () => {
 });
 
 describe('catalogResolvers with core', () => {
-  const scene = (...components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 3, units: 'm', components, connections: [] });
+  const scene = (...components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components, connections: [] });
 
   it('rejects an out-of-range length in a scene file with a clear error', () => {
     const result = validateScene(scene(pipe('p', 0, 50)), catalogResolvers);

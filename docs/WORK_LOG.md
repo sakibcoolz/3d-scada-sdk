@@ -1462,3 +1462,29 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - the SDK stays host-independent;
   - release as 0.2.0.
 - Recorded in INDUSTRIAL_SDK_PLAN §11 and in the DECISION_LOG planning table. Backlog rows T-068..T-070 (Phase 1) were added as TODO.
+
+## 2026-10-22 — T-068: scene version 4, the industrial scene document (Phase 1a)
+- Plan PR #69 (T-067) merged; T-067 is DONE. Branch `feat/T-068-scene-v4`, from `develop`. ADR-0021 accepted (decisions D1, D2, D7).
+- Change (core):
+  - `SCENE_SCHEMA_VERSION = 4`. New constant `SCENE_DOCUMENT_TYPE = 'industrial.scene'`, which v4 requires.
+  - Optional root `project` and `extensions`.
+  - Optional component `name`, `typeVersion`, `manufacturer`, `model`, `labels` and `extensions`.
+  - New types `SceneProject`, `SceneExtensions` and `JsonValue`.
+  - `validateScene` migrates v1, v2 and v3 losslessly (`migratedFrom: 1 | 2 | 3`).
+- Extensions: reverse-DNS keys holding plain JSON, at most 16 levels deep and 10,000 values per document. `__proto__`, `constructor` and `prototype` keys are rejected.
+- New error `SECRET_FIELD` for credential-like keys in labels and extensions (`isSecretKey`).
+- `serializeScene` writes v4 with a fixed key order and sorted labels and extensions. The misplaced `validateScene` doc comment and the stale `serialization.ts` comment are fixed.
+- Tests:
+  - New `scene-v4.test.ts` (26 tests): v3 → v4 lossless migration, byte-stable round trip, every new field's validation, credentials, limits, prototype keys and the shared value budget.
+  - The security fuzz test gains 3000 seeded mutations of a v4 document.
+  - About 35 test fixtures were moved to v4 literals. The migration tests keep v3 input on purpose.
+  - Three e2e expectations were updated on purpose: the import message now notes "(migrated from version 3)"; the version-1 import saves as 4; the untrusted-text document is v4.
+- Docs: ADR-0021; DECISION_LOG row; API.md "Scene version 4"; RELEASE.md migration notes for 0.2.0. This is the planned 0.2.0 change: 0.1.x cannot open v4 files.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1299 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (126 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

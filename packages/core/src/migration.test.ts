@@ -56,13 +56,14 @@ describe('version 1 migration', () => {
     connections: [{ id: 'e1', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'valve', portId: 'in' } }],
   });
 
-  it('converts kind, Euler rotation and missing scale into a version 3 scene', () => {
+  it('converts kind, Euler rotation and missing scale into a current (version 4) scene', () => {
     const result = validateScene(v1(), options);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.migratedFrom).toBe(1);
     expect(result.scene).toEqual({
-      schemaVersion: 3,
+      schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm',
       components: [
         { id: 'tank', type: 'tank', position: { x: 0, y: 1.535, z: 0 }, rotation: quaternionFromEuler({ x: 0.3, y: -1.1, z: 2.4 }), scale: { x: 1, y: 1, z: 1 }, properties: { level: 60 } },
@@ -107,12 +108,13 @@ describe('version 1 migration', () => {
 });
 
 describe('version 2 documents', () => {
-  it('accepts an identity transform and migrates it to version 3 objects', () => {
+  it('accepts an identity transform and migrates it to current objects', () => {
     expect(validateScene(v2(), options)).toEqual({
       ok: true,
       migratedFrom: 2,
       scene: {
-        schemaVersion: 3,
+        schemaVersion: 4,
+        documentType: 'industrial.scene',
         units: 'm',
         components: [
           { id: 'valve', type: 'valve', position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} },
@@ -133,8 +135,8 @@ describe('version 2 documents', () => {
     expect(codes({ ...v2(), version: 1 })).toEqual(['UNKNOWN_FIELD']);
   });
 
-  it.each([2.5, 4, '2'])('rejects unsupported schemaVersion %p', (schemaVersion) => {
-    // Unsupported numbers are read with the newest (version 3) rules, so give it object vectors.
+  it.each([2.5, 5, '2'])('rejects unsupported schemaVersion %p', (schemaVersion) => {
+    // Unsupported numbers are read with the newest (version 4) rules, so give it object vectors.
     const v3Component = v2Component({ position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 } });
     expect(codes({ ...v2(v3Component), schemaVersion })).toEqual(['UNSUPPORTED_VERSION']);
   });

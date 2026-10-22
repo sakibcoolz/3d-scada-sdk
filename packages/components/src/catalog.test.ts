@@ -19,7 +19,8 @@ const axisIndex = (direction: readonly number[]) => direction.findIndex((n) => n
 describe('componentCatalog with validateScene', () => {
   it('validates the MVP tank -> valve -> pipe -> elbow -> tee chain', () => {
     const scene = {
-      schemaVersion: 3,
+      schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm',
       components: [
         component('tank', 'tank'),
@@ -55,7 +56,8 @@ describe('componentCatalog with snapComponent', () => {
       scale: { x: 1, y: 1, z: 1 },
       properties: {},
     };
-    const scene: ScadaScene = { schemaVersion: 3,
+    const scene: ScadaScene = { schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm', components: [tee], connections: [] };
     const result = snapComponent(scene, elbow, { resolvePorts });
     if (!result.ok) throw new Error('expected a snap');

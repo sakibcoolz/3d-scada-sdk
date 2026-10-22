@@ -3,7 +3,7 @@ import { parseScene, serializeScene, validateScene, defaultSceneLimits } from '.
 
 const resolvePorts = () => [];
 const markup = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><path d="M0 0L10 10"/></svg>';
-const base = { schemaVersion: 3, units: 'm', components: [], connections: [] };
+const base = { schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [], connections: [] };
 const withUnderlay = (underlay: unknown) => ({ ...base, underlay });
 const good = { svg: markup, position: { x: 2, z: -3 }, width: 40, rotation: 90, opacity: 0.5 };
 
@@ -57,5 +57,5 @@ describe('scene underlay (ADR-0012)', () => {
 });
 
 function createScene() {
-  return { schemaVersion: 3 as const, units: 'm' as const, components: [], connections: [] };
+  return { schemaVersion: 4 as const, documentType: 'industrial.scene' as const, units: 'm' as const, components: [], connections: [] };
 }

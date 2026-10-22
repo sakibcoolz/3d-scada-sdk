@@ -32,7 +32,8 @@ function codes(input: unknown): SceneValidationErrorCode[] {
 
 describe('schema version 3: structured vectors', () => {
   it('accepts named position, rotation and scale objects', () => {
-    expect(validateScene(v3(), options)).toEqual({ ok: true, scene: v3() });
+    // Valid as version 3; loads as the current version and reports the migration (ADR-0021).
+    expect(validateScene(v3(), options)).toEqual({ ok: true, migratedFrom: 3, scene: { ...v3(), schemaVersion: 4, documentType: 'industrial.scene' } });
   });
 
   it.each([
@@ -60,7 +61,7 @@ describe('schema version 3: structured vectors', () => {
     const result = validateScene(v3(component({ position: { z: 0, y: 0.635, x: 1.8 }, rotation: { w: 1, z: 0, y: 0, x: 0 } })), options);
     if (!result.ok) throw new Error('expected valid');
     const text = serializeScene(result.scene);
-    expect(text).toContain('"schemaVersion": 3');
+    expect(text).toContain('"schemaVersion": 4');
     expect(text).toContain('"position": {\n        "x": 1.8,\n        "y": 0.635,\n        "z": 0\n      }');
     expect(text).toContain('"rotation": {\n        "x": 0,\n        "y": 0,\n        "z": 0,\n        "w": 1\n      }');
     expect(text).toContain('"scale": {\n        "x": 1,\n        "y": 1,\n        "z": 1\n      }');
@@ -68,7 +69,7 @@ describe('schema version 3: structured vectors', () => {
   });
 });
 
-describe('migration to version 3', () => {
+describe('migration from version 2 and 1 to the current version', () => {
   it('migrates a version 2 file with arrays and reports it', () => {
     const q = quaternionFromEuler({ x: 0, y: Math.PI / 2, z: 0 });
     const v2 = {
@@ -82,7 +83,8 @@ describe('migration to version 3', () => {
       ok: true,
       migratedFrom: 2,
       scene: {
-        schemaVersion: 3,
+        schemaVersion: 4,
+        documentType: 'industrial.scene',
         units: 'm',
         components: [component({ rotation: q })],
         connections: [],
@@ -96,23 +98,23 @@ describe('migration to version 3', () => {
     expect(codes(v2)).toEqual(expect.arrayContaining(['INVALID_FIELD']));
   });
 
-  it('migrates a version 1 file straight to version 3', () => {
+  it('migrates a version 1 file straight to the current version', () => {
     const v1 = { version: 1, components: [{ id: 'valve', kind: 'valve', position: [1, 2, 3], rotation: [0, 0, 0], properties: {} }], connections: [] };
     expect(validateScene(v1, options)).toEqual({
       ok: true,
       migratedFrom: 1,
-      scene: { schemaVersion: 3, units: 'm', components: [component({ position: { x: 1, y: 2, z: 3 } })], connections: [] },
+      scene: { schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [component({ position: { x: 1, y: 2, z: 3 } })], connections: [] },
     });
   });
 
-  it('saves a migrated file as version 3', () => {
+  it('saves a migrated file as the current version', () => {
     const v2 = { schemaVersion: 2, units: 'm', components: [{ id: 'valve', type: 'valve', position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1], properties: {} }], connections: [] };
     const result = validateScene(v2, options);
     if (!result.ok) throw new Error('expected valid');
-    expect(JSON.parse(serializeScene(result.scene))).toEqual(expect.objectContaining({ schemaVersion: 3 }));
+    expect(JSON.parse(serializeScene(result.scene))).toEqual(expect.objectContaining({ schemaVersion: 4, documentType: 'industrial.scene' }));
   });
 
   it('rejects an unsupported newer version', () => {
-    expect(codes({ schemaVersion: 4, units: 'm', components: [], connections: [] })).toEqual(['UNSUPPORTED_VERSION']);
+    expect(codes({ schemaVersion: 5, units: 'm', components: [], connections: [] })).toEqual(['UNSUPPORTED_VERSION']);
   });
 });

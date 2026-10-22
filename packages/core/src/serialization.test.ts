@@ -20,7 +20,8 @@ const options: SceneValidationOptions = { resolvePorts: (type) => ports[type] };
 /** A connected, rotated scene with a scaled portless sensor and mixed property types. */
 function linkedScene(): ScadaScene {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
+    documentType: 'industrial.scene',
     units: 'm',
     components: [
       {
@@ -78,7 +79,7 @@ describe('serializeScene', () => {
     const scene = linkedScene();
     scene.components[0].properties = { zeta: 1, alpha: true };
     const text = serializeScene(scene);
-    expect(text.startsWith('{\n  "schemaVersion": 3,\n  "units": "m",\n')).toBe(true);
+    expect(text.startsWith('{\n  "schemaVersion": 4,\n  "documentType": "industrial.scene",\n  "units": "m",\n')).toBe(true);
     expect(text.indexOf('"alpha"')).toBeLessThan(text.indexOf('"zeta"'));
     expect(text.endsWith('}\n')).toBe(true);
   });
@@ -118,7 +119,7 @@ describe('parseScene', () => {
     expect(parseScene(broken, options)).toEqual({ ok: false, errors: [expect.objectContaining({ code: 'UNKNOWN_PORT' })] });
   });
 
-  it('loads a version 1 file, migrates it, and saves it as version 3', () => {
+  it('loads a version 1 file, migrates it, and saves it as the current version', () => {
     const v1 = JSON.stringify({
       version: 1,
       components: [
@@ -131,8 +132,8 @@ describe('parseScene', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.migratedFrom).toBe(1);
-    expect(result.scene.schemaVersion).toBe(3);
-    expect(JSON.parse(serializeScene(result.scene)).schemaVersion).toBe(3);
+    expect(result.scene.schemaVersion).toBe(4);
+    expect(JSON.parse(serializeScene(result.scene)).schemaVersion).toBe(4);
     expect(result.scene.components[1].position).toEqual({ x: 1.8, y: 0.635, z: 0 });
     const resaved = parseScene(serializeScene(result.scene), options);
     expect(resaved).toEqual({ ok: true, scene: result.scene });
@@ -140,11 +141,11 @@ describe('parseScene', () => {
 });
 
 describe('validateScene result for current documents', () => {
-  it('does not report a migration for a version 3 document', () => {
+  it('does not report a migration for a current (version 4) document', () => {
     expect(validateScene(linkedScene(), options)).toEqual({ ok: true, scene: linkedScene() });
   });
 
-  it('reports a migration for a version 2 array document and returns version 3 objects', () => {
+  it('reports a migration for a version 2 array document and returns current objects', () => {
     const v2 = {
       schemaVersion: 2,
       units: 'm',
@@ -154,7 +155,7 @@ describe('validateScene result for current documents', () => {
     expect(validateScene(v2, options)).toEqual({
       ok: true,
       migratedFrom: 2,
-      scene: { schemaVersion: 3, units: 'm', components: [linkedScene().components[0]], connections: [] },
+      scene: { schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [linkedScene().components[0]], connections: [] },
     });
   });
 });

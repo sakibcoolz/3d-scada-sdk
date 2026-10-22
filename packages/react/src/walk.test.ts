@@ -5,7 +5,7 @@ import { blocksAt, BODY_RADIUS, climb, EYE_HEIGHT, look, MAX_EYE, MAX_PITCH, MIN
 const I = { x: 0, y: 0, z: 0, w: 1 };
 const part = (id: string, type: ComponentInstance['type'], x: number, y: number, z: number, properties = {}): ComponentInstance =>
   ({ id, type, position: { x, y, z }, rotation: I, scale: { x: 1, y: 1, z: 1 }, properties });
-const scene = (components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 3, units: 'm', components, connections: [] });
+const scene = (components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components, connections: [] });
 const keys = (k: Partial<MoveKeys>): MoveKeys => ({ forward: false, back: false, left: false, right: false, run: false, up: false, down: false, ...k });
 
 describe('walkObstacles', () => {

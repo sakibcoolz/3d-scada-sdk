@@ -23,7 +23,7 @@ const part = (id: string, type: 'pipe' | 'tee', x: number, y = 0, z = 0, extra: 
   ...extra,
 });
 const joint = (id: string, a: string, ap: string, b: string, bp: string): SceneConnection => ({ id, from: { instanceId: a, portId: ap }, to: { instanceId: b, portId: bp } });
-const scene = (components: ComponentInstance[], connections: SceneConnection[]): ScadaScene => ({ schemaVersion: 3, units: 'm', components, connections });
+const scene = (components: ComponentInstance[], connections: SceneConnection[]): ScadaScene => ({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components, connections });
 const world = (s: ScadaScene, id: string, portId: string) => {
   const c = s.components.find((x) => x.id === id)!;
   return portToWorld(c, ports[c.type].find((p) => p.id === portId)!);

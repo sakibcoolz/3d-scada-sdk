@@ -21,7 +21,7 @@ describe('vesselOf with tank dimensions (T-053)', () => {
 
   it('drains a bigger tank more slowly in the simulation', () => {
     const tank = (properties: ComponentInstance['properties']): ScadaScene => ({
-      schemaVersion: 3, units: 'm', connections: [],
+      schemaVersion: 4, documentType: 'industrial.scene', units: 'm', connections: [],
       components: [{ id: 't', type: 'tank', position: { x: 0, y: 2, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { level: 50, ...properties } }],
     });
     const fill = (properties: ComponentInstance['properties']) => {

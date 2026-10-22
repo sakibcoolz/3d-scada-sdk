@@ -36,7 +36,7 @@ const validCodes = new Set<SceneValidationErrorCode>([
   'NOT_AN_OBJECT', 'UNSUPPORTED_VERSION', 'INVALID_FIELD', 'UNKNOWN_FIELD', 'LIMIT_EXCEEDED', 'UNKNOWN_COMPONENT_KIND',
   'DUPLICATE_COMPONENT_ID', 'DUPLICATE_CONNECTION_ID', 'UNKNOWN_INSTANCE', 'UNKNOWN_PORT', 'SELF_CONNECTION', 'INCOMPATIBLE_PORTS',
   'PORT_OCCUPIED', 'DUPLICATE_EDGE', 'UNSUPPORTED_SCALE', 'INVALID_JSON', 'UNKNOWN_CONNECTION', 'UNBINDABLE_PROPERTY',
-  'INVALID_UNIT', 'DUPLICATE_BINDING_ID', 'DUPLICATE_BINDING_TARGET',
+  'INVALID_UNIT', 'DUPLICATE_BINDING_ID', 'DUPLICATE_BINDING_TARGET', 'SECRET_FIELD',
 ]);
 
 const base = () => ({
@@ -106,6 +106,37 @@ describe('validateScene against mutated documents', () => {
     const next = rng(20261015);
     for (let i = 0; i < 3000; i++) {
       const doc = base() as unknown as Json;
+      const mutations = 1 + Math.floor(next() * 4);
+      for (let m = 0; m < mutations; m++) mutate(doc, next);
+      let result: ReturnType<typeof validateScene> | undefined;
+      expect(() => (result = validateScene(doc, options)), `iteration ${i}`).not.toThrow();
+      expectSafeResult(result!);
+    }
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(Object.prototype).not.toHaveProperty('polluted');
+  });
+});
+
+/** A version 4 document using every v4 field (ADR-0021), for the same mutation fuzzing. */
+const baseV4 = () => ({
+  schemaVersion: 4,
+  documentType: 'industrial.scene',
+  units: 'm',
+  project: { id: 'p', name: 'Plant', revision: '1', description: 'd' },
+  components: [
+    { id: 'tank', name: 'T-101', type: 'tank', typeVersion: '1', manufacturer: 'ACME', model: 'X', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { level: 45 }, labels: { area: 'A', asset: '1' }, extensions: { 'com.example.a': { list: [1, 'two', { three: true }], deep: { a: { b: null } } } } },
+    { id: 'valve', type: 'valve', position: { x: 1.8, y: 0.635, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { open: true } },
+  ],
+  connections: [{ id: 'e1', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'valve', portId: 'in' } }],
+  tagBindings: [{ id: 'b1', tagId: 'LT-101', kind: 'property', instanceId: 'tank', property: 'level', unit: '%' }],
+  extensions: { 'org.example.b': { n: 1, s: 'x', arr: [[], {}] } },
+});
+
+describe('validateScene against mutated version 4 documents', () => {
+  it('never throws, pollutes prototypes or accepts an unsafe scene across 3000 seeded mutations', () => {
+    const next = rng(20261022);
+    for (let i = 0; i < 3000; i++) {
+      const doc = baseV4() as unknown as Json;
       const mutations = 1 + Math.floor(next() * 4);
       for (let m = 0; m < mutations; m++) mutate(doc, next);
       let result: ReturnType<typeof validateScene> | undefined;

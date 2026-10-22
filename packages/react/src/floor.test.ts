@@ -6,7 +6,7 @@ import { FLOOR_MARGIN, FLOOR_MIN_SIDE, floorSlab } from './floor.js';
 const I = { x: 0, y: 0, z: 0, w: 1 };
 const part = (id: string, type: ComponentInstance['type'], x: number, z: number, properties = {}, rotation = I): ComponentInstance =>
   ({ id, type, position: { x, y: 0.5, z }, rotation, scale: { x: 1, y: 1, z: 1 }, properties });
-const scene = (components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 3, units: 'm', components, connections: [] });
+const scene = (components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components, connections: [] });
 
 describe('floorSlab', () => {
   it('gives an empty scene the minimum slab at the origin', () => {

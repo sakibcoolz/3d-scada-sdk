@@ -33,7 +33,8 @@ const bindings = (): TagBinding[] => [
 /** `null` means no tagBindings field at all. */
 function scene(tagBindings: unknown = bindings()): Record<string, unknown> {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
+    documentType: 'industrial.scene',
     units: 'm',
     components: [
       { id: 'tank', type: 'tank', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { level: 45 } },

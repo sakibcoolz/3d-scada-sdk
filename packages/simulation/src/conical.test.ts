@@ -7,7 +7,7 @@ const part = (id: string, type: ComponentKind, at: [number, number, number], pro
   id, type, position: { x: at[0], y: at[1], z: at[2] }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties,
 });
 const join = (id: string, a: string, ap: string, b: string, bp: string): SceneConnection => ({ id, from: { instanceId: a, portId: ap }, to: { instanceId: b, portId: bp } });
-const scene = (components: ComponentInstance[], connections: SceneConnection[]): ScadaScene => ({ schemaVersion: 3, units: 'm', components, connections });
+const scene = (components: ComponentInstance[], connections: SceneConnection[]): ScadaScene => ({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components, connections });
 const clock = () => '2026-10-16T00:00:00.000Z';
 
 // Conical tank standing on the ground (legs reach y = −2.5 locally), outlet at y = 0.4 facing +X.

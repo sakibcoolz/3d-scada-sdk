@@ -48,6 +48,27 @@ export interface ComponentInstance {
   /** Positive per-axis scale. Components with ports must keep { x: 1, y: 1, z: 1 } (see ADR-0004). */
   scale: Vector3Like;
   properties: Record<string, number | boolean | string>;
+  /** Display name; `id` stays the stable key (ADR-0021). */
+  name?: string;
+  /** Version of the component definition this instance was authored against. */
+  typeVersion?: string;
+  manufacturer?: string;
+  model?: string;
+  /** Identification and metadata tags, such as an asset number or area. Never runtime values. */
+  labels?: Record<string, string>;
+  /** Host or library data, keyed by reverse-DNS namespace; preserved, never interpreted by core. */
+  extensions?: SceneExtensions;
+}
+/** Plain JSON value kept in `extensions`. */
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+/** Custom data keyed by reverse-DNS namespace (`com.example.app`), preserved on round trip (ADR-0021). */
+export type SceneExtensions = Record<string, JsonValue>;
+/** Project identity of a scene document (ADR-0021). */
+export interface SceneProject {
+  id?: string;
+  name?: string;
+  revision?: string;
+  description?: string;
 }
 export interface SceneConnection {
   id: string;
@@ -65,7 +86,9 @@ export type TagBinding =
   | { id: string; tagId: string; kind: 'property'; instanceId: string; property: string; unit?: string }
   | { id: string; tagId: string; kind: 'flow'; connectionId: string; unit?: string };
 
-export const SCENE_SCHEMA_VERSION = 3;
+export const SCENE_SCHEMA_VERSION = 4;
+/** Identifies a scene file as an industrial scene document (ADR-0021). */
+export const SCENE_DOCUMENT_TYPE = 'industrial.scene';
 /**
  * A drawing shown flat on the ground as a tracing reference (ADR-0012). Display only: it never
  * takes part in snapping, connections, collisions or simulation.
@@ -84,17 +107,22 @@ export interface SceneUnderlay {
 }
 
 export interface ScadaScene {
-  schemaVersion: 3;
+  schemaVersion: 4;
+  documentType: typeof SCENE_DOCUMENT_TYPE;
   units: 'm';
+  /** Optional project identity (ADR-0021). */
+  project?: SceneProject;
   components: ComponentInstance[];
   connections: SceneConnection[];
   /** Optional; absent when the scene has no bindings. */
   tagBindings?: TagBinding[];
   /** Optional reference drawing (ADR-0012); absent when there is none. */
   underlay?: SceneUnderlay;
+  /** Host or library data, keyed by reverse-DNS namespace (ADR-0021). */
+  extensions?: SceneExtensions;
 }
 export function createEmptyScene(): ScadaScene {
-  return { schemaVersion: 3, units: 'm', components: [], connections: [] };
+  return { schemaVersion: 4, documentType: SCENE_DOCUMENT_TYPE, units: 'm', components: [], connections: [] };
 }
 export function portsCompatible(a: ConnectionPort, b: ConnectionPort): boolean {
   return a.kind === b.kind && (a.nominalSize === undefined || b.nominalSize === undefined || Math.abs(a.nominalSize - b.nominalSize) < 0.0001);

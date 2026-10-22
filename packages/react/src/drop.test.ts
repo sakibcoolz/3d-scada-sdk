@@ -25,7 +25,8 @@ function expectVectorClose(actual: Vector3Like, expected: Vector3Like): void {
 }
 
 const tankOnGround = (): ScadaScene => ({
-  schemaVersion: 3,
+  schemaVersion: 4,
+  documentType: 'industrial.scene',
   units: 'm',
   components: [{ id: 'tank', type: 'tank', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} }],
   connections: [],
@@ -77,7 +78,7 @@ describe('dropPosition', () => {
 
 describe('planDrop', () => {
   it('places a new component on the plane when nothing is in reach', () => {
-    const plan = planDrop({ schemaVersion: 3, units: 'm', components: [], connections: [] }, 'tank', [0, 0, 0], { createId: counter('c') });
+    const plan = planDrop({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [], connections: [] }, 'tank', [0, 0, 0], { createId: counter('c') });
     expect(plan.component).toEqual({ id: 'c1', type: 'tank', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} });
     expect(plan.snap).toEqual({ ok: false, reason: 'NO_CANDIDATE' });
   });
@@ -169,7 +170,8 @@ describe('describeDrop', () => {
 
 describe('planDrop with pipe sizes', () => {
   const reducerScene = (): ScadaScene => ({
-    schemaVersion: 3,
+    schemaVersion: 4,
+    documentType: 'industrial.scene',
     units: 'm',
     components: [{ id: 'r', type: 'reducer', position: { x: 0, y: 0.084, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} }],
     connections: [],
@@ -197,7 +199,8 @@ describe('planDrop with pipe sizes', () => {
 describe('planDrop next to a raised port (snap in plan view)', () => {
   // A tank on a 0.8 m stand: its outlet is 1.435 m up, far above a part dropped on the ground.
   const raised = (): ScadaScene => ({
-    schemaVersion: 3,
+    schemaVersion: 4,
+    documentType: 'industrial.scene',
     units: 'm',
     components: [{ id: 't', type: 'tank', position: { x: 0, y: 2.335, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { standHeight: 0.8 } }],
     connections: [],

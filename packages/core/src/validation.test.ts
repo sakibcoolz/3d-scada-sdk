@@ -61,7 +61,8 @@ const validSceneV2 = () => ({
 });
 
 const validScene = () => ({
-  schemaVersion: 3,
+  schemaVersion: 4,
+  documentType: 'industrial.scene',
   units: 'm',
   components: [component('tank-1', 'tank'), component('valve-1', 'valve'), component('tee-1', 'tee')],
   connections: [
@@ -77,9 +78,9 @@ function codes(input: unknown): SceneValidationErrorCode[] {
 
 describe('validateScene: accepted scenes', () => {
   it('accepts an empty scene', () => {
-    expect(validateScene({ schemaVersion: 3, units: 'm', components: [], connections: [] }, options)).toEqual({
+    expect(validateScene({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [], connections: [] }, options)).toEqual({
       ok: true,
-      scene: { schemaVersion: 3, units: 'm', components: [], connections: [] },
+      scene: { schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [], connections: [] },
     });
   });
 
@@ -134,12 +135,12 @@ describe('validateScene: document structure', () => {
     expect(codes({ version, components: [], connections: [] })).toContain('UNSUPPORTED_VERSION');
   });
 
-  it.each([1, 4, '2', '3', null])('rejects unsupported schemaVersion %p', (schemaVersion) => {
+  it.each([1, 5, '2', '4', null])('rejects unsupported schemaVersion %p', (schemaVersion) => {
     expect(codes({ schemaVersion, units: 'm', components: [], connections: [] })).toContain('UNSUPPORTED_VERSION');
   });
 
   it('rejects missing component and connection arrays', () => {
-    const result = validateScene({ schemaVersion: 3, units: 'm' }, options);
+    const result = validateScene({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm' }, options);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.errors.map((e) => [e.code, e.path])).toEqual([
@@ -304,7 +305,8 @@ describe('validateScene: connections', () => {
 
   it('allows a closed loop of components', () => {
     const scene = {
-      schemaVersion: 3,
+      schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm',
       components: [component('a', 'valve'), component('b', 'valve')],
       connections: [edge('e1', ['a', 'out'], ['b', 'in']), edge('e2', ['b', 'out'], ['a', 'in'])],
@@ -321,7 +323,7 @@ describe('validateScene: connections', () => {
 
 describe('validateScene: limits', () => {
   it('rejects more components than the limit', () => {
-    const scene = { schemaVersion: 3, units: 'm', components: [component('a', 'valve'), component('b', 'valve')], connections: [] };
+    const scene = { schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [component('a', 'valve'), component('b', 'valve')], connections: [] };
     expect(validateScene(scene, { ...options, limits: { maxComponents: 1 } })).toEqual({
       ok: false,
       errors: [expect.objectContaining({ code: 'LIMIT_EXCEEDED', path: 'components' })],
