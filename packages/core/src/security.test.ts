@@ -6,31 +6,13 @@ import {
   resolveTelemetry,
   serializeScene,
   validateScene,
-  type ComponentKind,
-  type ConnectionPort,
-  type Quantity,
   type SceneValidationErrorCode,
-  type SceneValidationOptions,
 } from './index.js';
+
+import { baseV4, hostileValues, mutate, options, rng, type Json } from './fixtures/fuzz.js';
 
 // Adversarial input tests for everything that accepts untrusted host or file data. Fuzzing is
 // seeded, so any failure reproduces exactly.
-
-function rng(seed: number): () => number {
-  // mulberry32
-  return () => {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-const fluid = (id: string): ConnectionPort => ({ id, kind: 'fluid', position: [0, 0, 0], direction: [1, 0, 0], nominalSize: 0.15 });
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = { tank: [fluid('inlet'), fluid('outlet')], valve: [fluid('in'), fluid('out')] };
-const bindable: Partial<Record<ComponentKind, Record<string, Quantity>>> = { tank: { level: 'percent' }, valve: { open: 'boolean' } };
-const options: SceneValidationOptions = { resolvePorts: (t) => ports[t], resolveBindable: (t) => bindable[t] };
 
 const validCodes = new Set<SceneValidationErrorCode>([
   'NOT_AN_OBJECT', 'UNSUPPORTED_VERSION', 'INVALID_FIELD', 'UNKNOWN_FIELD', 'LIMIT_EXCEEDED', 'UNKNOWN_COMPONENT_KIND',
@@ -53,39 +35,7 @@ const base = () => ({
   ],
 });
 
-/** Fresh hostile values per use, so mutations never share (and accidentally cycle) objects across iterations. */
-const hostileValues = (): unknown[] => [
-  null, undefined, 0, -0, 1e308, -1, Number.NaN, Number.POSITIVE_INFINITY, '', 'x'.repeat(5000), '<script>alert(1)</script>',
-  true, [], [[[]]], {}, { __proto__: { polluted: true } }, JSON.parse('{"__proto__":{"polluted":true}}'), { constructor: { prototype: { polluted: true } } },
-  Object.create(null), [1, 2, 3, 4, 5], { toString: 'not a function' }, Symbol('s'), () => 1, 10n,
-];
 const hostile = hostileValues();
-const hostileKeys = ['__proto__', 'constructor', 'prototype', 'toString', 'hasOwnProperty', '', 'id', 'type', 'kind'];
-
-type Json = Record<string | number, unknown>;
-
-/** Replaces, deletes or adds one random node somewhere in the document. */
-function mutate(doc: Json, next: () => number): void {
-  const containers: Json[] = [];
-  const seen = new Set<unknown>();
-  const walk = (value: unknown) => {
-    if (value && typeof value === 'object' && !seen.has(value)) {
-      seen.add(value);
-      containers.push(value as Json);
-      for (const child of Object.values(value)) walk(child);
-    }
-  };
-  walk(doc);
-  const target = containers[Math.floor(next() * containers.length)];
-  const keys = Object.keys(target);
-  const pick = <T,>(list: readonly T[]) => list[Math.floor(next() * list.length)];
-  const roll = next();
-  const fresh = hostileValues();
-  if (roll < 0.6 && keys.length) target[pick(keys)] = pick(fresh);
-  else if (roll < 0.8 && keys.length) delete target[pick(keys)];
-  else Object.defineProperty(target, pick(hostileKeys), { value: pick(fresh), enumerable: true, writable: true, configurable: true });
-}
-
 function expectSafeResult(result: ReturnType<typeof validateScene>): void {
   if (result.ok) {
     // Anything accepted must survive a canonical roundtrip unchanged.
@@ -115,21 +65,6 @@ describe('validateScene against mutated documents', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     expect(Object.prototype).not.toHaveProperty('polluted');
   });
-});
-
-/** A version 4 document using every v4 field (ADR-0021), for the same mutation fuzzing. */
-const baseV4 = () => ({
-  schemaVersion: 4,
-  documentType: 'industrial.scene',
-  units: 'm',
-  project: { id: 'p', name: 'Plant', revision: '1', description: 'd' },
-  components: [
-    { id: 'tank', name: 'T-101', type: 'tank', typeVersion: '1', manufacturer: 'ACME', model: 'X', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { level: 45 }, labels: { area: 'A', asset: '1' }, extensions: { 'com.example.a': { list: [1, 'two', { three: true }], deep: { a: { b: null } } } } },
-    { id: 'valve', type: 'valve', position: { x: 1.8, y: 0.635, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { open: true } },
-  ],
-  connections: [{ id: 'e1', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'valve', portId: 'in' } }],
-  tagBindings: [{ id: 'b1', tagId: 'LT-101', kind: 'property', instanceId: 'tank', property: 'level', unit: '%' }],
-  extensions: { 'org.example.b': { n: 1, s: 'x', arr: [[], {}] } },
 });
 
 describe('validateScene against mutated version 4 documents', () => {
@@ -260,5 +195,13 @@ describe('runtime resolvers against hostile host data', () => {
       expect(() => resolveTelemetry(valid.scene, junk, { now: Date.now(), resolveBindable: options.resolveBindable })).not.toThrow();
       expect(() => resolveFlow(valid.scene, junk, { now: Date.now() })).not.toThrow();
     }
+  });
+});
+
+describe('sparse arrays', () => {
+  it('reports a hole in a list as an invalid entry, as JSON null would be', () => {
+    const doc = { ...baseV4(), tagBindings: [, { id: 'b1', tagId: 'LT-101', kind: 'property', instanceId: 'tank', property: 'level' }] };
+    const result = validateScene(doc, options);
+    expect(result.ok ? [] : result.errors.map((e) => [e.code, e.path])).toEqual([['INVALID_FIELD', 'tagBindings[0]']]);
   });
 });

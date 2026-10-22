@@ -632,10 +632,11 @@ function readList<T>(
     return undefined;
   }
   const items: T[] = [];
-  value.forEach((item, i) => {
-    const parsed = read(item, `${path}[${i}]`);
+  // Every index, not forEach: a hole in a sparse array (`[, x]`) is an invalid entry, as `null` is in JSON.
+  for (let i = 0; i < value.length; i++) {
+    const parsed = read(value[i], `${path}[${i}]`);
     if (parsed) items.push(parsed);
-  });
+  }
   return items;
 }
 

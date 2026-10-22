@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sakibcoolz:3d-scada-sdk:industrial-scene:4",
+  "title": "Industrial scene document, schema version 4",
+  "description": "Structure of a scene file written by @sakibcoolz/core serializeScene (ADR-0021). The TypeScript validateScene is authoritative and also checks what JSON Schema cannot express: unit-length rotations, references between components, ports, connections and bindings, port compatibility and occupancy, scale policy, assembly cycles, units per quantity, credential-like key names (SECRET_FIELD), and the extension depth (16) and value (10,000 per document) budgets. Anything validateScene accepts with the default limits (defaultSceneLimits) also passes this schema; hosts that raise the limits must not rely on it. Older files (versions 1 to 3) are accepted by validateScene and migrated; this schema describes version 4 only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "documentType", "units", "components", "connections"],
+  "properties": {
+    "schemaVersion": { "const": 4 },
+    "documentType": { "const": "industrial.scene" },
+    "units": { "const": "m", "description": "Lengths are metres; right-handed, Y-up." },
+    "project": { "$ref": "#/$defs/project" },
+    "components": { "type": "array", "maxItems": 10000, "items": { "$ref": "#/$defs/component" } },
+    "connections": { "type": "array", "maxItems": 20000, "items": { "$ref": "#/$defs/connection" } },
+    "tagBindings": { "type": "array", "maxItems": 20000, "items": { "$ref": "#/$defs/tagBinding" } },
+    "underlay": { "$ref": "#/$defs/underlay" },
+    "extensions": { "$ref": "#/$defs/extensions" }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "text": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "vector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } }
+    },
+    "positiveVector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": { "type": "number", "exclusiveMinimum": 0 },
+        "y": { "type": "number", "exclusiveMinimum": 0 },
+        "z": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "quaternion": {
+      "description": "Unit quaternion (length 1 within 1e-6, checked by validateScene).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z", "w"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "w": { "type": "number" }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "$ref": "#/$defs/text" },
+        "revision": { "$ref": "#/$defs/text" },
+        "description": { "$ref": "#/$defs/text" }
+      }
+    },
+    "componentKind": {
+      "description": "Built-in component kinds. An open, registry-based list is planned (Phase 2, ADR-0022).",
+      "enum": ["tank", "conicalTank", "horizontalTank", "sphericalTank", "pool", "pipe", "elbow", "tee", "valve", "reducer", "coupler", "pump", "sensor", "motor"]
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "position", "rotation", "scale", "properties"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "$ref": "#/$defs/text" },
+        "type": { "$ref": "#/$defs/componentKind" },
+        "typeVersion": { "$ref": "#/$defs/text" },
+        "manufacturer": { "$ref": "#/$defs/text" },
+        "model": { "$ref": "#/$defs/text" },
+        "parentId": { "$ref": "#/$defs/id", "description": "Assembly parent (ADR-0008)." },
+        "position": { "$ref": "#/$defs/vector3", "description": "Metres, world space." },
+        "rotation": { "$ref": "#/$defs/quaternion" },
+        "scale": { "$ref": "#/$defs/positiveVector3", "description": "Components with ports keep 1, 1, 1 (checked by validateScene)." },
+        "properties": {
+          "description": "Engineering and display properties; the component definition validates names and ranges.",
+          "type": "object",
+          "maxProperties": 64,
+          "additionalProperties": { "anyOf": [{ "type": "string", "maxLength": 1024 }, { "type": "number" }, { "type": "boolean" }] }
+        },
+        "labels": {
+          "description": "Identification and metadata tags. Never credentials and never live values.",
+          "type": "object",
+          "maxProperties": 64,
+          "propertyNames": { "minLength": 1, "maxLength": 128 },
+          "additionalProperties": { "type": "string", "maxLength": 1024 }
+        },
+        "extensions": { "$ref": "#/$defs/extensions" }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instanceId", "portId"],
+      "properties": { "instanceId": { "$ref": "#/$defs/id" }, "portId": { "$ref": "#/$defs/id" } }
+    },
+    "connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from", "to"],
+      "properties": { "id": { "$ref": "#/$defs/id" }, "from": { "$ref": "#/$defs/endpoint" }, "to": { "$ref": "#/$defs/endpoint" } }
+    },
+    "tagBinding": {
+      "description": "Authored link from a host tag to a component property or a connection's flow (ADR-0006).",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "tagId", "kind", "instanceId", "property"],
+          "properties": {
+            "id": { "$ref": "#/$defs/id" },
+            "tagId": { "$ref": "#/$defs/id" },
+            "kind": { "const": "property" },
+            "instanceId": { "$ref": "#/$defs/id" },
+            "property": { "$ref": "#/$defs/id" },
+            "unit": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "tagId", "kind", "connectionId"],
+          "properties": {
+            "id": { "$ref": "#/$defs/id" },
+            "tagId": { "$ref": "#/$defs/id" },
+            "kind": { "const": "flow" },
+            "connectionId": { "$ref": "#/$defs/id" },
+            "unit": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "underlay": {
+      "description": "Sanitized SVG reference drawing on the ground (ADR-0012); at most 512 KiB of UTF-8.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["svg", "position", "width", "rotation", "opacity"],
+      "properties": {
+        "svg": { "type": "string", "maxLength": 524288 },
+        "position": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "z"],
+          "properties": { "x": { "type": "number" }, "z": { "type": "number" } }
+        },
+        "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000 },
+        "rotation": { "type": "number", "description": "Degrees about +Y." },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "extensions": {
+      "description": "Host or library data keyed by reverse-DNS namespace, preserved and never interpreted by core.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$" },
+      "additionalProperties": { "$ref": "#/$defs/json" }
+    },
+    "json": {
+      "description": "Plain JSON with strings of at most 1024 characters and no prototype keys.",
+      "anyOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string", "maxLength": 1024 },
+        { "type": "array", "items": { "$ref": "#/$defs/json" } },
+        {
+          "type": "object",
+          "propertyNames": { "not": { "enum": ["__proto__", "constructor", "prototype"] } },
+          "additionalProperties": { "$ref": "#/$defs/json" }
+        }
+      ]
+    }
+  }
+}

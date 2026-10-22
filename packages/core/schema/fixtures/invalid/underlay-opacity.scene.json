@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
+  "units": "m",
+  "components": [],
+  "connections": [],
+  "underlay": {
+    "svg": "<svg/>",
+    "position": {
+      "x": 0,
+      "z": 0
+    },
+    "width": 10,
+    "rotation": 0,
+    "opacity": 2
+  }
+}

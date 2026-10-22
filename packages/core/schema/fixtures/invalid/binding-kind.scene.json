@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
+  "units": "m",
+  "components": [],
+  "connections": [],
+  "tagBindings": [
+    {
+      "id": "b",
+      "tagId": "t",
+      "kind": "alarm"
+    }
+  ]
+}

@@ -120,3 +120,17 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Older files:** v1, v2 and v3 files still load; `validateScene`/`parseScene` report `migratedFrom: 1 | 2 | 3`.
 - **Extensions** are keyed by reverse-DNS namespace and hold plain JSON, at most 16 levels deep and 10,000 values per document. They are preserved with sorted keys and never interpreted by core.
 - **New error code `SECRET_FIELD`:** a label or extension key that names a credential (password, secret, API key, private key, `…token`) is rejected. Store a reference to the secret in your host instead.
+
+### JSON Schema (T-069)
+- **Where it is:** `@sakibcoolz/core/schema/industrial-scene.v4.schema.json`, a draft 2020-12 schema for version 4 files, published with the package.
+- **Examples:** `schema/fixtures/` holds `valid/`, `invalid/` and `validator-only/` documents, each with its expected `validateScene` error.
+- **Use it for:** editors, other languages and pipelines that cannot run the TypeScript validator.
+- **Authority:** `validateScene` stays authoritative. The schema cannot check:
+  - unit-length rotations;
+  - references and ports;
+  - port compatibility and occupancy;
+  - the scale policy and assembly cycles;
+  - units per quantity;
+  - credential-like key names;
+  - extension depth and value budgets.
+- **Guarantee:** anything `validateScene` accepts with the default limits passes the schema. A test proves this on every example and on 1500 seeded mutations.

@@ -1,0 +1,46 @@
+{
+  "unsupported-version.scene.json": {
+    "code": "UNSUPPORTED_VERSION",
+    "path": "schemaVersion"
+  },
+  "missing-document-type.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "documentType"
+  },
+  "unknown-root-field.scene.json": {
+    "code": "UNKNOWN_FIELD",
+    "path": "plant"
+  },
+  "unknown-component-kind.scene.json": {
+    "code": "UNKNOWN_COMPONENT_KIND",
+    "path": "components[0].type"
+  },
+  "empty-name.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "components[0].name"
+  },
+  "non-string-label.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "components[0].labels.area"
+  },
+  "zero-scale.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "components[0].scale"
+  },
+  "extension-not-namespaced.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "extensions.myapp"
+  },
+  "underlay-opacity.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "underlay.opacity"
+  },
+  "binding-kind.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "tagBindings[0].kind"
+  },
+  "extension-prototype-key.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "extensions.com.example.x.__proto__"
+  }
+}

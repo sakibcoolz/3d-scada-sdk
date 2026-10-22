@@ -1488,3 +1488,25 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-069: JSON Schema for scene version 4 (Phase 1b)
+- Owner: "Yes" (start T-069). Branch `feat/T-069-json-schema`, built on the T-068 branch. Its PR opens only after #70 is merged, based on `develop` and not stacked.
+- Change:
+  - `packages/core/schema/industrial-scene.v4.schema.json` (draft 2020-12), published with core (`files`, plus `exports` `./schema/*`).
+  - Examples in `schema/fixtures/`: valid (3), invalid (11, each rejected by both schema and validator, expected errors in `expected.json`) and validator-only (5: rotation length, unknown port, credential label, credential in extension, duplicate id).
+  - Root dev dependency `ajv@8.17.1`, used only in tests (owner decision D3).
+  - The fuzz helpers moved from `security.test.ts` to `src/fixtures/fuzz.ts`, which is excluded from the build.
+  - The consumer node-check resolves the schema from the installed package.
+- Bug found by the new agreement fuzz and fixed:
+  - `readList` used `forEach`, which skips holes. A sparse array such as `[, binding]` passed by a host was read as if the hole were absent, while the same document as JSON (`[null, …]`) is rejected.
+  - It now reads every index, and a hole is an `INVALID_FIELD` entry. A regression test was added.
+- Tests:
+  - New `schema.test.ts`: the schema compiles in strict mode; every valid, invalid and validator-only example behaves as listed; every example has an expectation; and the schema is never stricter than `validateScene` over 1500 seeded v4 mutations, raw and serialized.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1322 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (126 tests).
+  - `pnpm verify:consumer` 0 (schema resolved from the packed package).
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

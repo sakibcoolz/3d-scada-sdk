@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
+  "units": "m",
+  "project": {
+    "id": "plant-7",
+    "name": "Milk line 2",
+    "revision": "12",
+    "description": "Process hall B"
+  },
+  "components": [
+    {
+      "id": "T-101",
+      "name": "Raw milk tank",
+      "type": "tank",
+      "typeVersion": "1",
+      "manufacturer": "ACME",
+      "model": "RT-10",
+      "position": {
+        "x": 0,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {},
+      "labels": {
+        "area": "Hall B",
+        "assetNumber": "A-00412"
+      },
+      "extensions": {
+        "com.example.maintenance": {
+          "checks": [
+            "seal",
+            "gauge"
+          ],
+          "intervalDays": 90
+        }
+      }
+    },
+    {
+      "id": "XV-101",
+      "name": "Outlet valve",
+      "type": "valve",
+      "parentId": "T-101",
+      "position": {
+        "x": 2,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    }
+  ],
+  "connections": [],
+  "underlay": {
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><rect x=\"1\" y=\"1\" width=\"8\" height=\"8\"/></svg>",
+    "position": {
+      "x": 0,
+      "z": 0
+    },
+    "width": 20,
+    "rotation": 0,
+    "opacity": 0.4
+  },
+  "extensions": {
+    "org.example.app": {
+      "createdBy": "designer",
+      "layers": [
+        {
+          "name": "process",
+          "visible": true
+        }
+      ]
+    }
+  }
+}
