@@ -1,6 +1,6 @@
 # ADR-0026: Process and electrical 2D views over one model
 
-Status: Accepted (owner, 2026-10-23: `views` in v4 without a version bump, `@sakibcoolz/react` depends on `views-2d`, and the phase scope); T-083 implemented, T-084..T-086 pending. M9 Phase 7 of docs/INDUSTRIAL_SDK_PLAN.md (§7, decision D4 approved), tasks T-083..T-086.
+Status: Accepted (owner, 2026-10-23: `views` in v4 without a version bump, `@sakibcoolz/react` depends on `views-2d`, and the phase scope); T-083..T-084 implemented, T-085..T-086 pending. M9 Phase 7 of docs/INDUSTRIAL_SDK_PLAN.md (§7, decision D4 approved), tasks T-083..T-086.
 
 ## Context
 The scene already holds:
@@ -149,3 +149,42 @@ Membership is decided by ports, not by names.
   - fixtures: `valid/views`, `invalid/view-rotation` and `validator-only/view-unknown-component`;
   - the fuzz base document now carries views, so the "schema is never stricter" mutation run covers them.
 - **Tests:** `views.test.ts` (8) covers acceptance and canonical output, files without views, unknown references, malformed layouts and limits, a `__proto__` ID, and clean-up by each removal. The API and security code lists were updated.
+
+## Implementation notes (T-084)
+- **Package:** `packages/views-2d` (`@sakibcoolz/views-2d`).
+  - Depends on core and components; react and react-dom are peers. No new third-party dependency.
+  - Added to `verify:consumer`. The consumer app gains a "Process" mode, which the consumer browser test checks, and `node-check` runs the pure model in Node.
+- **Model (`model.ts`, pure):**
+  - `inView`: a definition's `views`; else built-in kinds are process equipment; else the views of its port kinds.
+  - `layoutView`: symbols with positions and port anchors, plus lines.
+    - Process lines are fluid and mechanical connections, plus `measures` and `drives` associations.
+    - Saved symbols and routes are used as they are. Hidden symbols and entries for removed IDs are skipped.
+  - Automatic placement:
+    - layers follow connection direction in scene order, and a cycle is broken at the first remaining component;
+    - columns are 120 units apart and rows 90, snapped to the 10-unit grid;
+    - association-only components join their partner's column, below it;
+    - unplaced symbols go below the saved ones.
+  - Port anchors: a symbol's own `ports` entry, else the port's 3D front-view position (x, y) scaled into the symbol box. Rotation turns them about the centre.
+  - Lines:
+    - connections run port to port, orthogonal, with at most two bends;
+    - associations run between symbol edges, so they never cross either symbol.
+  - `placeSymbol` saves a snapped place and keeps rotation and `hidden`.
+- **Definitions:** `ComponentDefinition.views?` is checked at registration (non-empty, distinct, `process` or `electrical`). `sdk.transmitter` and `sdk.switch` set both views.
+- **Symbols (`symbols.ts`):**
+  - data shapes (rect, circle, line, polygon, polyline, text) for the 14 built-in kinds;
+  - `sdk.motor`, `sdk.switch` (XS), and `sdk.transmitter`, whose letters follow `measures` (PT, TT, LT, FT);
+  - a labelled box for everything else.
+- **`<ProcessView>`** is built on a shared `DiagramView`:
+  - select by click, Shift-click, Enter or Space; clicking the background clears;
+  - pan by dragging the background, zoom with the wheel (non-passive) or the buttons, and Fit;
+  - drag to place (with `editable`), and a drag is never also a click;
+  - each symbol has a transparent hit area, so the inside of an outline is clickable;
+  - live values come from core `resolveTelemetry`;
+  - all text is React text.
+  - `describeLiveValue` repeats the 3D view's line format; T-086 will share one implementation once `@sakibcoolz/react` depends on this package.
+- **Playground:** `?view=process` (with or without `?control`) opens the view under the editor, with a "Process view" toggle. The editor does not take outside edits until T-086, so the playground keeps the 2D layout beside it, and the editor's JSON does not include it yet.
+- **Tests:**
+  - `views-2d/src/model.test.ts` (11): membership, lines, labels, placement, determinism and cycles, routes and anchors, saved layouts, `placeSymbol`, and server-rendered markup (accessibility, escaped names, live values);
+  - registry `views` tests;
+  - e2e `process-view.spec.ts` (5): members and lines, live and disconnected values, selection, drag to place, zoom, pan and Fit;
+  - the consumer browser test.

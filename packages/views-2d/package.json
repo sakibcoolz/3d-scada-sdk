@@ -1,0 +1,67 @@
+{
+  "name": "@sakibcoolz/views-2d",
+  "version": "0.1.3",
+  "description": "Process and electrical 2D views (SVG) over one @sakibcoolz scene: symbols, automatic placement, shared selection. No three.js.",
+  "license": "MIT",
+  "author": "sakibcoolz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sakibcoolz/3d-scada-sdk.git",
+    "directory": "packages/views-2d"
+  },
+  "homepage": "https://github.com/sakibcoolz/3d-scada-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/sakibcoolz/3d-scada-sdk/issues"
+  },
+  "keywords": [
+    "scada",
+    "industrial",
+    "p&id",
+    "process-diagram",
+    "electrical-diagram",
+    "svg",
+    "react",
+    "digital-twin"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sakibcoolz/core": "workspace:*",
+    "@sakibcoolz/components": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "types": "./dist/index.d.ts",
+    "main": "./dist/index.js"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { parseScene, upgradeDimensions, type ScadaScene } from '@sakibcoolz/core';
 import { catalogResolvers, legacyCatalogResolvers } from '@sakibcoolz/components';
 import { Scada3DEditor, Scada3DViewer } from '@sakibcoolz/react';
+import { ProcessView } from '@sakibcoolz/views-2d';
 
 // A tank feeding a valve, a reducer and a DN100 pipe: authored as plain JSON, checked by the core.
 const authored = {
@@ -28,7 +29,7 @@ if (!loaded.ok) throw new Error(loaded.errors.map((e) => e.message).join('\n'));
 const initial: ScadaScene = upgradeDimensions(loaded.scene, { ...catalogResolvers, ...legacyCatalogResolvers }).scene;
 
 function App() {
-  const [mode, setMode] = useState<'viewer' | 'editor'>('viewer');
+  const [mode, setMode] = useState<'viewer' | 'editor' | 'process'>('viewer');
   const [scene, setScene] = useState(initial);
   return (
     <div style={{ display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr)', height: '100%' }}>
@@ -36,10 +37,11 @@ function App() {
         <strong>Consumer example</strong>
         <button aria-pressed={mode === 'viewer'} onClick={() => setMode('viewer')}>Viewer</button>
         <button aria-pressed={mode === 'editor'} onClick={() => setMode('editor')}>Editor</button>
+        <button aria-pressed={mode === 'process'} onClick={() => setMode('process')}>Process</button>
         <span aria-label="Component count">{scene.components.length} components</span>
       </header>
       <main style={{ minHeight: 0 }}>
-        {mode === 'viewer' ? <Scada3DViewer scene={scene} /> : <Scada3DEditor initialScene={scene} onChange={setScene} />}
+        {mode === 'viewer' ? <Scada3DViewer scene={scene} /> : mode === 'editor' ? <Scada3DEditor initialScene={scene} onChange={setScene} /> : <ProcessView scene={scene} editable onChange={setScene} style={{ height: '100%' }} />}
       </main>
     </div>
   );

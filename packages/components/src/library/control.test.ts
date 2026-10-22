@@ -208,3 +208,16 @@ describe('drives, motors, instruments and the panel (T-081)', () => {
     ]);
   });
 });
+
+describe('views on definitions (ADR-0026)', () => {
+  it('puts instruments in both 2D views and checks the names hosts give', () => {
+    expect(byType('sdk.transmitter').views).toEqual(['process', 'electrical']);
+    expect(byType('sdk.switch').views).toEqual(['process', 'electrical']);
+    expect(byType('sdk.vfd').views).toBeUndefined();
+    const base = { ...byType('sdk.plc.cpu'), type: 'com.test.box' };
+    expect(() => createComponentRegistry({ ...base, views: ['electrical'] })).not.toThrow();
+    for (const views of [[], ['pid'], ['process', 'process']]) {
+      expect(() => createComponentRegistry({ ...base, views: views as never })).toThrow('needs views as distinct names from process, electrical');
+    }
+  });
+});

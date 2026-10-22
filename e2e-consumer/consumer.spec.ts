@@ -20,5 +20,11 @@ test('the packed viewer and editor render and edit in a stand-alone app', async 
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(page.getByLabel('Component count')).toHaveText('4 components');
 
+  // The 2D process view from @sakibcoolz/views-2d (ADR-0026): one symbol per component, three pipes.
+  await page.getByRole('button', { name: 'Process' }).click();
+  const process = page.getByRole('group', { name: 'Process view' });
+  await expect(process.getByRole('button')).toHaveCount(4);
+  await expect(process.locator('[data-edge-kind="connection"]')).toHaveCount(3);
+
   expect(errors).toEqual([]);
 });

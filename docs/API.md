@@ -154,6 +154,20 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## 2D process view (`@sakibcoolz/views-2d`, T-084, ADR-0026)
+- **`<ProcessView scene registry? selectedIds? onSelectionChange? telemetry? editable? onChange? style? />`:** an SVG process diagram (P&ID style) of the scene.
+  - Interaction: select (click, Shift-click, Enter), pan, zoom, Fit.
+  - With `editable`, dragging a symbol saves `views.process.symbols[id]` through `onChange`.
+  - Live values follow the same rules as the 3D view.
+- **Pure model:**
+  - `layoutView(scene, view, registry)` returns `{ symbols, edges, bounds }`;
+  - `placeSymbol(scene, view, id, x, y)`;
+  - `inView(view, component, registry)`;
+  - `orthogonalRoute`, `portAnchor`, `GRID`.
+- **Symbols:** `builtInSymbol(view, component)` and `fallbackSymbol(label)`; `SymbolDefinition` is data (shapes plus optional port points).
+- **Also exported:** `DiagramView` (the shared base) and `describeLiveValue`.
+- **Definitions** may set `views?: ('process' | 'electrical')[]`, which is checked at registration.
+
 ## 2D view layouts (T-083, ADR-0026)
 - **`scene.views`** (optional): `{ process?, electrical? }`, each `{ symbols?: Record<componentId, { x, y, rotation?, hidden? }>, routes?: Record<edgeId, { points }> }` in drawing units (1 mm, y down). Layout only.
 - **Validation:** IDs must exist (`UNKNOWN_VIEW_REFERENCE`). Coordinates are finite within ±1,000,000, rotation is 0/90/180/270, and a route has 2 to 1,000 points.

@@ -241,7 +241,8 @@ const motor = parametric(
 
 /** A small field instrument: process stem, round head with a name plate, terminals under the head. */
 function fieldDevice(head: Omit<ComponentTypeDefinition, 'ports' | 'parts' | 'bounds' | 'variables' | 'build'>, shape: (values: Values) => { label: string; out: Unplaced; variables: VariableTemplate[] }) {
-  return parametric(head, (values) => {
+  // Instruments belong on the process diagram as well as the wiring (ADR-0026).
+  return parametric({ ...head, views: ['process', 'electrical'] }, (values) => {
     const s = shape(values);
     const stem = 0.1, headRadius = 0.045, headLength = 0.06;
     const centre = stem + headRadius;
