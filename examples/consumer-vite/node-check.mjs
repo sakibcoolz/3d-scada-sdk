@@ -1,5 +1,5 @@
 // Plain Node, no bundler: the core and catalog must load as ES modules and validate a scene.
-import { parseScene, serializeScene, findOpenJoints, pathBetween, projectAcquisition, relatedComponents } from '@sakibcoolz/core';
+import { applyTagSuggestions, parseScene, serializeScene, findOpenJoints, pathBetween, projectAcquisition, relatedComponents, reviewTags, suggestVariables } from '@sakibcoolz/core';
 import { catalogResolvers, createComponentRegistry, pipeSizes } from '@sakibcoolz/components';
 import { createSimulation } from '@sakibcoolz/simulation';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
@@ -46,7 +46,7 @@ const terminal = (id, kind, extra) => ({ id, kind, position: [0, 0.5, 0.3], dire
 const box = { bounds: { min: [-0.3, 0, -0.3], max: [0.3, 1, 0.3] }, parts: [{ shape: 'box', role: 'shell', center: [0, 0.5, 0], size: [0.6, 1, 0.6] }] };
 const control = createComponentRegistry(
   { type: 'com.example.plc', label: 'PLC', ...box, ports: [terminal('do0', 'signal', { signal: { type: 'DO' } })] },
-  { type: 'com.example.vfd', label: 'VFD', ...box, ports: [terminal('run', 'signal', { signal: { type: 'DI' } }), terminal('uvw', 'power', { flow: 'out', power: { kind: 'AC', voltage: 400, phases: 3 } })] },
+  { type: 'com.example.vfd', label: 'VFD', ...box, variables: [{ name: 'ACTUAL_SPEED', dataType: 'float32', unit: 'rpm' }], ports: [terminal('run', 'signal', { signal: { type: 'DI' } }), terminal('uvw', 'power', { flow: 'out', power: { kind: 'AC', voltage: 400, phases: 3 } })] },
   { type: 'com.example.motor', label: 'Motor', ...box, ports: [terminal('terminals', 'power', { flow: 'in', power: { kind: 'AC', voltage: 400, phases: 3 } })] },
 );
 const line = {
@@ -78,6 +78,12 @@ const plan = projectAcquisition(acquired.scene);
 if (plan.sourceRevision !== '3' || plan.variables.length !== 1 || plan.variables[0].address.address !== 100) throw new Error('unexpected acquisition plan');
 const withPassword = { ...JSON.parse(serializeScene(acquired.scene)), dataSources: [{ id: 'ds-plc', protocol: 'modbus-tcp', endpointRef: 'modbus://admin:secret@10.0.0.5' }] };
 if (parseScene(JSON.stringify(withPassword), control.resolvers).ok) throw new Error('an endpoint with credentials must be refused');
+// Suggested tags come from the definitions and are applied only on request (ADR-0024).
+const proposals = suggestVariables(controlled.scene, control.resolvers);
+if (proposals.variables.map((v) => v.id).join() !== 'VFD-101.ACTUAL_SPEED') throw new Error('unexpected tag suggestions');
+if (controlled.scene.runtimeVariables) throw new Error('suggesting must not change the scene');
+const tagged = applyTagSuggestions(controlled.scene, proposals, control.resolvers);
+if (!tagged.ok || reviewTags(tagged.scene, control.resolvers).map((f) => f.code).join() !== 'UNUSED_VARIABLE') throw new Error('unexpected tag review');
 // The JSON Schema ships with core and resolves through the package exports (T-069).
 const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
 const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));

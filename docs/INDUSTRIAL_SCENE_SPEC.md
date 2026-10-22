@@ -142,6 +142,9 @@ Rules:
   - otherwise it is `TYPE_MISMATCH`.
 - When the binding gives no unit, the variable's unit must be accepted for the quantity (`INVALID_UNIT`), and it is used to convert observations.
 - A binding to a tag with no variable stays valid: an opaque host tag.
+- **Tooling, not file rules:**
+  - `reviewTags` lists untagged components, unused tags, undescribed tags and overlapping Modbus registers;
+  - `suggestVariables` proposes tags from component definitions, applied only through `applyTagSuggestions` after the user confirms.
 
 ## 7. Underlay
 `{ svg, position: { x, z }, width, rotation, opacity }` (ADR-0012):

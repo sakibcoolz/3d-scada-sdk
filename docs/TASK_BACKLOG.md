@@ -77,8 +77,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-075 | M9 (industrial model) | P0 | T-074 | DONE | Phase 4a (ADR-0023): root `associations` (port-less logical links), validation, `addAssociation`/`removeAssociation`, schema and spec |
 | T-076 | M9 (industrial model) | P0 | T-075 | DONE | Phase 4b (ADR-0023): `neighbours`, `relatedComponents`, `pathBetween` with domain/relationship filters; PLC→VFD→Motor, network and 4–20 mA acceptance scenes; consumer example |
 | T-077 | M9 (industrial model) | P0 | T-076 | DONE | Phase 5a (ADR-0024): root `dataSources` and `runtimeVariables`, protocol-typed addresses (OPC UA, Modbus), Modbus range/type rules, `endpointRef` credential check, canonical order, schema, fixtures, spec |
-| T-078 | M9 (industrial model) | P0 | T-077 | REVIEW | Phase 5b (ADR-0024): binding ↔ variable data-type and unit checks, `DISCONNECTED` quality through telemetry/flow/viewer, `projectAcquisition`, consumer example |
-| T-079 | M9 (industrial model) | P1 | T-078 | TODO | Phase 5c (ADR-0024): variable templates on definitions, `suggestVariables` (proposals only), `reviewTags` findings |
+| T-078 | M9 (industrial model) | P0 | T-077 | DONE | Phase 5b (ADR-0024): binding ↔ variable data-type and unit checks, `DISCONNECTED` quality through telemetry/flow/viewer, `projectAcquisition`, consumer example |
+| T-079 | M9 (industrial model) | P1 | T-078 | REVIEW | Phase 5c (ADR-0024): variable templates on definitions, `suggestVariables` (proposals only), `reviewTags` findings |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.
