@@ -1781,3 +1781,27 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0 (node-check ok).
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-080: control equipment library, control and I/O (Phase 6a, ADR-0025)
+- Owner approved ADR-0025 ("approve", then "continue"): the `sdk.` prefix, the equipment list, and motor → pump by association. Branch `docs/T-080-control-library-adr` from `origin/develop`.
+- Change:
+  - **components:**
+    - new `library/control.ts` with the opt-in `controlLibrary`: `sdk.plc.cpu`, `sdk.plc.di`/`do` (8/16), `sdk.plc.ai` (4/8) and `ao` (2/4) with 4-20 mA or 0-10 V, `sdk.dcs.controller`, `sdk.network.switch` (5/8/16) and `sdk.psu`;
+    - typed front terminals and per-channel variable templates;
+    - `build` may return `variables`;
+    - the registry refuses `sdk.*` definitions that are not the library's own objects.
+- Tests:
+  - new `library/control.test.ts` (25): every parameter combination passes all registration rules with terminals inside its bounds; channel ports and templates; the opt-in boundary; the reserved prefix; accepted and refused wiring; suggestions;
+  - the components API list was updated.
+- Docs:
+  - ADR-0025 Accepted with T-080 notes; DECISION_LOG;
+  - API.md; RELEASE.md;
+  - backlog T-079 DONE, T-080 REVIEW, T-081..T-082 TODO; plan Phase 6 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1516 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (130 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

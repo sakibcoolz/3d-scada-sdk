@@ -1,5 +1,6 @@
 import { dataTypes, isBuiltInKind, isNamespacedType, portKinds, powerKinds, signalTypes, type ComponentInstance, type ConnectionPort, type ComponentType, type Quantity, type Vector3Tuple } from '@sakibcoolz/core';
 import { componentCatalog } from './catalog.js';
+import { isLibraryDefinition } from './library/control.js';
 import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
 import { catalogResolvers, checkParameters, definitionFor as builtInDefinitionFor, sizeParameterFor as builtInSizeParameterFor, validateProperties as builtInValidateProperties } from './parameters.js';
 
@@ -21,10 +22,10 @@ export interface ComponentTypeDefinition extends Omit<IndustrialComponentDefinit
   /** Computed from `bounds` when absent. */
   defaultSize?: Vector3Tuple;
   /**
-   * Parametric shape: given every parameter's value (defaults filled in), returns the ports, parts
-   * and bounds that differ from the base definition. Only called with valid values.
+   * Parametric shape: given every parameter's value (defaults filled in), returns the ports, parts,
+   * bounds and variable templates that differ from the base definition. Only called with valid values.
    */
-  build?: (values: Values) => Partial<Pick<IndustrialComponentDefinition, 'ports' | 'parts' | 'bounds'>>;
+  build?: (values: Values) => Partial<Pick<IndustrialComponentDefinition, 'ports' | 'parts' | 'bounds' | 'variables'>>;
 }
 
 /** Lookups a viewer, editor or core function needs, for built-in and registered types alike. */
@@ -112,6 +113,7 @@ function definitionProblems(d: ComponentTypeDefinition): string[] {
   if (!d || typeof d !== 'object') return ['a definition must be an object'];
   if (isBuiltInKind(d.type)) problems.push(`${name} is a built-in kind`);
   else if (!isNamespacedType(d.type)) problems.push(`${name} must be namespaced, such as "com.example.part"`);
+  else if (d.type.startsWith('sdk.') && !isLibraryDefinition(d)) problems.push(`${name} uses the reserved "sdk." prefix, which belongs to the SDK's own library`);
   if (typeof d.label !== 'string' || d.label.length === 0) problems.push(`${name} needs a label`);
   if (!d.bounds || !isTuple(d.bounds.min) || !isTuple(d.bounds.max) || d.bounds.min.some((v, i) => v > d.bounds.max[i])) problems.push(`${name} needs finite bounds with min ≤ max`);
   if (!Array.isArray(d.parts)) problems.push(`${name} needs a parts array`);

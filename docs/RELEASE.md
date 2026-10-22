@@ -42,6 +42,9 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, control equipment library (T-080, ADR-0025):** additive and opt-in (`controlLibrary`).
+  - Host types may no longer use the `sdk.` prefix.
+  - A definition's `build` may also return `variables`.
 - **0.2.0, tag suggestions and review (T-079, ADR-0024):** additive.
   - `ComponentDefinition.variables`, `catalogResolvers.resolveVariables` and registry `resolvers.resolveVariables`.
   - New exports `suggestVariables`, `applyTagSuggestions` and `reviewTags`.
