@@ -154,6 +154,11 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Editor: ports and relations (T-087, ADR-0027)
+- **Ports section:** the Properties panel lists each port of the selected component: terminal, ratings, connections used out of the maximum, and what each connection joins, with a link to select it.
+- **Related section:** neighbours grouped by pipes, power, signal, network and associations both ways, plus the upstream control chain. It uses explicit edges only and is readable while locked.
+- **Public API:** no change.
+
 ## Workspace and shared selection (`@sakibcoolz/react`, T-086, ADR-0026)
 - **`<ScadaWorkspace>`** takes the editor's props plus:
   - `layout` / `defaultLayout` / `onLayoutChange` (`'3d' | 'process' | 'electrical' | 'split'`, default split) and `defaultDiagram`;

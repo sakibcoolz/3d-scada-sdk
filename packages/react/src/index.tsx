@@ -19,6 +19,9 @@ import { componentNames, describeAttach, describeLock, describeNewConnections, d
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history.js';
 import { importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile.js';
 import { describeProperty, summarizeTelemetry } from './telemetryView.js';
+import { PortsInspector, RelationsExplorer } from './inspector.js';
+import { describePorts } from './ports.js';
+import { describeRelations } from './relations.js';
 import { nudge } from './keyboard.js';
 import { degreesFromRotation, rotationFromDegrees, turnAboutWorldAxis } from './rotationForm.js';
 import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance.js';
@@ -1479,6 +1482,9 @@ function EditorBody({initialScene,onChange,selectedIds,onSelectionChange,flow,te
           <AssemblyControls component={component} scene={scene} onChange={next=>update(next)} onNotice={setNotice}/>
           <SeatControls component={component} scene={scene} onSeat={connectionId=>{const r=seatOnConnection(scene,connectionId,component.id,registry.resolvers);if(r.ok){update(r.scene);setNotice([describeSeat(scene,connectionId,component.id,r.moved,registry)]);}}}/>
         </>,isLocked)}
+        {/* Read only, so open while locked too (ADR-0027). */}
+        {section('Ports',<PortsInspector rows={describePorts(scene,component.id,registry)} onGo={setSelected}/>)}
+        {section('Related',<RelationsExplorer relations={describeRelations(scene,component.id,registry)} onGo={setSelected}/>)}
         {hasBindings(component)&&section('Tag bindings',<BindingsEditor component={component} scene={scene} live={live?.properties} onSet={setBinding}/>,isLocked)}
         {section('View',<label className="s3-stack">Component view <select aria-label="Component view" value={viewOverrides[component.id]??''} onChange={e=>{const value=e.target.value as ViewMode|'';setViewOverrides(({[component.id]:_,...rest})=>value?{...rest,[component.id]:value}:rest);}}><option value="">Use global</option>{viewModes.map(m=><option key={m} value={m}>{viewLabels[m]}</option>)}</select></label>)}
         {section('Actions',<>

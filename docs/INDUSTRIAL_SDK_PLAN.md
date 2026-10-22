@@ -112,7 +112,7 @@ flowchart LR
 | 2D process (P&ID-style) view | NOT IMPLEMENTED | only the SVG underlay inside 3D |
 | Electrical view | NOT IMPLEMENTED | none |
 | Combined, synchronized views | NOT IMPLEMENTED | the playground's "Second viewer" re-renders the same scene; the editor's selection is internal and cannot be controlled |
-| Device relationship explorer | NOT IMPLEMENTED | none |
+| Device relationship explorer | IMPLEMENTED in the editor (T-087, ADR-0027) | Related section and control chain; runtime mode is Phase 9 |
 
 ### 2.6 Z-Factory (consumer) audit: reference only
 `sakibcoolz/z-factory` at `2a04219` is public. It was read only to learn what a real host needs. **Owner decision D6: the SDK stays independent, and no Z-Factory changes are planned or made, now or later.** The facts below informed the host-neutral model; nothing in the SDK will reference Z-Factory.
@@ -377,7 +377,7 @@ The owner's phases 0–11 are reconciled with the backlog. New task IDs continue
 | **5 Tag engine** (T-077..T-079; ADR-0024; IMPLEMENTED in T-077..T-079) | `tagBindings`, `units.ts`, `telemetry.ts` | labels, runtime variables, data sources, typed addresses, warnings, `DISCONNECTED`; suggestions from definitions plus explicit edges, applied only after confirmation | uniqueness, type/unit, address validation, shared source variable, components without tags, suggestion tests |
 | **6 Libraries** (T-080..T-082; ADR-0025 accepted, T-080..T-082 IMPLEMENTED) | the components package plus a new `sdk.*` control set | PLC (rack/modules/channels), DCS controller, VFD, sensor (AI/DI), motor (power + shaft), panel/cabinet; parametric, with ports and variable templates | definition tests, port validity, relationship demo scene |
 | **7 Multi-view** (T-083..T-086; ADR-0026 accepted, T-083..T-086 IMPLEMENTED) | new `views-2d`; controlled selection in the editor | process and electrical SVG views; split view; synchronized selection; per-view layout saved under `views.*` | unit tests plus e2e selection sync, layout round trip |
-| **8 Editor** (T-087..T-089) | existing editor | port and terminal inspector; connection editing per domain; tag and variable editor; relationship explorer panel | e2e per editor |
+| **8 Editor** (T-087..T-089; ADR-0027 accepted, T-087 IMPLEMENTED) | existing editor | port and terminal inspector; connection editing per domain; tag and variable editor; relationship explorer panel | e2e per editor |
 | **9 Runtime** (T-090..T-091) | viewer, telemetry | `ScadaRuntime`: read-only, alarms/quality per component, revision pin, no edit paths | e2e: no mutation possible; stale/disconnected/simulated display |
 | **10 Host/edge** (T-092..T-094) | core | `projectAcquisition`; normalized telemetry; command-request boundary (only if D5 is approved); host transport examples (T-018) | projection fixtures; mock-telemetry integration tests; no network in the SDK |
 | **11 Hardening** (T-095..T-097) | existing gates | migration corpus, perf with 10k components plus variables, consumer verify, security review, docs review, release 0.2.0 | perf budget, consumer e2e, fuzz |
