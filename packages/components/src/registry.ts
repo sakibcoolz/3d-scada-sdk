@@ -1,7 +1,8 @@
 import { dataTypes, isBuiltInKind, isNamespacedType, portKinds, powerKinds, signalTypes, viewKinds, type ComponentInstance, type ConnectionPort, type ComponentType, type Quantity, type Vector3Tuple } from '@sakibcoolz/core';
 import { componentCatalog } from './catalog.js';
 import { isLibraryDefinition } from './library/control.js';
-import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
+import { isChoiceParameter, type HostSymbol, type IndustrialComponentDefinition, type RegisteredSymbol } from './geometry.js';
+import { sanitizeSvg } from '@sakibcoolz/asset-import';
 import { catalogResolvers, checkParameters, definitionFor as builtInDefinitionFor, sizeParameterFor as builtInSizeParameterFor, validateProperties as builtInValidateProperties } from './parameters.js';
 
 type Properties = ComponentInstance['properties'];
@@ -12,7 +13,7 @@ type Problems = { property: string; message: string }[];
  * A host- or library-defined component type (ADR-0022): the same building blocks as the built-in
  * catalog (primitive parts, ports, bounds, parameters, bindable properties), under a namespaced id.
  */
-export interface ComponentTypeDefinition extends Omit<IndustrialComponentDefinition, 'defaultSize'> {
+export interface ComponentTypeDefinition extends Omit<IndustrialComponentDefinition, 'defaultSize' | 'symbols'> {
   /** Namespaced id, e.g. `com.acme.press-200`. Bare names are reserved for the built-in kinds. */
   type: string;
   /** Definition version; instances record the version they were authored against in `typeVersion`. */
@@ -21,6 +22,10 @@ export interface ComponentTypeDefinition extends Omit<IndustrialComponentDefinit
   category?: string;
   /** Computed from `bounds` when absent. */
   defaultSize?: Vector3Tuple;
+  /** Process-view symbol (ADR-0026): SVG, sanitized at registration; an unsafe one fails registration. */
+  symbol2D?: HostSymbol;
+  /** Electrical-view symbol, as `symbol2D`. */
+  electricalSymbol?: HostSymbol;
   /**
    * Parametric shape: given every parameter's value (defaults filled in), returns the ports, parts,
    * bounds and variable templates that differ from the base definition. Only called with valid values.
@@ -106,6 +111,43 @@ function portMetadataProblems(port: ConnectionPort, label: string): string[] {
   return problems;
 }
 
+/** Host symbols are small drawings: at most 64 KiB and 500 elements, and 1 to 1000 drawing units a side. */
+const SYMBOL_LIMITS = { maxBytes: 64 * 1024, maxElements: 500 };
+const MAX_SYMBOL_SIZE = 1000;
+
+/** Sanitizes one host symbol (ADR-0026) and checks its size and port points against the type's ports. */
+function registerSymbol(symbol: HostSymbol, portIds: ReadonlySet<string>, label: string): { symbol?: RegisteredSymbol; problems: string[] } {
+  if (!symbol || typeof symbol !== 'object' || typeof symbol.svg !== 'string') return { problems: [`${label} needs svg text`] };
+  const problems: string[] = [];
+  const side = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 1 && v <= MAX_SYMBOL_SIZE;
+  if (!side(symbol.width) || !side(symbol.height)) problems.push(`${label} needs a width and height of 1 to ${MAX_SYMBOL_SIZE}`);
+  const ports: Record<string, readonly [number, number]> = {};
+  for (const [id, point] of Object.entries(symbol.ports ?? {})) {
+    if (!portIds.has(id)) problems.push(`${label} places "${id}", which is not one of its ports`);
+    else if (!(Array.isArray(point) && point.length === 2 && point.every((v) => typeof v === 'number' && Number.isFinite(v)) && point[0] >= 0 && point[0] <= symbol.width && point[1] >= 0 && point[1] <= symbol.height)) {
+      problems.push(`${label} port "${id}" needs an [x, y] point inside the symbol`);
+    } else Object.defineProperty(ports, id, { value: Object.freeze([point[0], point[1]] as const), enumerable: true });
+  }
+  const clean = sanitizeSvg(symbol.svg, SYMBOL_LIMITS);
+  if (!clean.ok) problems.push(...clean.errors.map((e) => `${label} SVG is refused: ${e.message}`));
+  if (problems.length > 0 || !clean.ok) return { problems };
+  return { symbol: Object.freeze({ width: symbol.width, height: symbol.height, ...(Object.keys(ports).length > 0 ? { ports: Object.freeze(ports) } : {}), drawing: clean.svg }) as RegisteredSymbol, problems };
+}
+
+/** The sanitized symbols of a definition, by view, with any problems. */
+function hostSymbols(d: ComponentTypeDefinition, name: string): { symbols: Partial<Record<'process' | 'electrical', RegisteredSymbol>>; problems: string[] } {
+  const portIds = new Set(Array.isArray(d.ports) ? d.ports.map((p) => p?.id) : []);
+  const symbols: Partial<Record<'process' | 'electrical', RegisteredSymbol>> = {};
+  const problems: string[] = [];
+  for (const [view, field] of [['process', 'symbol2D'], ['electrical', 'electricalSymbol']] as const) {
+    if (d[field] === undefined) continue;
+    const result = registerSymbol(d[field], portIds, `${name} ${field}`);
+    problems.push(...result.problems);
+    if (result.symbol) symbols[view] = result.symbol;
+  }
+  return { symbols, problems };
+}
+
 /** Everything wrong with one definition, as readable sentences; empty when it can be registered. */
 function definitionProblems(d: ComponentTypeDefinition): string[] {
   const problems: string[] = [];
@@ -149,6 +191,7 @@ function definitionProblems(d: ComponentTypeDefinition): string[] {
   if (d.views !== undefined && !(Array.isArray(d.views) && d.views.length > 0 && new Set(d.views).size === d.views.length && d.views.every((v) => (viewKinds as readonly string[]).includes(v)))) {
     problems.push(`${name} needs views as distinct names from ${viewKinds.join(', ')}`);
   }
+  problems.push(...hostSymbols(d, name).problems);
   for (const [param, spec] of Object.entries(d.parameters ?? {})) {
     const ok = isChoiceParameter(spec) ? spec.choices.includes(spec.default) : finite(spec.default) && spec.default >= spec.min && spec.default <= spec.max;
     if (!ok) problems.push(`${name} parameter "${param}" has a default outside its range or choices`);
@@ -172,10 +215,11 @@ export function createComponentRegistry(...definitions: ComponentTypeDefinition[
 
   const custom = new Map<string, { base: IndustrialComponentDefinition; build?: ComponentTypeDefinition['build'] }>();
   for (const d of definitions) {
-    const { build, ...rest } = d;
+    const { build, symbol2D: _p, electricalSymbol: _e, ...rest } = d;
+    const { symbols } = hostSymbols(d, d.type);
     const variables = rest.variables && Object.freeze(rest.variables.map((t) => Object.freeze({ ...t })));
     const views = rest.views && Object.freeze([...rest.views]);
-    const base = Object.freeze({ ...rest, ...(variables ? { variables } : {}), ...(views ? { views } : {}), defaultSize: rest.defaultSize ?? sizeOf(rest.bounds) }) as IndustrialComponentDefinition;
+    const base = Object.freeze({ ...rest, ...(variables ? { variables } : {}), ...(views ? { views } : {}), ...(Object.keys(symbols).length > 0 ? { symbols: Object.freeze(symbols) } : {}), defaultSize: rest.defaultSize ?? sizeOf(rest.bounds) }) as IndustrialComponentDefinition;
     custom.set(d.type, { base, build });
   }
   const cache = new Map<string, IndustrialComponentDefinition>();

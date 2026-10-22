@@ -1,6 +1,6 @@
 # ADR-0026: Process and electrical 2D views over one model
 
-Status: Accepted (owner, 2026-10-23: `views` in v4 without a version bump, `@sakibcoolz/react` depends on `views-2d`, and the phase scope); T-083..T-084 implemented, T-085..T-086 pending. M9 Phase 7 of docs/INDUSTRIAL_SDK_PLAN.md (§7, decision D4 approved), tasks T-083..T-086.
+Status: Accepted (owner, 2026-10-23: `views` in v4 without a version bump, `@sakibcoolz/react` depends on `views-2d`, and the phase scope); T-083..T-085 implemented, T-086 pending. M9 Phase 7 of docs/INDUSTRIAL_SDK_PLAN.md (§7, decision D4 approved), tasks T-083..T-086.
 
 ## Context
 The scene already holds:
@@ -188,3 +188,31 @@ Membership is decided by ports, not by names.
   - registry `views` tests;
   - e2e `process-view.spec.ts` (5): members and lines, live and disconnected values, selection, drag to place, zoom, pan and Fit;
   - the consumer browser test.
+
+## Implementation notes (T-085)
+- **Host symbols (components):**
+  - `ComponentTypeDefinition.symbol2D` and `electricalSymbol` take `{ svg, width, height, ports? }`.
+  - At registration the SVG goes through `sanitizeSvg` (at most 64 KiB and 500 elements); width and height must be 1–1000; `ports` must name real ports with points inside the symbol. Any problem fails registration.
+  - The registered definition carries `symbols: { process?, electrical? }` of `RegisteredSymbol { width, height, ports?, drawing: SanitizedSvg }`.
+  - `@sakibcoolz/components` now depends on `@sakibcoolz/asset-import`, which is ours and has no dependencies, so there is no cycle.
+- **Rendering:** host shapes become `path` symbol shapes, with the viewBox scaled onto the symbol size and pre-multiplied into each path's matrix. Only sanitized path data, a numeric `matrix()` and `#rrggbb` or `none` colours reach the DOM, never markup.
+- **Symbol choice:** a host symbol, else the view's built-in, else (electrical) a generated `terminalBlock` or (process) a labelled box.
+- **Electrical symbols:**
+  - `terminalBlock(title, ports)`: inputs on the left (flow `in`, DI, AI and power in), outputs on the right (flow `out`, DO, AO), network on top and PE at the bottom; 8-unit pitch, labelled by `terminal` else ID; fluid and mechanical ports are left out;
+  - the motor is a circle with M, with power on top and PE below;
+  - instruments are bubbles with the supply on the left and the output on the right.
+- **Electrical placement:** `electricalTier(ports)` gives the columns, left to right:
+  - supply (power out, or earth only);
+  - controllers and switches (network, no signal);
+  - I/O cards (signal ports only);
+  - field devices (signal plus others: drive, transmitter, sensor);
+  - loads (power in only: the motor).
+
+  Columns are 170 units apart. In both views, rows now stack by symbol height with a 40-unit gap, so a 16-channel card never overlaps the next one.
+- **Lines:** wires keep `data-edge-domain` and are drawn in `wireColors`. `controls` and `communicates` associations are dashed. Terminal labels are drawn inside the blocks. Wires may overlap, because there is no obstacle avoidance in this phase.
+- **`<ElectricalView>`** shares `DiagramView` with the process view. The playground's `?view=process,electrical` shows both side by side, sharing the layout and the selection.
+- **Known placement:** the control cabinet (mains in plus a PE bar) lands in the loads column, because its only non-earth port is a power input.
+- **Tests:**
+  - `views-2d/src/electrical.test.ts` (7): membership and lines, tier order, no overlap, terminal sides and labels, wire endpoints at terminals, host symbol drawing and markup, and refused symbols (script, `onload`, size, unknown port, point outside, missing SVG);
+  - e2e `electrical-view.spec.ts` (3): wires per domain, terminal labels, selection shared across views, and placing in one view leaving the other unchanged;
+  - consumer `node-check`: the electrical model and sanitizing at registration in Node.

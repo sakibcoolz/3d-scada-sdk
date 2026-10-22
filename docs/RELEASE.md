@@ -42,6 +42,7 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, electrical view and host symbols (T-085, ADR-0026):** `@sakibcoolz/components` depends on `@sakibcoolz/asset-import`. Definitions may carry `symbol2D` and `electricalSymbol`; an unsafe SVG fails registration.
 - **0.2.0, new package `@sakibcoolz/views-2d` (T-084, ADR-0026):** publish it with the others, at the same version. Definitions may set `views`.
 - **0.2.0, 2D view layouts (T-083, ADR-0026):** optional root `views` in scene v4 and the error code `UNKNOWN_VIEW_REFERENCE`. Readers built before this change refuse files that carry `views`.
 - **0.2.0, control equipment library (T-080..T-082, ADR-0025):** additive and opt-in (`controlLibrary`).

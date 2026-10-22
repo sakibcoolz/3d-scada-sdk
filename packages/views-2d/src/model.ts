@@ -1,6 +1,6 @@
-import { isBuiltInKind, type ComponentInstance, type PortKind, type Relationship, type ScadaScene, type SymbolPlacement, type ViewKind } from '@sakibcoolz/core';
+import { isBuiltInKind, type ComponentInstance, type ConnectionPort, type PortKind, type Relationship, type ScadaScene, type SymbolPlacement, type ViewKind } from '@sakibcoolz/core';
 import { builtInRegistry, type ComponentRegistry } from '@sakibcoolz/components';
-import { builtInSymbol, fallbackSymbol, type Point, type SymbolDefinition } from './symbols.js';
+import { builtInSymbol, fallbackSymbol, hostSymbol, terminalBlock, type Point, type SymbolDefinition } from './symbols.js';
 
 // What a 2D view shows and where (ADR-0026). Pure and deterministic: the same scene always gives
 // the same drawing. Saved placements and routes are used as they are; everything else is laid out
@@ -8,7 +8,9 @@ import { builtInSymbol, fallbackSymbol, type Point, type SymbolDefinition } from
 
 /** Grid that automatic placement and dragging snap to, in drawing units. */
 export const GRID = 10;
-const MARGIN = 40, COLUMN = 120, ROW = 90;
+const MARGIN = 40, ROW_GAP = 40;
+/** Column spacing per view: wiring needs more room between terminal blocks than pipes do. */
+const COLUMN: Record<ViewKind, number> = { process: 120, electrical: 170 };
 
 /** Port kinds each view draws as lines, and the associations it draws dashed. */
 const viewDomains: Record<ViewKind, readonly PortKind[]> = { process: ['fluid', 'mechanical'], electrical: ['power', 'signal', 'network', 'electrical'] };
@@ -81,11 +83,11 @@ export function portAnchor(symbol: SymbolDefinition, port: { id: string; positio
 }
 
 /**
- * Layers for automatic placement: along connection direction (from → to), in scene order, with a
- * cycle broken at the first remaining component. Components with only associations join their first
- * partner's layer.
+ * Columns for automatic placement in the process view: layers along connection direction (from → to),
+ * in scene order, with a cycle broken at the first remaining component. Components with only
+ * associations join their first partner's column, after the connected ones.
  */
-function autoPositions(members: ComponentInstance[], edges: { from: string; to: string; kind: DrawnEdge['kind'] }[]): Map<string, Point> {
+function processColumns(members: ComponentInstance[], edges: { from: string; to: string; kind: DrawnEdge['kind'] }[]): string[][] {
   const ids = members.map((c) => c.id);
   const out = new Map<string, string[]>(ids.map((id) => [id, []]));
   const indegree = new Map<string, number>(ids.map((id) => [id, 0]));
@@ -124,16 +126,28 @@ function autoPositions(members: ComponentInstance[], edges: { from: string; to: 
       }
     }
   }
-  const rows = new Map<number, number>();
-  const positions = new Map<string, Point>();
-  // Connected components take the first rows, so association partners land below what they relate to.
-  for (const id of [...order.filter((id) => connected.has(id)), ...order.filter((id) => !connected.has(id))]) {
-    const l = layer.get(id)!;
-    const row = rows.get(l) ?? 0;
-    rows.set(l, row + 1);
-    positions.set(id, [snap(MARGIN + l * COLUMN), snap(MARGIN + row * ROW)]);
-  }
-  return positions;
+  return toColumns([...order.filter((id) => connected.has(id)), ...order.filter((id) => !connected.has(id))], layer);
+}
+
+/** Ids grouped by column, keeping their order. */
+function toColumns(order: string[], column: ReadonlyMap<string, number>): string[][] {
+  const columns: string[][] = [];
+  for (const id of order) (columns[column.get(id)!] ??= []).push(id);
+  return columns.map((c) => c ?? []);
+}
+
+/**
+ * The electrical view's columns, left to right (ADR-0026): supplies, controllers and network, I/O
+ * cards, field devices, then loads. Decided from port kinds only.
+ */
+export function electricalTier(ports: readonly ConnectionPort[]): 0 | 1 | 2 | 3 | 4 {
+  const wired = ports.filter((p) => p.kind !== 'fluid' && p.kind !== 'mechanical' && p.power?.kind !== 'PE');
+  const signal = wired.some((p) => p.kind === 'signal');
+  if (signal && wired.every((p) => p.kind === 'signal')) return 2; // I/O card
+  if (signal) return 3; // field device: drive, transmitter, sensor
+  if (wired.some((p) => p.kind === 'network')) return 1; // controller or switch
+  if (wired.some((p) => p.kind === 'power' && p.flow === 'out') || wired.length === 0) return 0; // supply, earth bar
+  return 4; // load: motor
 }
 
 /**
@@ -191,14 +205,36 @@ export function layoutView(scene: ScadaScene, view: ViewKind, registry: Componen
     }
   }
 
-  const auto = autoPositions(members, candidates);
-  const savedBottom = Math.max(-Infinity, ...members.filter((c) => savedSymbols[c.id]).map((c) => savedSymbols[c.id].y));
-  const shift = Number.isFinite(savedBottom) ? snap(savedBottom + ROW) : 0;
+  // Symbols first: a host's own, else the view's built-in, else a terminal block (electrical) or a labelled box.
+  const definitions = new Map(members.map((c) => [c.id, registry.definitionFor(c.type, c.properties)]));
+  const symbolOf = new Map(members.map((c) => {
+    const definition = definitions.get(c.id)!;
+    const own = definition.symbols?.[view];
+    const symbol = own ? hostSymbol(own) : builtInSymbol(view, c) ?? (view === 'electrical' ? terminalBlock(definition.label, definition.ports) : fallbackSymbol(definition.label));
+    return [c.id, symbol] as const;
+  }));
+
+  // Automatic places: columns per view, rows stacked by symbol height, below any saved symbols.
+  const columns = view === 'process'
+    ? processColumns(members, candidates)
+    : toColumns(members.map((c) => c.id), new Map(members.map((c) => [c.id, electricalTier(definitions.get(c.id)!.ports)])));
+  const savedBottom = Math.max(-Infinity, ...members.filter((c) => savedSymbols[c.id]).map((c) => savedSymbols[c.id].y + symbolOf.get(c.id)!.height / 2));
+  const top = Number.isFinite(savedBottom) ? savedBottom + ROW_GAP : MARGIN;
+  const auto = new Map<string, Point>();
+  columns.forEach((ids, column) => {
+    let y = top;
+    for (const id of ids.filter((id) => !savedSymbols[id])) {
+      const height = symbolOf.get(id)!.height;
+      auto.set(id, [snap(MARGIN + column * COLUMN[view]), snap(y + height / 2)]);
+      y += height + ROW_GAP;
+    }
+  });
+
   const symbols: PlacedSymbol[] = members.map((c) => {
-    const definition = registry.definitionFor(c.type, c.properties);
-    const symbol = builtInSymbol(view, c) ?? fallbackSymbol(definition.label);
+    const definition = definitions.get(c.id)!;
+    const symbol = symbolOf.get(c.id)!;
     const own = savedSymbols[c.id];
-    const [x, y] = own ? [own.x, own.y] : [auto.get(c.id)![0], auto.get(c.id)![1] + shift];
+    const [x, y] = own ? [own.x, own.y] : auto.get(c.id)!;
     const rotation = own?.rotation ?? 0;
     const anchors: Record<string, Point> = {};
     for (const port of definition.ports) {

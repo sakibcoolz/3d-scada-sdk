@@ -108,6 +108,17 @@ const processDrawing = layoutView(libraryLine.scene, 'process', library);
 if (processDrawing.symbols.map((s) => s.id).join() !== 'M-101,P-101' || processDrawing.edges.map((e) => e.relationship).join() !== 'drives') throw new Error('unexpected process view');
 const placed = placeSymbol(libraryLine.scene, 'process', 'P-101', 101, 49);
 if (!parseScene(serializeScene(placed), library.resolvers).ok || placed.views.process.symbols['P-101'].x !== 100) throw new Error('a placed symbol must save and validate');
+// The electrical view: wired equipment by tier, wires from the exact terminals they join.
+const wiring = layoutView(libraryLine.scene, 'electrical', library);
+const runWire = wiring.edges.find((e) => e.id === 'run');
+if (wiring.symbols.some((s) => s.id === 'P-101') || runWire?.domain !== 'signal' || String(runWire.points[0]) !== String(wiring.symbols.find((s) => s.id === 'DO-01').anchors.DO0)) throw new Error('unexpected electrical view');
+// Host symbols are sanitized when registered, in plain Node: a script is refused.
+const relay = { type: 'com.example.relay', label: 'Relay', ports: [], bounds: { min: [0, 0, 0], max: [1, 1, 1] }, parts: [] };
+const drawn = createComponentRegistry({ ...relay, electricalSymbol: { svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><rect width="2" height="2" fill="#123456"/></svg>', width: 20, height: 20 } });
+if (drawn.get('com.example.relay').symbols.electrical.drawing.shapes.length !== 1) throw new Error('host symbol not registered');
+let refusedScript = false;
+try { createComponentRegistry({ ...relay, electricalSymbol: { svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><script>x</script></svg>', width: 10, height: 10 } }); } catch { refusedScript = true; }
+if (!refusedScript) throw new Error('a symbol with a script must be refused');
 // The JSON Schema ships with core and resolves through the package exports (T-069).
 const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
 const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));

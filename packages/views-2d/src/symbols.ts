@@ -1,7 +1,9 @@
-import type { ComponentInstance, ComponentType, ViewKind } from '@sakibcoolz/core';
+import type { ComponentInstance, ComponentType, ConnectionPort, ViewKind } from '@sakibcoolz/core';
+import type { RegisteredSymbol } from '@sakibcoolz/components';
 
 // Built-in 2D symbols (ADR-0026) as plain data: ISA-5.1-style process symbols for the 14 built-in kinds
-// and the `sdk.*` library. The standards are a reference only; no compliance is claimed. Coordinates
+// and the `sdk.*` library, and IEC-60617-style electrical symbols generated from a type's terminals.
+// The standards are a reference only; no compliance is claimed. Coordinates
 // are drawing units (1 mm) from the symbol's top-left corner, y down.
 
 export type Point = [number, number];
@@ -13,7 +15,9 @@ export type SymbolShape =
   | { kind: 'line'; x1: number; y1: number; x2: number; y2: number }
   | { kind: 'polygon'; points: Point[]; fill?: boolean }
   | { kind: 'polyline'; points: Point[] }
-  | { kind: 'text'; x: number; y: number; text: string; size?: number };
+  | { kind: 'text'; x: number; y: number; text: string; size?: number; anchor?: 'start' | 'middle' | 'end' }
+  /** A sanitized host path (ADR-0026), already transformed into symbol units, in its own colours. */
+  | { kind: 'path'; d: string; transform: [number, number, number, number, number, number]; fill: string; stroke: string; strokeWidth: number };
 
 export interface SymbolDefinition {
   width: number;
@@ -67,14 +71,79 @@ const processSymbols: Record<string, SymbolDefinition> = {
 /** ISA first letter by measured quantity, for transmitters. */
 const MEASURED: Record<string, string> = { pressure: 'P', temperature: 'T', level: 'L', flow: 'F' };
 
+const transmitterLetters = (component: Pick<ComponentInstance, 'properties'>) => `${MEASURED[String(component.properties.measures ?? 'pressure')] ?? 'X'}T`;
+
+/** A motor as a terminal-fed circle: power terminals on top, earth below. */
+const electricalMotor: SymbolDefinition = { ...motor, ports: { terminals: [13, 0], PE: [13, 26] } };
+/** An instrument bubble wired from its sides: supply on the left, output on the right. */
+const wiredBubble = (letters: string): SymbolDefinition => ({ ...bubble(letters), ports: { '24V': [0, 12], out: [24, 12] } });
+
 /**
- * The built-in symbol for a component in a view, or undefined when there is none (the view then
- * draws a labelled box). A transmitter's letters follow what it measures.
+ * The built-in symbol for a component in a view, or undefined when there is none. In the process view
+ * a type without one gets a labelled box; in the electrical view, a terminal block (`terminalBlock`).
+ * A transmitter's letters follow what it measures.
  */
 export function builtInSymbol(view: ViewKind, component: Pick<ComponentInstance, 'type' | 'properties'>): SymbolDefinition | undefined {
-  if (view !== 'process') return undefined;
-  if (component.type === 'sdk.transmitter') return bubble(`${MEASURED[String(component.properties.measures ?? 'pressure')] ?? 'X'}T`);
+  if (view === 'electrical') {
+    if (component.type === 'sdk.motor' || component.type === 'motor') return electricalMotor;
+    if (component.type === 'sdk.transmitter') return wiredBubble(transmitterLetters(component));
+    if (component.type === 'sdk.switch') return wiredBubble('XS');
+    return undefined;
+  }
+  if (component.type === 'sdk.transmitter') return bubble(transmitterLetters(component));
   return processSymbols[component.type as ComponentType];
+}
+
+type Side = 'left' | 'right' | 'top' | 'bottom';
+/** Inputs on the left, outputs on the right, network on top, protective earth at the bottom. */
+function terminalSide(port: ConnectionPort): Side {
+  if (port.kind === 'network') return 'top';
+  if (port.power?.kind === 'PE') return 'bottom';
+  if (port.flow === 'out' || port.signal?.type === 'DO' || port.signal?.type === 'AO') return 'right';
+  return 'left';
+}
+
+/**
+ * An electrical terminal block for any type (IEC-60617 style): a box titled with the type's label and
+ * one labelled terminal per wired port, placed by `terminalSide`. Mechanical and fluid ports are left
+ * out. Terminal labels are the port's `terminal`, else its id.
+ */
+export function terminalBlock(title: string, ports: readonly ConnectionPort[]): SymbolDefinition {
+  const wired = ports.filter((p) => p.kind !== 'fluid' && p.kind !== 'mechanical');
+  const sides: Record<Side, ConnectionPort[]> = { left: [], right: [], top: [], bottom: [] };
+  for (const p of wired) sides[terminalSide(p)].push(p);
+  const pitch = 8, head = 14;
+  const rows = Math.max(sides.left.length, sides.right.length, 1);
+  const width = Math.max(56, (Math.max(sides.top.length, sides.bottom.length) + 1) * 12);
+  const height = head + rows * pitch + (sides.bottom.length > 0 ? 10 : 4);
+  const name = title.length > 18 ? `${title.slice(0, 17)}…` : title;
+  const shapes: SymbolShape[] = [{ kind: 'rect', x: 0, y: 0, width, height }, { kind: 'text', x: width / 2, y: 8, text: name, size: 4.5 }];
+  const anchors: Record<string, Point> = {};
+  const place = (p: ConnectionPort, at: Point, label: Point, anchor: 'start' | 'middle' | 'end') => {
+    anchors[p.id] = at;
+    shapes.push({ kind: 'circle', cx: at[0], cy: at[1], r: 1.4, fill: true }, { kind: 'text', x: label[0], y: label[1], text: p.terminal ?? p.id, size: 3.2, anchor });
+  };
+  sides.left.forEach((p, i) => place(p, [0, head + i * pitch + 2], [3, head + i * pitch + 3], 'start'));
+  sides.right.forEach((p, i) => place(p, [width, head + i * pitch + 2], [width - 3, head + i * pitch + 3], 'end'));
+  sides.top.forEach((p, i) => place(p, [((i + 1) * width) / (sides.top.length + 1), 0], [((i + 1) * width) / (sides.top.length + 1), -2], 'middle'));
+  sides.bottom.forEach((p, i) => place(p, [((i + 1) * width) / (sides.bottom.length + 1), height], [((i + 1) * width) / (sides.bottom.length + 1), height - 2.5], 'middle'));
+  return { width, height, shapes, ports: anchors };
+}
+
+/** 2D affine product a · b, both [a b c d e f] as in SVG `matrix()`. */
+const multiply = (a: readonly number[], b: readonly number[]): [number, number, number, number, number, number] =>
+  [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3], a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5]];
+
+/** A host's sanitized symbol (ADR-0026), its viewBox scaled onto its width and height. */
+export function hostSymbol(symbol: RegisteredSymbol): SymbolDefinition {
+  const [vx, vy, vw, vh] = symbol.drawing.viewBox;
+  const fit = [symbol.width / vw, 0, 0, symbol.height / vh, (-vx * symbol.width) / vw, (-vy * symbol.height) / vh];
+  return {
+    width: symbol.width,
+    height: symbol.height,
+    shapes: symbol.drawing.shapes.map((s) => ({ kind: 'path', d: s.d, transform: multiply(fit, s.transform), fill: s.fill, stroke: s.stroke, strokeWidth: s.strokeWidth })),
+    ...(symbol.ports ? { ports: Object.fromEntries(Object.entries(symbol.ports).map(([id, [x, y]]) => [id, [x, y] as Point])) } : {}),
+  };
 }
 
 /** A plain box with the type's label, for types without a symbol. */

@@ -41,4 +41,22 @@ import { ProcessView } from '@sakibcoolz/views-2d';
   - `measures` and `drives` associations, dashed.
 - **Symbols:** ISA-5.1-style, used as a reference only; no standards compliance is claimed. Types without a symbol get a labelled box.
 
+## The electrical view
+`<ElectricalView>` takes the same props.
+- **Columns, left to right:** supplies, controllers and switches, I/O cards, field devices (drives, transmitters, sensors), then loads (motors).
+- **Symbols:** each type gets a terminal block generated from its ports, with inputs on the left, outputs on the right, network on top and earth at the bottom, labelled by terminal. Motors and instruments have their own symbols.
+- **Wires:** drawn in domain colours (power orange, signal blue, network green), with `controls` dashed.
+
+## Your own symbols
+Give a definition `symbol2D` (process) or `electricalSymbol` (electrical):
+
+```js
+createComponentRegistry({
+  type: 'com.acme.relay', label: 'Relay', ports, bounds, parts,
+  electricalSymbol: { svg: '<svg …>…</svg>', width: 20, height: 40, ports: { A1: [0, 20] } },
+});
+```
+
+The SVG is sanitized when you register it, using the allow-list sanitizer from `@sakibcoolz/asset-import`. Scripts, event handlers and external references fail registration.
+
 Architecture: ADR-0026 in the repository.

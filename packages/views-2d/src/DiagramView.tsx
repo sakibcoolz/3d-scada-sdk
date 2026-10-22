@@ -98,7 +98,9 @@ function Shape({ shape, stroke }: { shape: SymbolShape; stroke: string }) {
     case 'line': return <line x1={shape.x1} y1={shape.y1} x2={shape.x2} y2={shape.y2} {...common} />;
     case 'polygon': return <polygon points={shape.points.map((p) => p.join(',')).join(' ')} {...common} />;
     case 'polyline': return <polyline points={shape.points.map((p) => p.join(',')).join(' ')} {...common} />;
-    case 'text': return <text x={shape.x} y={shape.y} fontSize={shape.size ?? 5} textAnchor="middle" fill={stroke} fontFamily="system-ui, sans-serif">{shape.text}</text>;
+    case 'text': return <text x={shape.x} y={shape.y} fontSize={shape.size ?? 5} textAnchor={shape.anchor ?? 'middle'} fill={stroke} fontFamily="system-ui, sans-serif">{shape.text}</text>;
+    // A host's sanitized path keeps its own colours; only path data and a numeric matrix reach the DOM.
+    case 'path': return <path d={shape.d} transform={`matrix(${shape.transform.join(' ')})`} fill={shape.fill} stroke={shape.stroke} strokeWidth={shape.strokeWidth} />;
   }
 }
 
@@ -109,6 +111,7 @@ function Edge({ edge }: { edge: DrawnEdge }) {
     <polyline
       data-edge-id={edge.id}
       data-edge-kind={edge.kind}
+      data-edge-domain={edge.domain}
       points={edge.points.map((p) => p.join(',')).join(' ')}
       fill="none"
       stroke={color}
@@ -290,6 +293,11 @@ export function DiagramView({ view, label, scene, registry = builtInRegistry, se
       </div>
     </div>
   );
+}
+
+/** The electrical diagram: supplies, controllers, I/O cards with their terminals, drives and field devices, wired by domain colour (ADR-0026). */
+export function ElectricalView(props: DiagramViewProps) {
+  return <DiagramView {...props} view="electrical" label="Electrical view" />;
 }
 
 /** The process diagram (P&ID style): vessels, pumps, valves, pipes and instruments (ADR-0026). */
