@@ -106,3 +106,36 @@ test('in Walk the crosshair picks parts and C connects the aimed part to the sel
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect(page.getByRole('button', { name: 'Vertical Tank 1' })).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('while walking, the selected part can be turned, raised, removed and restored with the editor keys', async ({ page }) => {
+  await page.goto('/');
+  await waitForCanvas(page);
+  await page.getByRole('button', { name: 'Vertical Tank +' }).click();
+  await page.getByRole('button', { name: 'Ball Valve +' }).click();
+  const tank = async () => (await sceneJson(page)).components.find((c: { id: string; type: string }) => c.type === 'tank');
+
+  await page.getByRole('button', { name: 'Walk', exact: true }).click();
+  const aim = page.getByRole('status', { name: 'Aim' });
+  await expect(aim).toContainText('Vertical Tank 1');
+  const box = (await page.locator('canvas').first().boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(aim).toContainText('Vertical Tank 1: R turns · Delete removes');
+  const before = await tank();
+
+  await page.keyboard.press('KeyR');
+  await expect.poll(async () => (await tank()).rotation.y).not.toBeCloseTo(before.rotation.y, 3);
+  await page.keyboard.press('PageUp');
+  await expect.poll(async () => (await tank()).position.y).toBeCloseTo(before.position.y + 0.1, 6);
+  await page.keyboard.press('ControlOrMeta+KeyZ');
+  await page.keyboard.press('ControlOrMeta+KeyZ');
+  await expect.poll(async () => (await tank()).rotation).toEqual(before.rotation);
+  expect((await tank()).position).toEqual(before.position);
+
+  await page.keyboard.press('Delete');
+  await expect.poll(tank).toBeUndefined();
+  await page.keyboard.press('ControlOrMeta+KeyZ');
+  await expect.poll(async () => (await tank())?.id).toBe(before.id);
+
+  // Still walking throughout.
+  await expect(page.getByRole('status', { name: 'Walk status' })).toBeVisible();
+});

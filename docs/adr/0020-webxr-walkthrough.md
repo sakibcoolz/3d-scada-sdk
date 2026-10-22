@@ -50,3 +50,15 @@ The owner asked whether the SDK can do a VR walkthrough of a plant, and later co
   - The grip on a part connects it to the selected one.
   - A ray on a part stops there and turns green; the teleport ring is shown only for the floor.
 - **Tests:** `pick.test.ts` (5) covers occlusion, ancestors, instanced members, markers and misses. The Walk e2e test checks the aim label, connecting with C (one new connection and the editor's message) and selecting by click. VR picking needs the owner's Quest.
+
+## Amendment (T-064, owner, 2026-10-22): edit the selected part while walking
+- Inside the editor, keyboard focus moves to the editor while walking, because the Walk button that had focus is removed. The editor's own shortcuts for the selected part keep working:
+  - R / Shift+R turn ±90°;
+  - Delete / Backspace remove;
+  - PageUp / PageDown raise and lower by 0.1 m (1 m with Shift);
+  - Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z or Y redo;
+  - Ctrl/Cmd+C/V copy and paste.
+- The walk takes its own keys first (capture phase): movement, Space and Alt, plain C (not Ctrl/Cmd+C) and Esc. The arrows therefore walk instead of nudging, and Esc leaves Walk instead of clearing the selection.
+- The aim label lists the editing keys for the selected part.
+- Mouse-look ignores single movements over 200 px. Chrome can report one bogus jump just after the pointer locks, which spun the walker, and this made an e2e test flaky under parallel load.
+- No new editing code: the editor's handlers, edit lock and undo history apply unchanged.

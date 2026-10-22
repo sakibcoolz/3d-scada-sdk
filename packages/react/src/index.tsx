@@ -291,6 +291,7 @@ function WalkHud({ walker, onExit, picking }: { walker?: WalkerState; onExit: ()
     <div aria-hidden style={{position:'absolute',top:'50%',left:'50%',width:6,height:6,margin:-3,borderRadius:3,background:picking?.aim?'#3ccf7e':'#e6f7ffcc',boxShadow:'0 0 0 1px #0b1725',pointerEvents:'none'}}/>
     {picking&&<div role="status" aria-label="Aim" aria-live="polite" style={{position:'absolute',top:'calc(50% + 14px)',left:'50%',transform:'translateX(-50%)',padding:'3px 8px',borderRadius:4,background:'#0b1725cc',color:'#e6f7ff',fontSize:12,whiteSpace:'nowrap',pointerEvents:'none',textAlign:'center'}}>
       {picking.aim?<><b>{picking.aim}</b> · click selects{picking.selected&&picking.selected!==picking.aim?<> · C connects to {picking.selected}</>:''}</>:picking.selected?`Selected: ${picking.selected} · aim at a part, C connects`:'Aim at a part and click to select it'}
+      {picking.selected&&<div style={{opacity:0.8,marginTop:2}}>{picking.selected}: R turns · Delete removes · PageUp/PageDown raise and lower · Ctrl+Z undoes</div>}
     </div>}
     <div role="status" aria-label="Walk status" aria-live="polite" style={{position:'absolute',bottom:10,left:'50%',transform:'translateX(-50%)',display:'flex',gap:12,alignItems:'center',padding:'6px 12px',borderRadius:4,background:'#0b1725e6',border:'1px solid #7fd6ff',color:'#e6f7ff',fontSize:12,whiteSpace:'nowrap'}}>
       <span>{walker?`Walking · x ${walker.x.toFixed(1)} m, z ${walker.z.toFixed(1)} m · eye ${walker.eye.toFixed(1)} m · heading ${walker.heading}°`:'Walking'}</span>

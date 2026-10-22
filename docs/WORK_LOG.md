@@ -1392,3 +1392,20 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
 - Owner request: "add this image in readme.md". This is a docs-only change on branch `docs/readme-screenshot`, from `develop`.
 - The owner's screenshot of the milk processing line (Glass view, floor, Walk/VR buttons) was added as `docs/images/milk-processing-line.png` (1923 × 965, 815 KB). It appears under the README intro with alt text and a caption.
 - Checks: none needed for code (no code change). The image renders on GitHub from the relative path; it does not appear in the npm package pages, which use the package READMEs.
+
+## 2026-10-22 — T-064: edit the selected part while walking
+- Owner: "yes step 2" (select, rotate, delete and undo while walking). Branch `feat/T-064-walk-edit`, from `develop`.
+- Change:
+  - When Walk starts, keyboard focus moves to the editor root (`.scada3d-editor`). The editor's existing shortcuts for the selected part then work while walking: R / Shift+R, Delete / Backspace, PageUp / PageDown, Ctrl/Cmd+Z / Shift+Z / Y, Ctrl/Cmd+C / V.
+  - The walk's capture-phase keys still win: movement, Space, Alt, Esc, and plain C (Ctrl/Cmd+C now passes through to copy).
+  - The aim label lists the editing keys for the selected part.
+  - Mouse-look ignores single jumps over 200 px. A bogus large movement just after the pointer locked turned the walker about 80° and made the T-063 e2e test flaky under parallel load (5 of 15 runs failed; 20 of 20 pass after the fix).
+- Tests: a new e2e test walks, selects by crosshair, then R turns, PageUp raises, two undos restore, Delete removes and undo restores, all while still walking. ADR-0020 amended.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1267 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (125 tests).
+  - The walkthrough spec run four times in parallel: 20 of 20 passed.
+  - Browser check in the owner's Chrome: crosshair click selected the tank, R turned it to Y 90°, Delete removed it and Cmd+Z restored it, all while walking.
+  - `pnpm verify:consumer` NOT RUN.
