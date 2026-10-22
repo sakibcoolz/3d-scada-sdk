@@ -45,8 +45,8 @@ export type { ComponentTransform, WorldPort } from './transforms.js';
 // Connections: snapping, graph, routing
 export { findSnapCandidates, snapComponent } from './snapping.js';
 export type { SnapCandidate, SnapOptions, SnapResult, SnapStatus } from './snapping.js';
-export { addAssociation, removeAssociation, connect, connectedGroups, connectionsOf, disconnect, reachableComponents, removeComponent } from './graph.js';
-export type { GraphError, GraphErrorCode, GraphOptions, GraphResult } from './graph.js';
+export { addAssociation, removeAssociation, connect, connectedGroups, connectionsOf, disconnect, neighbours, pathBetween, physicalDomains, reachableComponents, relatedComponents, removeComponent } from './graph.js';
+export type { ConnectionFilter, GraphError, GraphErrorCode, GraphFilter, GraphOptions, GraphResult, GraphStep } from './graph.js';
 export { routeConnection, routeScene, sampleRouteCenterline } from './routing.js';
 export type { PipeRoute, RouteBend, RouteFailure, RouteKind, RoutingOptions } from './routing.js';
 

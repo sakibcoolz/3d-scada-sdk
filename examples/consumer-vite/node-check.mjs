@@ -1,5 +1,5 @@
 // Plain Node, no bundler: the core and catalog must load as ES modules and validate a scene.
-import { parseScene, serializeScene, findOpenJoints } from '@sakibcoolz/core';
+import { parseScene, serializeScene, findOpenJoints, pathBetween, relatedComponents } from '@sakibcoolz/core';
 import { catalogResolvers, createComponentRegistry, pipeSizes } from '@sakibcoolz/components';
 import { createSimulation } from '@sakibcoolz/simulation';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
@@ -41,6 +41,31 @@ const registry = createComponentRegistry({
 const skid = { ...scene, components: [{ ...scene.components[0], id: 'skid', type: 'com.example.skid', position: { x: -0.5, y: 0.084, z: 0 }, properties: {} }, scene.components[1]], connections: [] };
 if (!parseScene(JSON.stringify(skid), registry.resolvers).ok) throw new Error('a registered host type must validate');
 if (parseScene(JSON.stringify(skid), catalogResolvers).ok) throw new Error('an unregistered host type must be refused');
+// Typed ports, wired connections and associations between host control types (ADR-0023).
+const terminal = (id, kind, extra) => ({ id, kind, position: [0, 0.5, 0.3], direction: [0, 0, 1], ...extra });
+const box = { bounds: { min: [-0.3, 0, -0.3], max: [0.3, 1, 0.3] }, parts: [{ shape: 'box', role: 'shell', center: [0, 0.5, 0], size: [0.6, 1, 0.6] }] };
+const control = createComponentRegistry(
+  { type: 'com.example.plc', label: 'PLC', ...box, ports: [terminal('do0', 'signal', { signal: { type: 'DO' } })] },
+  { type: 'com.example.vfd', label: 'VFD', ...box, ports: [terminal('run', 'signal', { signal: { type: 'DI' } }), terminal('uvw', 'power', { flow: 'out', power: { kind: 'AC', voltage: 400, phases: 3 } })] },
+  { type: 'com.example.motor', label: 'Motor', ...box, ports: [terminal('terminals', 'power', { flow: 'in', power: { kind: 'AC', voltage: 400, phases: 3 } })] },
+);
+const line = {
+  schemaVersion: 4,
+  documentType: 'industrial.scene',
+  units: 'm',
+  components: [at('PLC-01', 'com.example.plc', {}), at('VFD-101', 'com.example.vfd', {}), at('M-101', 'com.example.motor', {})],
+  connections: [
+    { id: 'run', domain: 'signal', relationship: 'controls', from: { instanceId: 'PLC-01', portId: 'do0' }, to: { instanceId: 'VFD-101', portId: 'run' } },
+    { id: 'power', relationship: 'drives', from: { instanceId: 'VFD-101', portId: 'uvw' }, to: { instanceId: 'M-101', portId: 'terminals' } },
+  ],
+  associations: [{ id: 'a1', relationship: 'controls', from: 'PLC-01', to: 'VFD-101' }],
+};
+const controlled = parseScene(JSON.stringify(line), control.resolvers);
+if (!controlled.ok) throw new Error(`control scene rejected: ${controlled.errors[0].message}`);
+if (relatedComponents(controlled.scene, 'PLC-01', { relationships: ['controls', 'drives'], direction: 'out' }).join() !== 'VFD-101,M-101') throw new Error('PLC → VFD → Motor chain not found');
+if (pathBetween(controlled.scene, 'M-101', 'PLC-01', { domains: ['power', 'signal'], resolvePorts: control.resolvers.resolvePorts })?.length !== 2) throw new Error('motor to PLC path not found');
+const twoOutputs = { ...line, connections: [{ ...line.connections[0], to: { instanceId: 'PLC-01', portId: 'do0' }, from: { instanceId: 'VFD-101', portId: 'uvw' } }] };
+if (parseScene(JSON.stringify(twoOutputs), control.resolvers).ok) throw new Error('a power output wired to a signal output must be refused');
 // The JSON Schema ships with core and resolves through the package exports (T-069).
 const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
 const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));

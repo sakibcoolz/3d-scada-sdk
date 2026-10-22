@@ -1,4 +1,4 @@
-import { reachableComponents } from './graph.js';
+import { physicalDomains, reachableComponents, type ConnectionFilter } from './graph.js';
 import { multiplyQuaternions, normalizeQuaternion, rotateVector } from './quaternion.js';
 import type { ComponentInstance, QuaternionLike, ScadaScene, Vector3Like } from './scene.js';
 import { quaternionToTuple, tupleToQuaternion } from './vectors.js';
@@ -56,11 +56,14 @@ export type AssemblyResult = { ok: true; scene: ScadaScene } | { ok: false; erro
 
 /**
  * Makes `id` an assembly root and locks every component connected to it (through any path of
- * connections) as its child. Earlier locks among those components are replaced.
+ * connections) as its child. Earlier locks among those components are replaced. With
+ * `resolvePorts`, only physical (fluid and mechanical) connections count: a part wired to another
+ * by a power, signal or network cable is not bolted to it (ADR-0023).
  */
-export function lockConnectedAsChildren(scene: ScadaScene, id: string): AssemblyResult {
+export function lockConnectedAsChildren(scene: ScadaScene, id: string, options: Pick<ConnectionFilter, 'resolvePorts'> = {}): AssemblyResult {
   if (!scene.components.some((c) => c.id === id)) return { ok: false, error: { code: 'UNKNOWN_INSTANCE', message: `No component "${id}".` } };
-  const connected = new Set(reachableComponents(scene, id).filter((other) => other !== id));
+  const filter: ConnectionFilter = options.resolvePorts ? { domains: physicalDomains, resolvePorts: options.resolvePorts } : {};
+  const connected = new Set(reachableComponents(scene, id, filter).filter((other) => other !== id));
   if (connected.size === 0) return { ok: false, error: { code: 'NOTHING_CONNECTED', message: 'Nothing is connected to this component.' } };
   const components = scene.components.map((c) => {
     if (c.id === id) {

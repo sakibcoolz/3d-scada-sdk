@@ -1669,3 +1669,29 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-076: graph queries (Phase 4b, ADR-0023 complete)
+- Owner merged #76. T-076 was started as announced. Branch `feat/T-076-graph-queries` from `origin/develop`.
+- Change:
+  - **core:**
+    - `neighbours`, `relatedComponents` and `pathBetween` (returning `GraphStep[]`), with `GraphFilter`: domains, relationships, connections/associations, direction, `resolvePorts`;
+    - optional `{domains, resolvePorts}` filter on `connectionsOf`, `reachableComponents` and `connectedGroups`;
+    - `physicalDomains`;
+    - `lockConnectedAsChildren` takes an optional `resolvePorts` and then locks only physically joined parts (gap found: a signal cable would have locked a PLC to a drive).
+  - **react:** the editor's "Lock connected as children" passes the registry.
+  - **consumer `node-check.mjs`:** registers PLC, VFD and Motor host types and checks the PLC → VFD → Motor chain, the motor → PLC path, and a refused power-to-signal wire, through the packed packages.
+- Tests: new `graph-queries.test.ts` (core, 12). Acceptance scenes: PLC → VFD → Motor → pump; the PLC on Ethernet with an HMI and a VFD; a 4–20 mA transmitter into a PLC AI. Also filters, the older helpers, and assembly locking. The core API list was updated.
+- Docs:
+  - new CONNECTION_GRAPH.md;
+  - ADR-0023 marked implemented, with T-076 notes; DECISION_LOG;
+  - SCENE_AND_CONNECTIONS pointer; AGENT_FILE_MAP;
+  - API.md "Graph queries"; RELEASE.md;
+  - backlog T-075 DONE, T-076 REVIEW; plan Phase 4 row and doc table; roadmap Phases 3–4 ticked.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1445 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (130 tests).
+  - `pnpm verify:consumer` 0 (node-check ok).
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

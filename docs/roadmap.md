@@ -18,7 +18,7 @@ High-level progress. `docs/TASK_BACKLOG.md` owns task status; a checked box mean
 ## Industrial model (M9, docs/INDUSTRIAL_SDK_PLAN.md)
 - [x] Phase 1: industrial scene document (scene v4, JSON Schema, specification)
 - [x] Phase 2: open component registry (custom types without SDK changes)
-- [ ] Phases 3–4: port and connection domains (power, signal, network, logical)
+- [x] Phases 3–4: port and connection domains (power, signal, network), wired connections, associations and graph queries (ADR-0023, T-073..T-076)
 - [ ] Phase 5: tag engine (labels, runtime variables, data sources, typed protocol addresses)
 - [ ] Phase 6: control equipment libraries (PLC, DCS, VFD, sensors, motors, panels)
 - [ ] Phase 7: 2D process and electrical views, synchronized with 3D

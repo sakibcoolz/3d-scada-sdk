@@ -100,6 +100,7 @@ Core checks the structure and size. `validateUnderlay` lets the host check the c
 - `removeComponent(scene, instanceId)` removes the component and every edge on either side (`UNKNOWN_INSTANCE` if absent). The editor's Remove button uses it.
 - `connectionsOf`, `reachableComponents` (direction-agnostic, breadth-first in connection order) and `connectedGroups` (disconnected networks, ordered by first component). Traversal is iterative: cycles terminate and a 5,000-component chain is tested.
 - Not done here: undo/redo (T-011), route regeneration (T-009).
+- Port domains, wired connections, associations and filtered queries (`neighbours`, `relatedComponents`, `pathBetween`): see CONNECTION_GRAPH.md (ADR-0023).
 
 ## Routing
 Distinguish logical edge from render mesh. Support straight runs and deterministic orthogonal elbows; tee is a 3-port junction node, not merely crossing meshes. Document pipe diameter, bend-radius constraints and clearance; never imply collision-free CAD-grade auto-routing without collision tests.
