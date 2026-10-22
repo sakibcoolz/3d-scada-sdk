@@ -738,16 +738,19 @@ function ViewerBody({scene,viewMode='normal',viewOverrides,onSelect,selectedId,p
     return map;
   }, [unknownKey]);
   const hasFlowBindings = scene.tagBindings?.some((b) => b.kind === 'flow') ?? false;
+  // Power, signal and network wires carry no process flow (ADR-0023): they get no flow state.
+  const wired = useMemo(() => new Set(wireSegments(scene, registry).map((w) => w.connectionId)), [scene, registry]);
   const flowStates = useMemo(() => {
+    const piped = (states: FlowState[]) => states.filter((s) => !wired.has(s.connectionId));
     if (simulation?.flows) {
       const readings = simulation.flows.map((r) => ({ ...r, source: 'SIMULATED' as const }));
-      return resolveFlow(scene, readings, { now, source: 'SIMULATED' }).states;
+      return piped(resolveFlow(scene, readings, { now, source: 'SIMULATED' }).states);
     }
     if (!flow && !(live && hasFlowBindings)) return undefined;
     // One source per view: explicit readings and tag-derived readings use the same source filter.
     const readings = [...(flow?.readings ?? []), ...(live?.flowReadings ?? [])];
-    return resolveFlow(scene, readings, { now, source: flow?.source ?? telemetry?.source, staleAfterMs: flow?.staleAfterMs ?? telemetry?.staleAfterMs }).states;
-  }, [scene, flow, live, hasFlowBindings, now, telemetry, simulation?.flows]);
+    return piped(resolveFlow(scene, readings, { now, source: flow?.source ?? telemetry?.source, staleAfterMs: flow?.staleAfterMs ?? telemetry?.staleAfterMs }).states);
+  }, [scene, flow, live, hasFlowBindings, now, telemetry, simulation?.flows, wired]);
   const stateById = useMemo(() => new Map(flowStates?.map((s) => [s.connectionId, s])), [flowStates]);
   const showHeatLegend = shown.components.some((c) => heatColor(c.properties.temperature) !== undefined);
   const [selectedObject, setSelectedObject] = useState<Object3D | null>(null);

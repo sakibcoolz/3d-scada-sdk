@@ -1831,3 +1831,23 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-082: `?control` demo, consumer example and library docs (Phase 6c, ADR-0025)
+- Owner merged #82 (T-081). Branch `feat/T-082-control-demo` from `origin/develop`.
+- Change:
+  - **playground:** new `controlDemo.ts` (PLC → VFD → motor → pump scene, registry and tag rows); `main.tsx` adds `?control`, validating the demo with the active registry's resolvers.
+  - **react:** wired connections no longer get flow states, so the flow summary and markers cover pipes only. The demo showed "18 unknown (18 no reading)" before the fix.
+  - **consumer:** `node-check.mjs` adds the control library chain and prints it.
+- Tests: new `e2e/control-demo.spec.ts` (2).
+- Docs:
+  - COMPONENT_STANDARD "Component library"; ADR-0025 T-082 notes; API.md; README; RELEASE.md;
+  - roadmap Phase 6 ticked; backlog T-081 DONE, T-082 REVIEW; plan Phase 6 row.
+- Visual check: a screenshot of `?control` shows the pipe from tank to pump with flow markers, the motor in line with the pump, the panel with its modules, and wires in their domain colours. No console errors.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1571 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (132 tests).
+  - `pnpm verify:consumer` 0 (prints the control chain).
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

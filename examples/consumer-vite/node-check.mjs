@@ -1,6 +1,6 @@
 // Plain Node, no bundler: the core and catalog must load as ES modules and validate a scene.
 import { applyTagSuggestions, parseScene, serializeScene, findOpenJoints, pathBetween, projectAcquisition, relatedComponents, reviewTags, suggestVariables } from '@sakibcoolz/core';
-import { catalogResolvers, createComponentRegistry, pipeSizes } from '@sakibcoolz/components';
+import { catalogResolvers, controlLibrary, createComponentRegistry, pipeSizes } from '@sakibcoolz/components';
 import { createSimulation } from '@sakibcoolz/simulation';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
 import { readFileSync } from 'node:fs';
@@ -84,8 +84,26 @@ if (proposals.variables.map((v) => v.id).join() !== 'VFD-101.ACTUAL_SPEED') thro
 if (controlled.scene.runtimeVariables) throw new Error('suggesting must not change the scene');
 const tagged = applyTagSuggestions(controlled.scene, proposals, control.resolvers);
 if (!tagged.ok || reviewTags(tagged.scene, control.resolvers).map((f) => f.code).join() !== 'UNUSED_VARIABLE') throw new Error('unexpected tag review');
+// The opt-in control library (ADR-0025): generic sdk.* equipment, wired and checked like host types.
+const library = createComponentRegistry(...controlLibrary);
+const wire = (id, a, ap, b, bp) => ({ id, from: { instanceId: a, portId: ap }, to: { instanceId: b, portId: bp } });
+const pumpLine = {
+  schemaVersion: 4,
+  documentType: 'industrial.scene',
+  units: 'm',
+  components: [at('PLC-01', 'sdk.plc.cpu', {}), at('DO-01', 'sdk.plc.do', { channels: '8' }), at('SW-01', 'sdk.network.switch', {}), at('VFD-101', 'sdk.vfd', { supply: '400' }), at('M-101', 'sdk.motor', { voltage: '400' }), at('P-101', 'pump', {})],
+  connections: [wire('run', 'DO-01', 'DO0', 'VFD-101', 'run'), wire('n1', 'PLC-01', 'eth1', 'SW-01', 'P1'), wire('n2', 'VFD-101', 'eth', 'SW-01', 'P2'), wire('power', 'VFD-101', 'U-V-W', 'M-101', 'terminals')],
+  associations: [{ id: 'a1', relationship: 'drives', from: 'M-101', to: 'P-101' }],
+};
+const libraryLine = parseScene(JSON.stringify(pumpLine), library.resolvers);
+if (!libraryLine.ok) throw new Error(`control library scene rejected: ${libraryLine.errors[0].message}`);
+const chain = ['PLC-01', ...pathBetween(libraryLine.scene, 'PLC-01', 'P-101', { resolvePorts: library.resolvers.resolvePorts }).map((s) => s.to)];
+if (chain.join() !== 'PLC-01,SW-01,VFD-101,M-101,P-101') throw new Error(`unexpected control chain ${chain.join()}`);
+const wrongMotor = { ...pumpLine, components: pumpLine.components.map((c) => (c.id === 'M-101' ? { ...c, properties: { voltage: '230' } } : c)) };
+if (parseScene(JSON.stringify(wrongMotor), library.resolvers).ok) throw new Error('a 230 V motor on a 400 V drive must be refused');
+if (catalogResolvers.resolveType('sdk.vfd')) throw new Error('the control library must be opt-in');
 // The JSON Schema ships with core and resolves through the package exports (T-069).
 const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
 const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));
 if (schema.properties?.documentType?.const !== 'industrial.scene') throw new Error('scene JSON Schema missing from the package');
-console.log(`node-check ok: SVG sanitizer ok, ${Object.keys(pipeSizes).length} sizes, ${serializeScene(result.scene).length} bytes of canonical JSON, simulated level ${simulated.levels.t.toFixed(1)} % (mass-balance) / ${hydraulic.levels.t.toFixed(1)} % (hydraulic) after 30 s`);
+console.log(`node-check ok: control chain ${chain.join(' → ')}, SVG sanitizer ok, ${Object.keys(pipeSizes).length} sizes, ${serializeScene(result.scene).length} bytes of canonical JSON, simulated level ${simulated.levels.t.toFixed(1)} % (mass-balance) / ${hydraulic.levels.t.toFixed(1)} % (hydraulic) after 30 s`);

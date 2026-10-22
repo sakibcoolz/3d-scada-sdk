@@ -21,6 +21,28 @@ Fluid ports default to nominal bore 0.15 m (DN150) and nozzles of outer radius `
 
 Configurable dimensions (T-033, T-045): a definition may declare shape `parameters` stored in `properties`: numeric (`NumberParameterSpec`: label, unit, default (what an absent value means), min, max, step, optional `initial` for new parts and `keepsBottom` to keep the lowest point in place when edited) or a fixed choice (`ChoiceParameterSpec`: label, choices, default; `isChoiceParameter`). Geometry parts are cylinders, spheres, boxes, bends and cones (`radiusStart` at the −axis end). The straight pipe declares `length` (m, default 2, 0.2–20); `definitionFor(type, properties)` returns the per-instance definition (ports, bounds and parts follow the length; cached per value), `validateProperties` reports out-of-range values, and `catalogResolvers` bundles `resolvePorts`/`resolveBounds` (both receive the component's properties), `resolveBindable` and `validateProperties` for core. Not yet: sized tank/pump nozzles, eccentric reducers, drain port, mechanical/signal ports for motor and sensor, per-file component directories below.
 
+## Component library (ADR-0025)
+- **What it is:** `controlLibrary` (components package) holds generic, vendor-neutral control equipment under the reserved `sdk.` prefix:
+  - control and I/O: `sdk.plc.cpu`, `sdk.plc.di/do/ai/ao`, `sdk.dcs.controller`;
+  - electrical: `sdk.psu`, `sdk.vfd`, `sdk.motor`;
+  - network: `sdk.network.switch`;
+  - instruments: `sdk.transmitter`, `sdk.switch` (digital sensor);
+  - enclosure: `sdk.panel`.
+- **Opt in:** `createComponentRegistry(...controlLibrary, ...hostTypes)`. The 14 built-in kinds and the default palette are unchanged, and only the library's own objects may use `sdk.`.
+- **Built only from public mechanisms**, so library types follow the same rules as host types (ADR-0022):
+  - primitive parts;
+  - typed ports with ratings (ADR-0023);
+  - variable templates (ADR-0024);
+  - choice and number parameters with `build`.
+- **Authoring rules for library types:**
+  - `version` and `category` are set;
+  - every parameter value gives valid, unique ports with unit directions, inside the bounds, and the tests check each choice and each number at its minimum, default and maximum;
+  - terminals sit on the front face or the top, and terminal labels match tag-template names where a channel has a tag;
+  - ratings (voltage, phases, signal ranges) exist to drive compatibility checks only. They are not product data and certify nothing;
+  - the types have no simulation behaviour and no vendor shapes, logos or model numbers.
+- **Relationships:** a motor drives a pump through a `drives` association; the built-in pump has no shaft port. Panel equipment is attached as assembly children (`parentId`).
+- **Example:** the playground's `?control` scene (`apps/playground/src/controlDemo.ts`) is a PLC → VFD → motor → pump line. It has a panel of PLC modules, a level transmitter and a high-level switch, and tags on a `host` data source, one of them `DISCONNECTED`.
+
 ## Proposed directories (target)
 ```
 packages/components/src/tanks/vertical-tank/

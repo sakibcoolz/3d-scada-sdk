@@ -80,8 +80,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-078 | M9 (industrial model) | P0 | T-077 | DONE | Phase 5b (ADR-0024): binding ↔ variable data-type and unit checks, `DISCONNECTED` quality through telemetry/flow/viewer, `projectAcquisition`, consumer example |
 | T-079 | M9 (industrial model) | P1 | T-078 | DONE | Phase 5c (ADR-0024): variable templates on definitions, `suggestVariables` (proposals only), `reviewTags` findings |
 | T-080 | M9 (industrial model) | P0 | T-079 | DONE | Phase 6a (ADR-0025): `controlLibrary` control and I/O types (PLC CPU, DI/DO/AI/AO modules, DCS controller, Ethernet switch, 24 V PSU); reserved `sdk.` prefix; definition tests |
-| T-081 | M9 (industrial model) | P0 | T-080 | REVIEW | Phase 6b (ADR-0025): VFD, motor, transmitter, digital sensor, panel; compatibility tests |
-| T-082 | M9 (industrial model) | P1 | T-081 | TODO | Phase 6c (ADR-0025): playground `?control` PLC → VFD → Motor → pump demo scene, e2e, consumer example, library documentation |
+| T-081 | M9 (industrial model) | P0 | T-080 | DONE | Phase 6b (ADR-0025): VFD, motor, transmitter, digital sensor, panel; compatibility tests |
+| T-082 | M9 (industrial model) | P1 | T-081 | REVIEW | Phase 6c (ADR-0025): playground `?control` PLC → VFD → Motor → pump demo scene, e2e, consumer example, library documentation |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.
