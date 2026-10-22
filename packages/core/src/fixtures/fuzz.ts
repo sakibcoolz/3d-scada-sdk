@@ -1,5 +1,5 @@
 // Seeded fuzzing helpers shared by the security and schema tests. Test-only: excluded from the build.
-import type { ComponentKind, ConnectionPort, Quantity } from '../scene.js';
+import type { ComponentType, ConnectionPort, Quantity } from '../scene.js';
 import type { SceneValidationOptions } from '../validation.js';
 
 export function rng(seed: number): () => number {
@@ -14,8 +14,8 @@ export function rng(seed: number): () => number {
 }
 
 const fluid = (id: string): ConnectionPort => ({ id, kind: 'fluid', position: [0, 0, 0], direction: [1, 0, 0], nominalSize: 0.15 });
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = { tank: [fluid('inlet'), fluid('outlet')], valve: [fluid('in'), fluid('out')] };
-const bindable: Partial<Record<ComponentKind, Record<string, Quantity>>> = { tank: { level: 'percent' }, valve: { open: 'boolean' } };
+const ports: Partial<Record<ComponentType, ConnectionPort[]>> = { tank: [fluid('inlet'), fluid('outlet')], valve: [fluid('in'), fluid('out')] };
+const bindable: Partial<Record<ComponentType, Record<string, Quantity>>> = { tank: { level: 'percent' }, valve: { open: 'boolean' } };
 export const options: SceneValidationOptions = { resolvePorts: (t) => ports[t], resolveBindable: (t) => bindable[t] };
 
 /** Fresh hostile values per use, so mutations never share (and accidentally cycle) objects across iterations. */

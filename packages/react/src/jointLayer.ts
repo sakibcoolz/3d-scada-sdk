@@ -1,6 +1,6 @@
 import { Matrix4, Vector3 } from 'three';
 import { portToWorld, type PipeRoute, type ScadaScene, type SceneConnection, type Vector3Tuple } from '@sakibcoolz/core';
-import { catalogResolvers, hasFlangedEnds, jointStyle, sizeOfPort, type PipeSize } from '@sakibcoolz/components';
+import { builtInRegistry, hasFlangedEnds, jointStyle, sizeOfPort, type PipeSize, type ComponentRegistry } from '@sakibcoolz/components';
 
 /**
  * Where to draw joint hardware (ADR-0015): a bolted flange pair, a single flange on a free
@@ -24,11 +24,11 @@ const frame = (at: Vector3Tuple, direction: Vector3Tuple): number[] => {
 type Endpoint = SceneConnection['from'];
 
 /** Joint hardware for every connection (direct or routed) and every free flanged port. */
-export function jointPlacements(scene: ScadaScene, routes: readonly PipeRoute[]): JointPlacement[] {
+export function jointPlacements(scene: ScadaScene, routes: readonly PipeRoute[], registry: ComponentRegistry = builtInRegistry): JointPlacement[] {
   const byId = new Map(scene.components.map((c) => [c.id, c]));
   const portOf = (e: Endpoint) => {
     const c = byId.get(e.instanceId);
-    const port = c && catalogResolvers.resolvePorts(c.type, c.properties)?.find((p) => p.id === e.portId);
+    const port = c && registry.resolvers.resolvePorts(c.type, c.properties)?.find((p) => p.id === e.portId);
     return c && port ? { component: c, port, world: portToWorld(c, port) } : undefined;
   };
   const sized = (p: { port: Parameters<typeof sizeOfPort>[0] }): PipeSize => sizeOfPort(p.port) ?? 'DN150';
@@ -61,7 +61,7 @@ export function jointPlacements(scene: ScadaScene, routes: readonly PipeRoute[])
   const used = new Set(scene.connections.flatMap((c) => [c.from, c.to]).map((e) => `${e.instanceId}\u0000${e.portId}`));
   for (const c of scene.components) {
     if (!hasFlangedEnds(c.type)) continue;
-    for (const port of catalogResolvers.resolvePorts(c.type, c.properties) ?? []) {
+    for (const port of registry.resolvers.resolvePorts(c.type, c.properties) ?? []) {
       if (port.kind !== 'fluid' || used.has(`${c.id}\u0000${port.id}`)) continue;
       const world = portToWorld(c, port);
       out.push({ style: 'single', size: sizeOfPort(port) ?? 'DN150', matrix: frame(world.position, world.direction) });

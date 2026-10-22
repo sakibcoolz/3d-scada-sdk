@@ -1,4 +1,4 @@
-import type { ComponentInstance, ComponentKind, ConnectionPort, ScadaScene, SceneConnection, Vector3Tuple } from './scene.js';
+import type { ComponentInstance, ComponentType, ConnectionPort, ScadaScene, SceneConnection, Vector3Tuple } from './scene.js';
 import { portToWorld, type WorldPort } from './transforms.js';
 
 export type RouteKind = 'direct' | 'straight' | 'orthogonal';
@@ -35,7 +35,7 @@ export type PipeRoute =
   | { status: 'invalid'; connectionId: string; reason: 'UNRESOLVED'; message: string };
 
 export interface RoutingOptions {
-  resolvePorts: (type: ComponentKind, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
+  resolvePorts: (type: ComponentType, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
   /** Centreline bend radius, metres. Default 0.3. */
   bendRadius?: number;
   /**

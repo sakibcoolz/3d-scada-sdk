@@ -10,7 +10,7 @@ A reusable, framework-neutral 3D industrial visualization engine plus a React ed
 2. Designer moves/rotates/scales equipment and connects typed ports with snapping and routed pipes.
 3. Operator views liquid fill, valve position, motor motion, pressure and temperature in a read-only live view.
 4. Integrator imports/exports versioned scene JSON and supplies telemetry through a documented adapter; embeds renderer without editor UI.
-5. Author adds new components without modifying core editor or renderer. *(Status 2026-10-22: NOT IMPLEMENTED. Component kinds are a closed list in core; the open registry is M9 Phase 2, see docs/INDUSTRIAL_SDK_PLAN.md.)*
+5. Author adds new components without modifying core editor or renderer. *(Status 2026-10-22: IMPLEMENTED in 0.2.0 via the open component registry, T-071, ADR-0022.)*
 
 ## Functional requirements (IDs)
 - FR-01 component catalog, metadata, geometry and configurable dimensions.

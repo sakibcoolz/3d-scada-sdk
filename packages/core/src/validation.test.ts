@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   validateScene,
   type ComponentKind,
+  type ComponentType,
   type ConnectionPort,
   type SceneValidationErrorCode,
   type SceneValidationOptions,
@@ -15,7 +16,7 @@ const fluidPort = (id: string, nominalSize = 0.15): ConnectionPort => ({
   nominalSize,
 });
 
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = {
+const ports: Partial<Record<ComponentType, ConnectionPort[]>> = {
   tank: [fluidPort('inlet'), fluidPort('outlet')],
   valve: [fluidPort('in'), fluidPort('out')],
   pipe: [fluidPort('in', 0.2), fluidPort('out', 0.2)],

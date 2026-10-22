@@ -1,5 +1,5 @@
 import { rotateVector } from './quaternion.js';
-import type { ComponentInstance, ComponentKind, ScadaScene, SceneConnection, Vector3Like, Vector3Tuple } from './scene.js';
+import type { ComponentInstance, ComponentType, ScadaScene, SceneConnection, Vector3Like, Vector3Tuple } from './scene.js';
 import { quaternionToTuple } from './vectors.js';
 
 /** A snapshot of copied components and the connections between them. */
@@ -39,7 +39,7 @@ export function copyComponents(scene: ScadaScene, ids: readonly string[]): Compo
 /** World X extent of the copied parts' boxes, used to paste beside the original without overlap. */
 export function clipboardWidth(
   clipboard: ComponentClipboard,
-  options: { resolveBounds: (type: ComponentKind, properties?: ComponentInstance['properties']) => { min: Vector3Tuple; max: Vector3Tuple } | undefined },
+  options: { resolveBounds: (type: ComponentType, properties?: ComponentInstance['properties']) => { min: Vector3Tuple; max: Vector3Tuple } | undefined },
 ): number {
   let min = Infinity;
   let max = -Infinity;

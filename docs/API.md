@@ -134,3 +134,18 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
   - credential-like key names;
   - extension depth and value budgets.
 - **Guarantee:** anything `validateScene` accepts with the default limits passes the schema. A test proves this on every example and on 1500 seeded mutations.
+
+## Component registry (T-071, ADR-0022)
+- **Registering a type:** `createComponentRegistry(...definitions)` returns a registry of the built-in kinds plus your types. Each type is a namespaced id such as `com.acme.press-200` (bare names are reserved for the SDK), described with the catalog's own building blocks:
+  - `label`, `ports`, `bounds`, primitive `parts`;
+  - optional `parameters`, `bindable`, `version`, `category`;
+  - an optional `build(values)` for parametric shapes.
+- **What a registry offers:** `has`, `get`, `list`, `definitionFor`, `validateProperties` and `sizeParameterFor`.
+  - `registry.resolvers` can be passed to `validateScene`, `parseScene`, `connect`, `routeScene`, `findCollisions` and the other core functions.
+  - `builtInRegistry.resolvers` behaves like `catalogResolvers`, which stays exported.
+- **React:** pass the same registry to `Scada3DViewer` and `Scada3DEditor` as `registry`. Palette, rendering, editing and import then know your types.
+- **Unknown types:** files using an unregistered type are rejected (`UNKNOWN_COMPONENT_KIND`). `unknownTypeDefinition(type)` is the placeholder renderers fall back to.
+- **Core:**
+  - `ComponentInstance.type` is now `ComponentType` (`ComponentKind | string`).
+  - New exports `isBuiltInKind` and `isNamespacedType`.
+  - `validateScene` takes `resolveType`.

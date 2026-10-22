@@ -6,12 +6,13 @@ import {
   type CollisionOptions,
   type ComponentInstance,
   type ComponentKind,
+  type ComponentType,
   type ScadaScene,
   type Vector3Tuple,
 } from './index.js';
 
 // Box bounds per type, as the catalog provides them (local metres).
-const bounds: Partial<Record<ComponentKind, { min: Vector3Tuple; max: Vector3Tuple }>> = {
+const bounds: Partial<Record<ComponentType, { min: Vector3Tuple; max: Vector3Tuple }>> = {
   tank: { min: [-1.2, -1.535, -1], max: [1.2, 1.535, 1] },
   pipe: { min: [-1, -0.084, -0.084], max: [1, 0.084, 0.084] },
   valve: { min: [-0.6, -0.2, -0.2], max: [0.6, 0.495, 0.2] },

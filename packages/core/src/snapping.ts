@@ -1,7 +1,7 @@
 import {
   portsCompatible,
   type ComponentInstance,
-  type ComponentKind,
+  type ComponentType,
   type ConnectionPort,
   type QuaternionLike,
   type Vector3Like,
@@ -26,7 +26,7 @@ export interface SnapCandidate {
 }
 
 export interface SnapOptions {
-  resolvePorts: (type: ComponentKind, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
+  resolvePorts: (type: ComponentType, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
   /** Search radius around each moving port, metres. Default 0.5. */
   maxDistance?: number;
   /** Largest allowed misalignment before snapping, radians. Default π/4. */

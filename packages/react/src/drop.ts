@@ -5,7 +5,7 @@ import {
   snapComponent,
   validateScene,
   type ComponentInstance,
-  type ComponentKind,
+  type ComponentType,
   type GraphResult,
   type ScadaScene,
   type SnapResult,
@@ -13,7 +13,7 @@ import {
   type Vector3Like,
   type Vector3Tuple,
 } from '@sakibcoolz/core';
-import { catalogResolvers, componentCatalog, definitionFor, sizeOfPort, sizeParameterFor, type IndustrialComponentDefinition } from '@sakibcoolz/components';
+import { builtInRegistry, sizeOfPort, type ComponentRegistry, type IndustrialComponentDefinition } from '@sakibcoolz/components';
 
 
 export interface ScreenRect {
@@ -54,35 +54,39 @@ export interface DropPlan {
 export interface DropOptions {
   createId: () => string;
   properties?: ComponentInstance['properties'];
+  /** Component types to plan with (ADR-0022); the built-in kinds by default. */
+  registry?: ComponentRegistry;
 }
 
 /** Decides where a palette drop lands and what it would connect to. Pure: the scene is not changed. */
-export function planDrop(scene: ScadaScene, type: ComponentKind, hit: Vector3Tuple, options: DropOptions): DropPlan {
+export function planDrop(scene: ScadaScene, type: ComponentType, hit: Vector3Tuple, options: DropOptions): DropPlan {
+  const registry = options.registry ?? builtInRegistry;
+  const resolvers = registry.resolvers;
   const placed: ComponentInstance = {
     id: options.createId(),
     type,
-    position: dropPosition(definitionFor(type, options.properties), hit),
+    position: dropPosition(registry.definitionFor(type, options.properties), hit),
     rotation: { x: 0, y: 0, z: 0, w: 1 },
     scale: { x: 1, y: 1, z: 1 },
     properties: { ...options.properties },
   };
-  const snap = snapComponent(scene, placed, catalogResolvers);
+  const snap = snapComponent(scene, placed, resolvers);
   if (snap.ok) return { component: { ...placed, position: snap.position, rotation: snap.rotation }, snap };
   // A part with a size choice takes the size of the port it would snap to (ADR-0009).
-  const resized = matchTargetSize(scene, placed, snap);
+  const resized = matchTargetSize(scene, placed, snap, registry);
   if (resized) {
-    const again = snapComponent(scene, resized, catalogResolvers);
+    const again = snapComponent(scene, resized, resolvers);
     if (again.ok) return { component: { ...resized, position: again.position, rotation: again.rotation }, snap: again };
   }
   // Snap in plan view: a part dropped on the ground below a raised port (e.g. a tank on a stand)
   // is lifted to that port's height, then snapped as usual.
   for (const candidate of resized ? [resized, placed] : [placed]) {
-    const lifted = liftToRaisedPort(scene, candidate);
+    const lifted = liftToRaisedPort(scene, candidate, registry);
     if (!lifted) continue;
-    const up = snapComponent(scene, lifted, catalogResolvers);
+    const up = snapComponent(scene, lifted, resolvers);
     if (up.ok) return { component: { ...lifted, position: up.position, rotation: up.rotation }, snap: up };
-    const sized = matchTargetSize(scene, lifted, up);
-    const upSized = sized && snapComponent(scene, sized, catalogResolvers);
+    const sized = matchTargetSize(scene, lifted, up, registry);
+    const upSized = sized && snapComponent(scene, sized, resolvers);
     if (sized && upSized && upSized.ok) return { component: { ...sized, position: upSized.position, rotation: upSized.rotation }, snap: upSized };
   }
   return { component: placed, snap };
@@ -92,12 +96,13 @@ export function planDrop(scene: ScadaScene, type: ComponentKind, hit: Vector3Tup
 const PLAN_SNAP = 0.5;
 
 /** `placed` raised so one of its ports is level with the nearest higher port within PLAN_SNAP in plan. */
-function liftToRaisedPort(scene: ScadaScene, placed: ComponentInstance): ComponentInstance | undefined {
-  const mine = (catalogResolvers.resolvePorts(placed.type, placed.properties) ?? []).map((p) => portToWorld(placed, p).position);
+function liftToRaisedPort(scene: ScadaScene, placed: ComponentInstance, registry: ComponentRegistry): ComponentInstance | undefined {
+  const resolvers = registry.resolvers;
+  const mine = (resolvers.resolvePorts(placed.type, placed.properties) ?? []).map((p) => portToWorld(placed, p).position);
   let best: { plan: number; dy: number } | undefined;
   for (const other of scene.components) {
     if (other.id === placed.id) continue;
-    for (const port of catalogResolvers.resolvePorts(other.type, other.properties) ?? []) {
+    for (const port of resolvers.resolvePorts(other.type, other.properties) ?? []) {
       const t = portToWorld(other, port).position;
       for (const m of mine) {
         const plan = Math.hypot(t[0] - m[0], t[2] - m[2]);
@@ -110,25 +115,27 @@ function liftToRaisedPort(scene: ScadaScene, placed: ComponentInstance): Compone
 }
 
 /** `placed` with its moving port resized to the nearest target port's size, if that is a valid choice. */
-function matchTargetSize(scene: ScadaScene, placed: ComponentInstance, snap: SnapResult): ComponentInstance | undefined {
+function matchTargetSize(scene: ScadaScene, placed: ComponentInstance, snap: SnapResult, registry: ComponentRegistry): ComponentInstance | undefined {
+  const resolvers = registry.resolvers;
   const nearest = !snap.ok ? snap.nearest : undefined;
   if (!nearest || nearest.status !== 'incompatible') return undefined;
   const target = scene.components.find((c) => c.id === nearest.target.instanceId);
-  const port = target && catalogResolvers.resolvePorts(target.type, target.properties)?.find((p) => p.id === nearest.target.portId);
+  const port = target && resolvers.resolvePorts(target.type, target.properties)?.find((p) => p.id === nearest.target.portId);
   const size = port && sizeOfPort(port);
   // Only the parameter sizing the moving port changes (the reducer outlet and pump nozzles have their own).
-  const name = sizeParameterFor(placed.type, nearest.movingPortId);
+  const name = registry.sizeParameterFor(placed.type, nearest.movingPortId);
   if (!size || !name) return undefined;
   const properties = { ...placed.properties, [name]: size };
-  if (catalogResolvers.validateProperties(placed.type, properties).length > 0) return undefined;
+  if (resolvers.validateProperties(placed.type, properties).length > 0) return undefined;
   return { ...placed, properties };
 }
 
 /** Adds the planned component and, when it snapped, its connection, validated as one change. */
-export function applyDrop(scene: ScadaScene, plan: DropPlan, createConnectionId: () => string): GraphResult {
+export function applyDrop(scene: ScadaScene, plan: DropPlan, createConnectionId: () => string, registry: ComponentRegistry = builtInRegistry): GraphResult {
+  const resolvers = registry.resolvers;
   const added: ScadaScene = { ...scene, components: [...scene.components, plan.component] };
-  if (plan.snap.ok) return connect(added, { id: createConnectionId(), ...plan.snap.connection }, catalogResolvers);
-  const result = validateScene(added, catalogResolvers);
+  if (plan.snap.ok) return connect(added, { id: createConnectionId(), ...plan.snap.connection }, resolvers);
+  const result = validateScene(added, resolvers);
   if (result.ok) return result;
   return { ok: false, error: { code: result.errors[0].code, message: result.errors[0].message } };
 }
@@ -140,11 +147,11 @@ const rejection: Record<Exclude<SnapStatus, 'ok'>, string> = {
 };
 
 /** One-line preview text for a drop, for the editor status line. Targets are named by catalog label. */
-export function describeDrop(plan: DropPlan, scene: ScadaScene): string {
-  const label = componentCatalog[plan.component.type].label;
+export function describeDrop(plan: DropPlan, scene: ScadaScene, registry: ComponentRegistry = builtInRegistry): string {
+  const label = registry.definitionFor(plan.component.type).label;
   const targetLabel = (instanceId: string) => {
     const target = scene.components.find((c) => c.id === instanceId);
-    return target ? componentCatalog[target.type].label : instanceId;
+    return target ? registry.definitionFor(target.type).label : instanceId;
   };
   if (plan.snap.ok) {
     const { candidate } = plan.snap;

@@ -6,7 +6,7 @@ import {
   serializeScene,
   toCanonical,
   validateScene,
-  type ComponentKind,
+  type ComponentType,
   type ConnectionPort,
   type Quantity,
   type ScadaScene,
@@ -16,8 +16,8 @@ import {
 } from './index.js';
 
 const fluid = (id: string): ConnectionPort => ({ id, kind: 'fluid', position: [0, 0, 0], direction: [1, 0, 0], nominalSize: 0.15 });
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = { tank: [fluid('inlet'), fluid('outlet')], valve: [fluid('in'), fluid('out')] };
-const bindable: Partial<Record<ComponentKind, Record<string, Quantity>>> = {
+const ports: Partial<Record<ComponentType, ConnectionPort[]>> = { tank: [fluid('inlet'), fluid('outlet')], valve: [fluid('in'), fluid('out')] };
+const bindable: Partial<Record<ComponentType, Record<string, Quantity>>> = {
   tank: { level: 'percent', temperature: 'temperature' },
   valve: { open: 'boolean' },
 };

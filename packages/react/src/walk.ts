@@ -1,5 +1,5 @@
 import { rotateVector, type ScadaScene } from '@sakibcoolz/core';
-import { catalogResolvers } from '@sakibcoolz/components';
+import { builtInRegistry, type ComponentRegistry } from '@sakibcoolz/components';
 import type { FloorSlab } from './floor.js';
 
 /** Eye height of the desktop walker, metres. */
@@ -47,10 +47,10 @@ export interface MoveKeys {
  * The equipment a walker can bump into: each component's rotated bounds. Which of them block
  * depends on the eye height (`blocksAt`): at standing height, overhead racks and floor-level details do not.
  */
-export function walkObstacles(scene: ScadaScene): Obstacle[] {
+export function walkObstacles(scene: ScadaScene, registry: ComponentRegistry = builtInRegistry): Obstacle[] {
   const out: Obstacle[] = [];
   for (const c of scene.components) {
-    const b = catalogResolvers.resolveBounds(c.type, c.properties);
+    const b = registry.resolvers.resolveBounds(c.type, c.properties);
     if (!b) continue;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
     for (const x of [b.min[0], b.max[0]]) for (const y of [b.min[1], b.max[1]]) for (const z of [b.min[2], b.max[2]]) {

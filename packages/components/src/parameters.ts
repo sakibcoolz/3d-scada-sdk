@@ -1,15 +1,14 @@
-import type { ComponentInstance, ComponentKind, Quantity } from '@sakibcoolz/core';
+import { isBuiltInKind, type ComponentInstance, type ComponentKind, type ComponentType, type Quantity } from '@sakibcoolz/core';
 import { componentCatalog, conicalTankDefinition, horizontalTankDefinition, poolDefinition, sphericalTankDefinition, couplerDefinition, pumpDefinition, elbowDefinition, pipeDefinition, reducerDefinition, tankDefinition, teeDefinition, valveDefinition } from './catalog.js';
-import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
+import { isChoiceParameter, type IndustrialComponentDefinition, type ParameterSpec } from './geometry.js';
 import { pipeSizes, type PipeSize } from './sizes.js';
 import { asme } from './asme.js';
 import type { CapacityUnit } from './vessel.js';
 
 type Properties = ComponentInstance['properties'];
 
-/** Problems with shape parameters, e.g. `[{ property: 'length', message: 'must be between 0.2 and 20 m' }]`. */
-export function validateProperties(type: ComponentKind, properties: Properties): { property: string; message: string }[] {
-  const parameters = componentCatalog[type].parameters ?? {};
+/** Problems with parameter values against their specs; absent values mean the default. */
+export function checkParameters(parameters: Readonly<Record<string, ParameterSpec>>, properties: Properties): { property: string; message: string }[] {
   const problems: { property: string; message: string }[] = [];
   for (const [name, spec] of Object.entries(parameters)) {
     if (!Object.hasOwn(properties, name)) continue; // absent means the default
@@ -19,6 +18,16 @@ export function validateProperties(type: ComponentKind, properties: Properties):
     } else if (typeof value !== 'number' || !Number.isFinite(value)) problems.push({ property: name, message: `must be a number of ${spec.unit}` });
     else if (value < spec.min || value > spec.max) problems.push({ property: name, message: `must be between ${spec.min} and ${spec.max} ${spec.unit}` });
   }
+  return problems;
+}
+
+/**
+ * Problems with a built-in kind's shape parameters, e.g. `[{ property: 'length', message: 'must be
+ * between 0.2 and 20 m' }]`. Other types have none here; a registry checks its own (ADR-0022).
+ */
+export function validateProperties(type: ComponentType, properties: Properties): { property: string; message: string }[] {
+  if (!isBuiltInKind(type)) return [];
+  const problems = checkParameters(componentCatalog[type].parameters ?? {}, properties);
   if (type === 'reducer' && problems.length === 0) {
     const { size, outletSize } = effective(type, properties);
     if (size === outletSize) problems.push({ property: 'outletSize', message: 'must differ from size' });
@@ -92,9 +101,11 @@ export function definitionFor(type: ComponentKind, properties: Properties = {}):
  * `routeScene`, `findCollisions`, `resolveTelemetry`).
  */
 export const catalogResolvers = {
-  resolvePorts: (type: ComponentKind, properties?: Properties) => definitionFor(type, properties).ports,
-  resolveBounds: (type: ComponentKind, properties?: Properties) => definitionFor(type, properties).bounds,
-  resolveBindable: (type: ComponentKind): Readonly<Record<string, Quantity>> | undefined => componentCatalog[type].bindable,
+  /** Only the built-in kinds; a registry (`createComponentRegistry`) adds host types (ADR-0022). */
+  resolveType: (type: ComponentType): boolean => isBuiltInKind(type),
+  resolvePorts: (type: ComponentType, properties?: Properties) => (isBuiltInKind(type) ? definitionFor(type, properties).ports : undefined),
+  resolveBounds: (type: ComponentType, properties?: Properties) => (isBuiltInKind(type) ? definitionFor(type, properties).bounds : undefined),
+  resolveBindable: (type: ComponentType): Readonly<Record<string, Quantity>> | undefined => (isBuiltInKind(type) ? componentCatalog[type].bindable : undefined),
   validateProperties,
   /** Routed runs bend like ASME long-radius elbows: 1.5 × NPS for the run's size (ADR-0015). */
   bendRadiusFor: (nominalSize: number | undefined) => {

@@ -57,7 +57,7 @@ test('rejects malformed text with readable errors and keeps the current scene', 
   await page.getByLabel('Import JSON text').fill('{"schemaVersion": 3, "units": "m", "components": [{"id": "x"}], "connections": []}');
   await page.getByRole('button', { name: 'Load text' }).click();
   const alert = page.getByRole('alert');
-  await expect(alert).toContainText('components[0].type: Unknown component type undefined.');
+  await expect(alert).toContainText('components[0].type: Unknown component type undefined; custom types are namespaced');
   await expect(alert).toContainText('components[0].rotation: Expected an object with finite x, y, z, w');
   await expect(page.getByLabel('Scene JSON')).toHaveValue(before);
 

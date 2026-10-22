@@ -1,12 +1,13 @@
 import {
-  componentKinds,
   portsCompatible,
   SCENE_DOCUMENT_TYPE,
   type JsonValue,
   type SceneExtensions,
   type SceneProject,
   type ComponentInstance,
-  type ComponentKind,
+  type ComponentType,
+  isBuiltInKind,
+  isNamespacedType,
   type ConnectionPort,
   type Quantity,
   type SceneUnderlay,
@@ -88,17 +89,23 @@ export interface SceneValidationOptions {
    * Declared ports for a component type. Core does not import the catalog, so the caller supplies it.
    * `properties` lets parametric types (e.g. pipe length) return per-instance ports.
    */
-  resolvePorts: (type: ComponentKind, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
+  resolvePorts: (type: ComponentType, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
+  /**
+   * Whether the host knows a component type (ADR-0022). Optional: without it only the built-in
+   * kinds are accepted. Custom types must also be namespaced (`com.example.part`); bare names
+   * are reserved for the built-ins.
+   */
+  resolveType?: (type: ComponentType) => boolean;
   /**
    * Bindable properties and their quantities for a component type. When omitted, property bindings
    * are only checked for an existing component, and their units are not checked.
    */
-  resolveBindable?: (type: ComponentKind) => Readonly<Record<string, Quantity>> | undefined;
+  resolveBindable?: (type: ComponentType) => Readonly<Record<string, Quantity>> | undefined;
   /**
    * Checks authored property values (e.g. pipe length range). Each problem becomes an
    * INVALID_PROPERTY error at `components[i].properties.<property>`. Optional.
    */
-  validateProperties?: (type: ComponentKind, properties: ComponentInstance['properties']) => readonly { property: string; message: string }[];
+  validateProperties?: (type: ComponentType, properties: ComponentInstance['properties']) => readonly { property: string; message: string }[];
   limits?: Partial<SceneLimits>;
   /**
    * Checks the content of `underlay.svg` (e.g. `sanitizeSvg` from @sakibcoolz/asset-import) and returns a
@@ -452,6 +459,7 @@ function readComponent(
   limits: SceneLimits,
   errors: Errors,
   extensionBudget: { left: number },
+  resolveType: ((type: ComponentType) => boolean) | undefined,
 ): ComponentInstance | undefined {
   if (!isObject(value)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a component object.' });
@@ -462,8 +470,11 @@ function readComponent(
   const id = readId(value.id, `${path}.id`, limits, errors);
   const typeField = version === 1 ? 'kind' : 'type';
   const type = value[typeField];
-  if (!componentKinds.includes(type as ComponentKind)) {
-    errors.push({ code: 'UNKNOWN_COMPONENT_KIND', path: `${path}.${typeField}`, message: `Unknown component type ${describe(type)}.` });
+  if (!isBuiltInKind(type) && !isNamespacedType(type)) {
+    // Bare names belong to the SDK; a host's own types are namespaced (ADR-0022).
+    errors.push({ code: 'UNKNOWN_COMPONENT_KIND', path: `${path}.${typeField}`, message: `Unknown component type ${describe(type)}; custom types are namespaced, such as "com.example.part".` });
+  } else if (resolveType ? !resolveType(type) : !isBuiltInKind(type)) {
+    errors.push({ code: 'UNKNOWN_COMPONENT_KIND', path: `${path}.${typeField}`, message: `Unknown component type ${describe(type)}; no definition is registered for it.` });
   }
   let position: Vector3Like | undefined;
   let rotation: QuaternionLike | undefined;
@@ -502,7 +513,7 @@ function readComponent(
   if (errors.length > before || !id || !position || !rotation || !scale || !properties) return undefined;
   return {
     id,
-    type: type as ComponentKind,
+    type: type as ComponentType,
     ...(parentId ? { parentId } : {}),
     position,
     rotation,
@@ -802,7 +813,7 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
   const extensionBudget = { left: MAX_EXTENSION_VALUES };
   const project = version === 4 && input.project !== undefined ? readProject(input.project, limits, errors) : undefined;
   const components = readList(input.components, 'components', limits.maxComponents, errors, (item, path) =>
-    readComponent(item, path, version, limits, errors, extensionBudget),
+    readComponent(item, path, version, limits, errors, extensionBudget, options.resolveType),
   );
   const connections = readList(input.connections, 'connections', limits.maxConnections, errors, (item, path) =>
     readConnection(item, path, limits, errors),

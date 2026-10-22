@@ -1,5 +1,5 @@
 import { rotateVector } from './quaternion.js';
-import type { ComponentInstance, ComponentKind, ScadaScene, Vector3Tuple } from './scene.js';
+import type { ComponentInstance, ComponentType, ScadaScene, Vector3Tuple } from './scene.js';
 import { quaternionToTuple } from './vectors.js';
 
 /**
@@ -9,7 +9,7 @@ import { quaternionToTuple } from './vectors.js';
  */
 export interface CollisionOptions {
   /** Local bounds of a component type; types without bounds are skipped. */
-  resolveBounds: (type: ComponentKind, properties?: ComponentInstance['properties']) => { min: Vector3Tuple; max: Vector3Tuple } | undefined;
+  resolveBounds: (type: ComponentType, properties?: ComponentInstance['properties']) => { min: Vector3Tuple; max: Vector3Tuple } | undefined;
   /** Overlap up to this depth (metres) is treated as touching, so joined ports never collide. Default 0.001. */
   tolerance?: number;
 }
