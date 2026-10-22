@@ -1637,3 +1637,35 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-075: associations (Phase 4a, ADR-0023)
+- Owner merged #75 and asked to start the next task. Branch `feat/T-075-associations` from `origin/develop`.
+- Change:
+  - **core:**
+    - `SceneAssociation` and optional `ScadaScene.associations`: port-less, directed `{id, relationship, from, to, properties?}`;
+    - validation, version 4 only:
+      - relationship required;
+      - IDs shared with connections;
+      - unknown ends, self links and identical directed facts rejected;
+      - credential-like properties rejected (shared `readEdgeProperties`);
+      - new limit `maxAssociations`;
+    - canonical serialization after `connections`;
+    - `addAssociation` and `removeAssociation` (`UNKNOWN_ASSOCIATION`); `removeComponent` drops associations; the field is dropped when the list empties;
+    - clipboard carries associations whose both ends are copied.
+  - **schema:** root `associations`; `association`, `relationship` and `edgeProperties` definitions; 4 new fixtures; the fuzz base carries an association.
+- Tests:
+  - new `associations.test.ts` (core, 12): round trip and key order, absent field, host relationship and reverse direction, every rejection, v3 rejection, the limit, add/remove byte-stable, `removeComponent`, copy/paste, never routed;
+  - new e2e in `custom-types.spec.ts`: associations load and save, go with a deleted component, and return on undo;
+  - the core API list was updated.
+- Docs:
+  - ADR-0023 T-075 notes;
+  - spec §3, §5.1, §10 and §12; API.md "Associations"; RELEASE.md;
+  - backlog T-074 DONE, T-075 REVIEW; plan Phase 4 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1433 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (130 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

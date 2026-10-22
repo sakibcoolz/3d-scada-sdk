@@ -89,3 +89,31 @@ test('a wired connection between host types is drawn as a coloured line and keep
     { id: 'n1', relationship: 'communicates', from: doc.connections[1].from, to: doc.connections[1].to },
   ]);
 });
+
+test('associations load, save as written, go with a deleted component and come back on undo (ADR-0023)', async ({ page }) => {
+  await page.goto('/?custom');
+  await waitForCanvas(page);
+  const at = (id: string, type: string, x: number) => ({ id, type, position: { x, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} });
+  const controls = { id: 'a1', relationship: 'controls', from: 'PLC-01', to: 'VFD-101' };
+  const doc = {
+    schemaVersion: 4,
+    documentType: 'industrial.scene',
+    units: 'm',
+    components: [at('PLC-01', 'com.example.controller', 0), at('VFD-101', 'com.example.drive', 3)],
+    connections: [],
+    associations: [controls],
+  };
+  await page.getByLabel('Import JSON text').fill(JSON.stringify(doc));
+  await page.getByRole('button', { name: 'Load text' }).click();
+  await expect(page.getByText('Loaded 2 components and 0 connections.')).toBeVisible();
+  expect((await sceneJson(page)).associations).toEqual([controls]);
+
+  const drive = page.getByRole('button', { name: 'Drive (example) 1' });
+  await drive.press('Enter');
+  await expect(drive).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Delete');
+  await expect.poll(async () => (await sceneJson(page)).components.length).toBe(1);
+  expect((await sceneJson(page)).associations).toBeUndefined();
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await sceneJson(page)).associations).toEqual([controls]);
+});

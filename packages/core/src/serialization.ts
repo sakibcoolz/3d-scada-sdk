@@ -67,6 +67,17 @@ export function serializeScene(scene: ScadaScene): string {
       to: { instanceId: c.to.instanceId, portId: c.to.portId },
       ...(c.properties !== undefined ? { properties: sortedObject(c.properties) } : {}),
     })),
+    ...(scene.associations
+      ? {
+          associations: scene.associations.map((a) => ({
+            id: a.id,
+            relationship: a.relationship,
+            from: a.from,
+            to: a.to,
+            ...(a.properties !== undefined ? { properties: sortedObject(a.properties) } : {}),
+          })),
+        }
+      : {}),
     ...(scene.tagBindings
       ? {
           tagBindings: scene.tagBindings.map((b) => ({

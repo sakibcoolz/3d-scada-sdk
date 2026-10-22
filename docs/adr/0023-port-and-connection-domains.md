@@ -1,6 +1,6 @@
 # ADR-0023: Port and connection domains
 
-Status: Accepted (owner, 2026-10-22); T-073 and T-074 implemented, T-075..T-076 pending. M9 Phases 3–4 of docs/INDUSTRIAL_SDK_PLAN.md (§6), tasks T-073..T-076.
+Status: Accepted (owner, 2026-10-22); T-073, T-074 and T-075 implemented, T-076 pending. M9 Phases 3–4 of docs/INDUSTRIAL_SDK_PLAN.md (§6), tasks T-073..T-076.
 
 ## Context
 Every port today is a 3D flange: `ConnectionPort = {id, kind, position, direction, nominalSize?}` (`scene.ts:19`).
@@ -189,3 +189,22 @@ interface ConnectionPort {
 - **Viewer:** `WireLayer` draws each wired connection as a straight 2 px line from terminal to terminal (`wireSegments`), coloured power orange, signal blue, network green. Joints, open-joint checks and flow animation skip wired connections because they have no route.
 - **Schema:** `connection` gains `domain`, `relationship` and `properties`. New fixtures: `invalid/unknown-relationship`, `validator-only/connection-domain-mismatch` and `validator-only/credential-in-connection`. The fuzz base edge carries all three fields.
 - **Playground:** `?custom` also registers an example controller (`com.example.controller`) and drive (`com.example.drive`) with signal and network terminals.
+
+## Implementation notes (T-075)
+- **Model:** `SceneAssociation = {id, relationship, from, to, properties?}`, where `from` and `to` are component ids. `ScadaScene.associations` is optional and absent when there are none.
+- **Validation:**
+  - version 4 only; in older versions it is `UNKNOWN_FIELD`;
+  - `relationship` is required (`INVALID_FIELD`);
+  - properties follow the edge rules, so credential-like names are `SECRET_FIELD`;
+  - IDs share the connections' namespace (`DUPLICATE_CONNECTION_ID`);
+  - unknown ends are `UNKNOWN_INSTANCE`, a component linked to itself is `SELF_CONNECTION`, and an identical directed `(from, to, relationship)` is `DUPLICATE_EDGE`;
+  - new limit `maxAssociations` (default 20,000), counted separately from connections.
+- **Serialization:** `associations` follows `connections`; key order `id, relationship, from, to, properties?`.
+- **Graph helpers:**
+  - `addAssociation` validates like `connect`;
+  - `removeAssociation` fails with `UNKNOWN_ASSOCIATION` for an unknown ID;
+  - `removeComponent` drops the component's associations;
+  - each drops the `associations` field when the list empties, so an add followed by a remove leaves the file byte-identical.
+- **Clipboard:** associations whose both ends are copied are carried along with new IDs. `ComponentClipboard.associations` is optional.
+- **Not drawn, routed or simulated.** The editor keeps them through import, delete, undo and export.
+- **Schema:** root `associations` and an `association` definition, with shared `relationship` and `edgeProperties` definitions. New fixtures: `valid/associations`, `invalid/association-without-relationship`, `validator-only/association-unknown-component` and `validator-only/association-id-reuses-connection`. The fuzz base carries an association.

@@ -46,5 +46,9 @@
   "unknown-relationship.scene.json": {
     "code": "INVALID_FIELD",
     "path": "connections[0].relationship"
+  },
+  "association-without-relationship.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "associations[0].relationship"
   }
 }

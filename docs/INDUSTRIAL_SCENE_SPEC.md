@@ -36,6 +36,7 @@ It **never** holds live measurements, credentials or executable code. Live value
 | `project` | no | object | `{id?, name?, revision?, description?}`, all strings (id ≤ 128, text 1–1024 characters) |
 | `components` | yes | array (≤ 10,000) | §4 |
 | `connections` | yes | array (≤ 20,000) | §5 |
+| `associations` | no | array (≤ 20,000) | §5.1 |
 | `tagBindings` | no | array (≤ 20,000) | §6 |
 | `underlay` | no | object | §7 |
 | `extensions` | no | object | §8 |
@@ -78,7 +79,17 @@ Ports are **not** stored in the file. They come from the component definition th
   - `relationship`: `controls, drives, measures, feeds, communicates, wired, associated`, or a namespaced host name such as `com.example.supervises`;
   - `properties`: edge data such as cable type, cross-section or length. Values follow the component property rules; credential-like names are rejected (`SECRET_FIELD`).
 - Only fluid, mechanical and `electrical` connections get pipe routes. Power, signal and network connections are wired: they are drawn as straight lines and carry no simulated liquid.
-- **PLANNED (T-075):** port-less associations in a root `associations` array.
+
+### 5.1 Associations
+`{ id, relationship, from, to, properties? }`, where `from` and `to` are component ids (ADR-0023).
+- An association records a logical fact, such as "PLC-01 controls VFD-101". It has no ports and no geometry, and it is never drawn as wiring, routed or simulated.
+- **Rules:**
+  - `relationship` is required: a built-in relationship or a namespaced host name;
+  - IDs are unique across connections and associations;
+  - both components exist and differ;
+  - associations are **directed**: the same `(from, to, relationship)` twice is `DUPLICATE_EDGE`, while the reverse direction is a separate fact;
+  - `properties` follow the connection property rules.
+- Removing a component removes its associations.
 
 ## 6. Tag bindings
 Two shapes (ADR-0006):
@@ -120,7 +131,8 @@ Root and component `extensions` hold host or library data:
 ## 10. Canonical serialization
 `serializeScene` writes one canonical form, so save → load → save is byte-identical:
 - two-space indent and a trailing newline;
-- root key order: `schemaVersion, documentType, units, project?, components, connections, tagBindings?, underlay?, extensions?`;
+- root key order: `schemaVersion, documentType, units, project?, components, connections, associations?, tagBindings?, underlay?, extensions?`;
+- association key order: `id, relationship, from, to, properties?`;
 - component key order: `id, name?, type, typeVersion?, manufacturer?, model?, parentId?, position, rotation, scale, properties, labels?, extensions?`;
 - connection key order: `id, domain?, relationship?, from, to, properties?`;
 - vectors in `x, y, z(, w)` order; `-0` written as `0`;
@@ -143,7 +155,7 @@ Root and component `extensions` hold host or library data:
 ## 12. Limits (`defaultSceneLimits`)
 | Limit | Default |
 |---|---|
-| components / connections / bindings | 10,000 / 20,000 / 20,000 |
+| components / connections / associations / bindings | 10,000 / 20,000 / 20,000 / 20,000 |
 | ID length | 128 |
 | properties or labels per component | 64 |
 | string length | 1024 characters |

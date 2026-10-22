@@ -30,5 +30,13 @@
   "credential-in-connection.scene.json": {
     "code": "SECRET_FIELD",
     "path": "connections[0].properties.vendorApiKey"
+  },
+  "association-unknown-component.scene.json": {
+    "code": "UNKNOWN_INSTANCE",
+    "path": "associations[0].to"
+  },
+  "association-id-reuses-connection.scene.json": {
+    "code": "DUPLICATE_CONNECTION_ID",
+    "path": "associations[0].id"
   }
 }
