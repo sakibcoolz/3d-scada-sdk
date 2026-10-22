@@ -1570,3 +1570,39 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-073: port domains (Phase 3a, ADR-0023)
+- Owner accepted ADR-0023 (port and connection domains) as drafted. Branch `docs/T-073-port-domains-adr` from `origin/develop`.
+- Change:
+  - **core:**
+    - `PortKind` adds `power` and `network` (`electrical` deprecated);
+    - optional port `name`, `terminal`, `flow`, `signal`, `power`, `network`, `maxConnections`;
+    - `checkPorts` rule table per domain, with `portsCompatible` delegating to it;
+    - `portCapacity`, `matesPhysically`, `portKinds`, `signalTypes`, `powerKinds`.
+  - **validation:** `INCOMPATIBLE_PORTS` messages name the failed rule; `PORT_OCCUPIED` counts against `maxConnections`.
+  - **snapping, touching, attach:** use only fluid and mechanical ports and count capacity.
+  - **Fix:** `GraphOptions` and `AttachOptions` now declare `resolveType` (gap from T-071, found by the new attach test).
+  - **components:** `createComponentRegistry` checks port metadata:
+    - the details block matches the domain;
+    - signal types, ranges and units;
+    - power kind, voltage and phases;
+    - network medium and protocols;
+    - flow;
+    - `maxConnections` ≥ 1, and exactly 1 for fluid ports.
+- Tests:
+  - new `port-domains.test.ts` (core, 50): the 6×6 domain matrix, the signal, power and network rules, and validation with `maxConnections`; physical mating ignores wired ports.
+  - `registry.test.ts`: 2 new tests, for a VFD-like type and each metadata error.
+  - Updated on purpose: the snapping test, where a fixture signal port is no longer offered for snapping; the core API list (new exports).
+- Docs:
+  - ADR-0023 Accepted with implementation notes; DECISION_LOG;
+  - API.md "Port domains"; RELEASE.md migration note;
+  - spec §5; SECURITY_AND_SAFETY (engineering-aid statement);
+  - plan Phase 3 row; backlog T-071 DONE, T-072 folded into T-071, T-073 REVIEW, T-074..T-076 TODO.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1403 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (128 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test). The first run exited 1 because `CONSUMER_APP` was not set; it was re-run with the printed directory.
+  - GitHub Actions CI not awaited.

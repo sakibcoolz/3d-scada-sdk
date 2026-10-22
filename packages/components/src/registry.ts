@@ -1,4 +1,4 @@
-import { isBuiltInKind, isNamespacedType, type ComponentInstance, type ComponentType, type Quantity, type Vector3Tuple } from '@sakibcoolz/core';
+import { isBuiltInKind, isNamespacedType, portKinds, powerKinds, signalTypes, type ComponentInstance, type ConnectionPort, type ComponentType, type Quantity, type Vector3Tuple } from '@sakibcoolz/core';
 import { componentCatalog } from './catalog.js';
 import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
 import { catalogResolvers, checkParameters, definitionFor as builtInDefinitionFor, sizeParameterFor as builtInSizeParameterFor, validateProperties as builtInValidateProperties } from './parameters.js';
@@ -69,7 +69,41 @@ const placeholders = new Map<string, IndustrialComponentDefinition>();
 const sizeOf = (b: IndustrialComponentDefinition['bounds']): Vector3Tuple => [b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]];
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isTuple = (v: unknown): v is Vector3Tuple => Array.isArray(v) && v.length === 3 && v.every(finite);
-const PORT_KINDS = new Set(['fluid', 'electrical', 'signal', 'mechanical']);
+const isText = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
+
+/** Problems with a port's domain metadata (ADR-0023). */
+function portMetadataProblems(port: ConnectionPort, label: string): string[] {
+  const problems: string[] = [];
+  const blocks = { signal: port.signal, power: port.power, network: port.network } as const;
+  for (const [domain, block] of Object.entries(blocks)) {
+    if (block !== undefined && port.kind !== domain) problems.push(`${label} has ${domain} details but is a ${port.kind} port`);
+  }
+  if (port.name !== undefined && !isText(port.name)) problems.push(`${label} needs a non-empty name`);
+  if (port.terminal !== undefined && !isText(port.terminal)) problems.push(`${label} needs a non-empty terminal`);
+  if (port.flow !== undefined && !['in', 'out', 'bidirectional'].includes(port.flow)) problems.push(`${label} has an unknown flow`);
+  if (port.signal !== undefined) {
+    const { type, range, unit } = port.signal;
+    if (!(signalTypes as readonly string[]).includes(type)) problems.push(`${label} has an unknown signal type`);
+    if (range !== undefined && !(Array.isArray(range) && range.length === 2 && range.every(finite) && range[0] < range[1])) problems.push(`${label} needs a signal range with min < max`);
+    if (unit !== undefined && !isText(unit)) problems.push(`${label} needs a non-empty signal unit`);
+  }
+  if (port.power !== undefined) {
+    const { kind, voltage, phases } = port.power;
+    if (!(powerKinds as readonly string[]).includes(kind)) problems.push(`${label} has an unknown power kind`);
+    if (voltage !== undefined && !(finite(voltage) && voltage > 0)) problems.push(`${label} needs a positive voltage`);
+    if (phases !== undefined && phases !== 1 && phases !== 3) problems.push(`${label} needs 1 or 3 phases`);
+  }
+  if (port.network !== undefined) {
+    const { medium, protocols } = port.network;
+    if (!isText(medium)) problems.push(`${label} needs a network medium`);
+    if (protocols !== undefined && !(Array.isArray(protocols) && protocols.every(isText))) problems.push(`${label} needs protocols as non-empty strings`);
+  }
+  if (port.maxConnections !== undefined) {
+    if (!(Number.isInteger(port.maxConnections) && port.maxConnections >= 1)) problems.push(`${label} needs maxConnections as a whole number of at least 1`);
+    else if (port.kind === 'fluid' && port.maxConnections !== 1) problems.push(`${label} is a fluid port, which takes exactly one connection`);
+  }
+  return problems;
+}
 
 /** Everything wrong with one definition, as readable sentences; empty when it can be registered. */
 function definitionProblems(d: ComponentTypeDefinition): string[] {
@@ -88,7 +122,8 @@ function definitionProblems(d: ComponentTypeDefinition): string[] {
       if (typeof port?.id !== 'string' || port.id.length === 0) { problems.push(`${name} has a port without an id`); continue; }
       if (ids.has(port.id)) problems.push(`${name} has two ports "${port.id}"`);
       ids.add(port.id);
-      if (!PORT_KINDS.has(port.kind)) problems.push(`${name} port "${port.id}" has an unknown kind`);
+      if (!(portKinds as readonly string[]).includes(port.kind)) problems.push(`${name} port "${port.id}" has an unknown kind`);
+      else problems.push(...portMetadataProblems(port, `${name} port "${port.id}"`));
       if (!isTuple(port.position)) problems.push(`${name} port "${port.id}" needs a finite position`);
       if (!isTuple(port.direction) || Math.abs(Math.hypot(...port.direction) - 1) > 1e-6) problems.push(`${name} port "${port.id}" needs a unit direction`);
       if (port.nominalSize !== undefined && !(finite(port.nominalSize) && port.nominalSize > 0)) problems.push(`${name} port "${port.id}" needs a positive nominal size`);

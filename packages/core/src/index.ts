@@ -2,7 +2,7 @@
 // `api.test.ts` fails when the runtime surface changes.
 
 // Scene model and units
-export { SCENE_DOCUMENT_TYPE, SCENE_SCHEMA_VERSION, componentKinds, createEmptyScene, isBuiltInKind, isNamespacedType, portsCompatible } from './scene.js';
+export { SCENE_DOCUMENT_TYPE, SCENE_SCHEMA_VERSION, componentKinds, createEmptyScene, isBuiltInKind, isNamespacedType, checkPorts, matesPhysically, portCapacity, portKinds, portsCompatible, powerKinds, signalTypes } from './scene.js';
 export type {
   ComponentDefinition,
   ComponentInstance,
@@ -10,7 +10,11 @@ export type {
   ComponentType,
   ConnectionPort,
   JsonValue,
+  PortCheck,
+  PortFlow,
   PortKind,
+  PowerKind,
+  SignalType,
   QuaternionLike,
   QuaternionTuple,
   Quantity,

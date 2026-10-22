@@ -10,7 +10,7 @@ export interface GraphError {
 
 export type GraphResult = { ok: true; scene: ScadaScene } | { ok: false; error: GraphError };
 
-export type GraphOptions = Pick<SceneValidationOptions, 'resolvePorts' | 'resolveBindable' | 'validateProperties' | 'limits'>;
+export type GraphOptions = Pick<SceneValidationOptions, 'resolvePorts' | 'resolveType' | 'resolveBindable' | 'validateProperties' | 'limits'>;
 
 /**
  * Adds one edge. The candidate scene goes through `validateScene`, so the same rules apply as on

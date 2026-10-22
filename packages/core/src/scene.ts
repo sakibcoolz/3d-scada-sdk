@@ -15,13 +15,37 @@ export interface QuaternionLike {
   z: number;
   w: number;
 }
-export type PortKind = 'fluid' | 'electrical' | 'signal' | 'mechanical';
+/**
+ * A port's domain (ADR-0023). `electrical` is deprecated: it keeps its old behaviour (compatible
+ * only with `electrical`); use `power` or `signal` instead.
+ */
+export type PortKind = 'fluid' | 'mechanical' | 'power' | 'signal' | 'network' | 'electrical';
+export const portKinds = ['fluid', 'mechanical', 'power', 'signal', 'network', 'electrical'] as const satisfies readonly PortKind[];
+export type SignalType = 'DI' | 'DO' | 'AI' | 'AO';
+export const signalTypes = ['DI', 'DO', 'AI', 'AO'] as const satisfies readonly SignalType[];
+export type PowerKind = 'AC' | 'DC' | 'PE';
+export const powerKinds = ['AC', 'DC', 'PE'] as const satisfies readonly PowerKind[];
+/** Signal or energy direction; not the 3D normal (`direction`). */
+export type PortFlow = 'in' | 'out' | 'bidirectional';
 export interface ConnectionPort {
   id: string;
+  /** The port's domain (ADR-0023). */
   kind: PortKind;
-  position: Vector3Tuple; // local to component, metres
+  position: Vector3Tuple; // local to component, metres; for power/signal/network, the terminal
   direction: Vector3Tuple; // outward unit normal
   nominalSize?: number; // metres
+  /** Display name, e.g. "Run command". */
+  name?: string;
+  /** Terminal or channel label, e.g. "X1:3", "DI0.3". */
+  terminal?: string;
+  /** Signal or energy direction; for signal ports it follows from `signal.type` when absent. */
+  flow?: PortFlow;
+  signal?: { type: SignalType; range?: [number, number]; unit?: string };
+  power?: { kind: PowerKind; voltage?: number; phases?: 1 | 3 };
+  /** `medium` such as 'ethernet' or 'rs485'; `protocols` such as 'modbus-tcp'. */
+  network?: { medium: string; protocols?: string[] };
+  /** How many connections the port takes; default 1. Fluid ports always take 1. */
+  maxConnections?: number;
 }
 export const componentKinds = ['tank', 'conicalTank', 'horizontalTank', 'sphericalTank', 'pool', 'pipe', 'elbow', 'tee', 'valve', 'reducer', 'coupler', 'pump', 'sensor', 'motor'] as const;
 export type ComponentKind = (typeof componentKinds)[number];
@@ -137,6 +161,56 @@ export interface ScadaScene {
 export function createEmptyScene(): ScadaScene {
   return { schemaVersion: 4, documentType: SCENE_DOCUMENT_TYPE, units: 'm', components: [], connections: [] };
 }
+export type PortCheck = { ok: true } | { ok: false; reason: string };
+
+const signalFlow = (p: ConnectionPort): PortFlow | undefined => p.flow ?? (p.signal ? (p.signal.type === 'DO' || p.signal.type === 'AO' ? 'out' : 'in') : undefined);
+const isAnalog = (t: SignalType) => t === 'AI' || t === 'AO';
+const describeRange = (s: NonNullable<ConnectionPort['signal']>) => `${s.range ? `${s.range[0]}–${s.range[1]}` : 'a signal'}${s.unit ? ` ${s.unit}` : ''}`;
+
+/**
+ * Whether two ports may be connected, per domain (ADR-0023), and why not. Metadata missing on
+ * either side never fails a check. These are engineering-aid checks on the described model: they
+ * never verify physical wiring, protective earth or functional safety.
+ */
+export function checkPorts(a: ConnectionPort, b: ConnectionPort): PortCheck {
+  const no = (reason: string): PortCheck => ({ ok: false, reason });
+  if (a.kind !== b.kind) return no(`a ${a.kind} port cannot connect to a ${b.kind} port`);
+  if (a.nominalSize !== undefined && b.nominalSize !== undefined && Math.abs(a.nominalSize - b.nominalSize) >= 0.0001) return no('the nominal sizes differ');
+  if (a.kind === 'signal') {
+    if (a.signal && b.signal && isAnalog(a.signal.type) !== isAnalog(b.signal.type)) return no('a digital signal cannot connect to an analog one');
+    const fa = signalFlow(a), fb = signalFlow(b);
+    if (fa === 'out' && fb === 'out') return no('an output cannot connect to an output');
+    if (fa === 'in' && fb === 'in') return no('an input cannot connect to an input');
+    if (a.signal && b.signal) {
+      const sameRange = !a.signal.range || !b.signal.range || a.signal.range.every((v, i) => v === b.signal!.range![i]);
+      const sameUnit = !a.signal.unit || !b.signal.unit || a.signal.unit === b.signal.unit;
+      if (!sameRange || !sameUnit) return no(`${describeRange(a.signal)} cannot connect to ${describeRange(b.signal)}`);
+    }
+  } else if (a.kind === 'power') {
+    if (a.power && b.power) {
+      if (a.power.kind !== b.power.kind) return no(a.power.kind === 'PE' || b.power.kind === 'PE' ? 'protective earth connects only to protective earth' : `${a.power.kind} cannot connect to ${b.power.kind}`);
+      if (a.power.voltage !== undefined && b.power.voltage !== undefined && a.power.voltage !== b.power.voltage) return no(`${a.power.voltage} V cannot connect to ${b.power.voltage} V`);
+      if (a.power.phases !== undefined && b.power.phases !== undefined && a.power.phases !== b.power.phases) return no(`${a.power.phases}-phase cannot connect to ${b.power.phases}-phase`);
+    }
+    if (a.flow === 'out' && b.flow === 'out') return no('two power sources cannot connect to each other');
+  } else if (a.kind === 'network' && a.network && b.network) {
+    if (a.network.medium !== b.network.medium) return no(`${a.network.medium} cannot connect to ${b.network.medium}`);
+    const pa = a.network.protocols, pb = b.network.protocols;
+    if (pa?.length && pb?.length && !pa.some((p) => pb.includes(p))) return no('the ports share no protocol');
+  }
+  return { ok: true };
+}
+
 export function portsCompatible(a: ConnectionPort, b: ConnectionPort): boolean {
-  return a.kind === b.kind && (a.nominalSize === undefined || b.nominalSize === undefined || Math.abs(a.nominalSize - b.nominalSize) < 0.0001);
+  return checkPorts(a, b).ok;
+}
+
+/** Ports joined by placing parts against each other (snapping, touching, attach). Power, signal and network ports are wired instead. */
+export function matesPhysically(port: ConnectionPort): boolean {
+  return port.kind === 'fluid' || port.kind === 'mechanical' || port.kind === 'electrical';
+}
+
+/** How many connections a port takes (ADR-0023): `maxConnections`, default 1. */
+export function portCapacity(port: ConnectionPort): number {
+  return port.maxConnections ?? 1;
 }

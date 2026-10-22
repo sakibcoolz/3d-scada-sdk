@@ -1,4 +1,6 @@
 import {
+  matesPhysically,
+  portCapacity,
   portsCompatible,
   type ComponentInstance,
   type ComponentType,
@@ -55,11 +57,14 @@ function compareCandidates(a: SnapCandidate, b: SnapCandidate): number {
   );
 }
 
-function occupiedPorts(scene: ScadaScene): Set<string> {
-  const occupied = new Set<string>();
+/** Connections per endpoint (`[instanceId, portId]` JSON). */
+function occupiedPorts(scene: ScadaScene): Map<string, number> {
+  const occupied = new Map<string, number>();
   for (const c of scene.connections) {
-    occupied.add(JSON.stringify([c.from.instanceId, c.from.portId]));
-    occupied.add(JSON.stringify([c.to.instanceId, c.to.portId]));
+    for (const e of [c.from, c.to]) {
+      const key = JSON.stringify([e.instanceId, e.portId]);
+      occupied.set(key, (occupied.get(key) ?? 0) + 1);
+    }
   }
   return occupied;
 }
@@ -73,12 +78,12 @@ export function findSnapCandidates(scene: ScadaScene, moving: ComponentInstance,
   const maxDistance = options.maxDistance ?? 0.5;
   const maxAngle = options.maxAngle ?? Math.PI / 4;
   const occupied = occupiedPorts(scene);
-  const movingPorts = (options.resolvePorts(moving.type, moving.properties) ?? []).map((port) => ({ port, world: portToWorld(moving, port) }));
+  const movingPorts = (options.resolvePorts(moving.type, moving.properties) ?? []).filter(matesPhysically).map((port) => ({ port, world: portToWorld(moving, port) }));
   const candidates: SnapCandidate[] = [];
 
   for (const other of scene.components) {
     if (other.id === moving.id) continue;
-    for (const targetPort of options.resolvePorts(other.type, other.properties) ?? []) {
+    for (const targetPort of (options.resolvePorts(other.type, other.properties) ?? []).filter(matesPhysically)) {
       const target = portToWorld(other, targetPort);
       for (const { port, world } of movingPorts) {
         const offset: Vector3Tuple = [
@@ -92,7 +97,7 @@ export function findSnapCandidates(scene: ScadaScene, moving: ComponentInstance,
         const angle = Math.acos(Math.min(1, Math.max(-1, -dot(world.direction, target.direction))));
         let status: SnapStatus = 'ok';
         if (!portsCompatible(port, targetPort)) status = 'incompatible';
-        else if (occupied.has(JSON.stringify([moving.id, port.id])) || occupied.has(JSON.stringify([other.id, targetPort.id])))
+        else if ((occupied.get(JSON.stringify([moving.id, port.id])) ?? 0) >= portCapacity(port) || (occupied.get(JSON.stringify([other.id, targetPort.id])) ?? 0) >= portCapacity(targetPort))
           status = 'occupied';
         else if (angle > maxAngle) status = 'misaligned';
         candidates.push({ movingPortId: port.id, target: { instanceId: other.id, portId: targetPort.id }, distance, angle, status });

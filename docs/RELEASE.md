@@ -42,6 +42,11 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, port domains (T-073, ADR-0023):**
+  - `PortKind` gains `power` and `network`; `electrical` is deprecated. TypeScript code that switches exhaustively on `PortKind` must handle the new values.
+  - `INCOMPATIBLE_PORTS` messages now name the failed rule; the code is unchanged.
+  - Snapping, touching and attach ignore power, signal and network ports.
+  - Nothing changes for scenes whose ports are all fluid.
 - **0.2.0, open component registry (T-071, ADR-0022):**
   - `ComponentInstance.type` is now `ComponentType`, which is `ComponentKind` or a namespaced string. TypeScript code that switches exhaustively on `ComponentKind`, or indexes `componentCatalog[c.type]`, must handle other types. Use `isBuiltInKind(type)` or a registry's `definitionFor`.
   - Resolver callbacks you write yourself take `ComponentType`.

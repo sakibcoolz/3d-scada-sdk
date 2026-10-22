@@ -135,6 +135,25 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
   - extension depth and value budgets.
 - **Guarantee:** anything `validateScene` accepts with the default limits passes the schema. A test proves this on every example and on 1500 seeded mutations.
 
+## Port domains (T-073, ADR-0023)
+- **Domains:** a port's `kind` is its domain: `fluid`, `mechanical`, `power`, `signal` or `network`. `electrical` is deprecated and keeps its old behaviour.
+- **Optional details** on `ConnectionPort`:
+  - `name` and `terminal` (such as `X1:3`);
+  - `flow`: `in`, `out` or `bidirectional`, the signal or energy direction (`direction` stays the 3D normal);
+  - `signal: { type: 'DI' | 'DO' | 'AI' | 'AO', range?, unit? }`;
+  - `power: { kind: 'AC' | 'DC' | 'PE', voltage?, phases? }`;
+  - `network: { medium, protocols? }`;
+  - `maxConnections` (default 1; fluid ports always 1).
+- **`checkPorts(a, b)`** returns `{ ok: true }` or `{ ok: false, reason }`:
+  - the same domain; sizes within 0.1 mm when both give one;
+  - signal: one output to one input of the same class (digital or analog), equal ranges and units;
+  - power: same kind, voltage and phases; PE only to PE; never two sources;
+  - network: same medium, and a shared protocol when both list them.
+
+  Missing details never fail a check. `portsCompatible` is `checkPorts(...).ok`.
+- **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
+- **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
+
 ## Component registry (T-071, ADR-0022)
 - **Registering a type:** `createComponentRegistry(...definitions)` returns a registry of the built-in kinds plus your types. Each type is a namespaced id such as `com.acme.press-200` (bare names are reserved for the SDK), described with the catalog's own building blocks:
   - `label`, `ports`, `bounds`, primitive `parts`;
