@@ -61,7 +61,7 @@ Unknown fields are rejected (`UNKNOWN_FIELD`), never dropped.
 Ports are **not** stored in the file. They come from the component definition through the host's `resolvePorts`, so geometry upgrades never edit topology (ADR-0002, ADR-0014).
 
 ## 5. Connections
-`{ id, from: { instanceId, portId }, to: { instanceId, portId } }`
+`{ id, domain?, relationship?, from: { instanceId, portId }, to: { instanceId, portId }, properties? }`
 - Each connection joins two existing ports on two different components.
 - The ports must be compatible under the rule table of ADR-0023 (`checkPorts`):
   - the same domain (`fluid, mechanical, power, signal, network`);
@@ -73,10 +73,12 @@ Ports are **not** stored in the file. They come from the component definition th
   Missing port details never fail a check.
 - Each port takes up to its `maxConnections` connections, by default one (fluid ports always one). Duplicate edges in either direction are rejected.
 - Routes between ports are derived and never saved.
-- **PLANNED (Phases 3–4, new ADRs):**
-  - a `domain` field and a `relationship` field (T-074);
-  - edge `properties` (T-074);
-  - port-less associations in a root `associations` array (T-075).
+- **Optional fields (ADR-0023):**
+  - `domain`: the ports' domain (`fluid, mechanical, power, signal, network`, or the deprecated `electrical`); it must match them, and it is derived from the ports when absent;
+  - `relationship`: `controls, drives, measures, feeds, communicates, wired, associated`, or a namespaced host name such as `com.example.supervises`;
+  - `properties`: edge data such as cable type, cross-section or length. Values follow the component property rules; credential-like names are rejected (`SECRET_FIELD`).
+- Only fluid, mechanical and `electrical` connections get pipe routes. Power, signal and network connections are wired: they are drawn as straight lines and carry no simulated liquid.
+- **PLANNED (T-075):** port-less associations in a root `associations` array.
 
 ## 6. Tag bindings
 Two shapes (ADR-0006):
@@ -120,8 +122,9 @@ Root and component `extensions` hold host or library data:
 - two-space indent and a trailing newline;
 - root key order: `schemaVersion, documentType, units, project?, components, connections, tagBindings?, underlay?, extensions?`;
 - component key order: `id, name?, type, typeVersion?, manufacturer?, model?, parentId?, position, rotation, scale, properties, labels?, extensions?`;
+- connection key order: `id, domain?, relationship?, from, to, properties?`;
 - vectors in `x, y, z(, w)` order; `-0` written as `0`;
-- keys of `properties`, `labels` and `extensions` sorted at every level; array order preserved;
+- keys of `properties` (component and connection), `labels` and `extensions` sorted at every level; array order preserved;
 - only authored fields are written.
 
 ## 11. Versioning and migration

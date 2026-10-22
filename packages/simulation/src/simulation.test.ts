@@ -238,3 +238,18 @@ describe('simulation lifecycle', () => {
     expect(() => createSimulation(drainLine(80)).step(Number.NaN)).toThrow(/seconds/);
   });
 });
+
+describe('wired connections (ADR-0023)', () => {
+  it('never carry liquid and leave the pipe network unchanged', () => {
+    const host = (id: string): ComponentInstance => ({ ...part(id, 'tank'), type: `com.example.${id}` });
+    const plain = drainLine(80);
+    const wired = scene([...plain.components, host('plc'), host('vfd')], [...plain.connections, { ...join('w', 'plc', 'do0', 'vfd', 'run'), domain: 'signal', relationship: 'controls' }]);
+    const a = createSimulation(plain, { clock });
+    const b = createSimulation(wired, { clock });
+    a.step(30);
+    b.step(30);
+    expect(flow(b.state(), 'a')).toBe(flow(a.state(), 'a'));
+    expect(b.state().levels.t).toBe(a.state().levels.t);
+    expect(flow(b.state(), 'w')).toBe(0);
+  });
+});

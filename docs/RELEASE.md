@@ -42,6 +42,9 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, connection fields (T-074, ADR-0023):**
+  - `SceneConnection` gains optional `domain`, `relationship` and `properties`. Code that rebuilds connections as `{id, from, to}` drops them; spread the connection instead.
+  - `routeScene` no longer returns a route for power, signal or network connections, so the routes array can be shorter than `connections`. Look routes up by `connectionId`.
 - **0.2.0, port domains (T-073, ADR-0023):**
   - `PortKind` gains `power` and `network`; `electrical` is deprecated. TypeScript code that switches exhaustively on `PortKind` must handle the new values.
   - `INCOMPATIBLE_PORTS` messages now name the failed rule; the code is unchanged.

@@ -154,6 +154,16 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Connection fields (T-074, ADR-0023)
+- **`SceneConnection`** gains optional fields:
+  - `domain`: must match the ports;
+  - `relationship`: `relationshipKinds`, or a namespaced name, checked with `isRelationship`;
+  - `properties`: edge data, with credential-like names rejected.
+
+  They are version 4 fields. `serializeScene` writes them only when present; `connect`, copy and paste keep them.
+- **`routeScene`** returns routes only for connections whose ports mate physically. Power, signal and network connections have no pipe route.
+- **Viewer:** draws power, signal and network connections as straight coloured lines between terminals. Display only.
+
 ## Component registry (T-071, ADR-0022)
 - **Registering a type:** `createComponentRegistry(...definitions)` returns a registry of the built-in kinds plus your types. Each type is a namespaced id such as `com.acme.press-200` (bare names are reserved for the SDK), described with the catalog's own building blocks:
   - `label`, `ports`, `bounds`, primitive `parts`;

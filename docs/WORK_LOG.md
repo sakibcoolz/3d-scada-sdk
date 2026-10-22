@@ -1606,3 +1606,34 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test). The first run exited 1 because `CONSUMER_APP` was not set; it was re-run with the printed directory.
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-074: connection domain, relationship and properties (Phase 3b, ADR-0023)
+- Owner merged #74 and asked to start the next task. Branch `feat/T-074-connection-fields` from `origin/develop`.
+- Change:
+  - **core:**
+    - `SceneConnection` gains optional `domain`, `relationship` and `properties`; new `relationshipKinds` and `isRelationship`;
+    - validation: the fields are version 4 only; unknown values are `INVALID_FIELD`; credential-like property names are `SECRET_FIELD`; a domain that differs from the ports is `INCOMPATIBLE_PORTS`;
+    - canonical serialization `id, domain?, relationship?, from, to, properties?`;
+    - clipboard copy and paste keep the fields;
+    - `routeScene` skips connections whose ports do not mate physically.
+  - **react:** `WireLayer` and `wireSegments` draw power, signal and network connections as straight lines coloured by domain. Routes now also re-memoize when the registry changes.
+  - **schema:** connection fields; 3 new fixtures; the fuzz base edge carries the fields.
+  - **playground:** `?custom` adds the example controller and drive types with signal and network terminals.
+- Tests:
+  - new `connection-fields.test.ts` (core, 8): round trip and key order, host relationships, every rejection, domain mismatch, v3 rejection, connect, copy/paste, routing;
+  - simulation: a wired connection carries no liquid, and the pipe network is unchanged;
+  - new `wires.test.ts` (react, 2);
+  - new e2e test in `custom-types.spec.ts`: lines drawn with domain colours, and fields kept on save;
+  - the core API list was updated.
+- Docs:
+  - ADR-0023 implementation notes for T-074. Routing is refined to "physically mating ports", which keeps mechanical and `electrical` unchanged.
+  - spec §5 and §10; API.md "Connection fields"; RELEASE.md migration note;
+  - backlog T-073 DONE, T-074 REVIEW; plan Phase 3 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1417 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (129 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

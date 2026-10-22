@@ -1,6 +1,6 @@
 # ADR-0023: Port and connection domains
 
-Status: Accepted (owner, 2026-10-22); T-073 implemented, T-074..T-076 pending. M9 Phases 3–4 of docs/INDUSTRIAL_SDK_PLAN.md (§6), tasks T-073..T-076.
+Status: Accepted (owner, 2026-10-22); T-073 and T-074 implemented, T-075..T-076 pending. M9 Phases 3–4 of docs/INDUSTRIAL_SDK_PLAN.md (§6), tasks T-073..T-076.
 
 ## Context
 Every port today is a 3D flange: `ConnectionPort = {id, kind, position, direction, nominalSize?}` (`scene.ts:19`).
@@ -173,4 +173,19 @@ interface ConnectionPort {
 - **Physical mating:** snapping, touching and attach consider only `matesPhysically` ports (fluid, mechanical and the deprecated `electrical`), and count capacity the same way.
 - **Gap found and fixed:** `GraphOptions` and `AttachOptions` did not declare `resolveType` (ADR-0022), so `connect` and `attachComponents` accepted host types only when the resolver object happened to carry it. Both now declare it.
 - **Registry:** `createComponentRegistry` checks the port metadata rules of §2.
-- **Not yet:** connection fields, routing changes and viewer lines (T-074), associations (T-075), graph queries (T-076).
+- **Not yet:** associations (T-075), graph queries (T-076).
+
+## Implementation notes (T-074)
+- **Model:** `SceneConnection` gains optional `domain` (a `PortKind`), `relationship` and `properties`. `relationshipKinds` and `isRelationship` are exported; a relationship is a built-in name or a namespaced host name.
+- **Validation:**
+  - the fields are accepted in version 4 only; in older versions they are `UNKNOWN_FIELD`;
+  - an unknown domain or relationship is `INVALID_FIELD`;
+  - properties follow the component property rules, and credential-like names are `SECRET_FIELD`;
+  - a `domain` that differs from the ports' domain is `INCOMPATIBLE_PORTS` at `connections[i].domain`.
+- **Serialization:** key order `id, domain?, relationship?, from, to, properties?`, with property keys sorted. Absent fields are never derived into the file.
+- **Graph helpers:** `connect` stores the fields; copy and paste carry them to the pasted edge as independent copies.
+- **Routing (refines §4):** `routeScene` gives no route to a connection whose ports do not mate physically (`matesPhysically` is false: power, signal, network). So pipes are drawn between fluid ports and, as before, mechanical and deprecated `electrical` ports, which keeps those unchanged. An unresolved endpoint still reports `UNRESOLVED`.
+- **Simulation:** unchanged code. It follows fluid ports only, so a wired connection carries no liquid and reports a rate of 0. A test proves the pipe network is unaffected.
+- **Viewer:** `WireLayer` draws each wired connection as a straight 2 px line from terminal to terminal (`wireSegments`), coloured power orange, signal blue, network green. Joints, open-joint checks and flow animation skip wired connections because they have no route.
+- **Schema:** `connection` gains `domain`, `relationship` and `properties`. New fixtures: `invalid/unknown-relationship`, `validator-only/connection-domain-mismatch` and `validator-only/credential-in-connection`. The fuzz base edge carries all three fields.
+- **Playground:** `?custom` also registers an example controller (`com.example.controller`) and drive (`com.example.drive`) with signal and network terminals.

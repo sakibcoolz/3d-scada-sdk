@@ -1,4 +1,5 @@
 import type { ComponentInstance, ComponentType, ConnectionPort, ScadaScene, SceneConnection, Vector3Tuple } from './scene.js';
+import { matesPhysically } from './scene.js';
 import { portToWorld, type WorldPort } from './transforms.js';
 
 export type RouteKind = 'direct' | 'straight' | 'orthogonal';
@@ -184,9 +185,18 @@ export function routeConnection(scene: ScadaScene, connection: SceneConnection, 
     : invalid('UNROUTABLE', 'Every orthogonal route doubles back on itself.');
 }
 
-/** Routes every connection, in connection order. */
+/**
+ * Routes every pipe connection, in connection order. Connections between power, signal or network
+ * ports are wired, not piped, and get no route (ADR-0023); unresolved endpoints still report `UNRESOLVED`.
+ */
 export function routeScene(scene: ScadaScene, options: RoutingOptions): PipeRoute[] {
-  return scene.connections.map((connection) => routeConnection(scene, connection, options));
+  const byId = new Map(scene.components.map((c) => [c.id, c]));
+  const wired = (connection: SceneConnection) => {
+    const owner = byId.get(connection.from.instanceId);
+    const port = owner && options.resolvePorts(owner.type, owner.properties)?.find((p) => p.id === connection.from.portId);
+    return port !== undefined && !matesPhysically(port);
+  };
+  return scene.connections.filter((connection) => !wired(connection)).map((connection) => routeConnection(scene, connection, options));
 }
 
 /**

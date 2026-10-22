@@ -22,5 +22,13 @@
   "unregistered-host-type.scene.json": {
     "code": "UNKNOWN_COMPONENT_KIND",
     "path": "components[0].type"
+  },
+  "connection-domain-mismatch.scene.json": {
+    "code": "INCOMPATIBLE_PORTS",
+    "path": "connections[0].domain"
+  },
+  "credential-in-connection.scene.json": {
+    "code": "SECRET_FIELD",
+    "path": "connections[0].properties.vendorApiKey"
   }
 }

@@ -1,6 +1,10 @@
 import {
   checkPorts,
   portCapacity,
+  portKinds,
+  isRelationship,
+  relationshipKinds,
+  type PortKind,
   SCENE_DOCUMENT_TYPE,
   type JsonValue,
   type SceneExtensions,
@@ -148,7 +152,12 @@ export function isSecretKey(key: string): boolean {
 }
 /** Accepted deviation of a rotation quaternion's length from 1; larger values are rejected, never renormalised. */
 const UNIT_TOLERANCE = 1e-6;
-const connectionKeys = ['id', 'from', 'to'];
+const connectionKeys: Record<SchemaVersion, string[]> = {
+  1: ['id', 'from', 'to'],
+  2: ['id', 'from', 'to'],
+  3: ['id', 'from', 'to'],
+  4: ['id', 'domain', 'relationship', 'from', 'to', 'properties'],
+};
 const bindingKeys = {
   property: ['id', 'tagId', 'kind', 'instanceId', 'property', 'unit'],
   flow: ['id', 'tagId', 'kind', 'connectionId', 'unit'],
@@ -537,18 +546,37 @@ function readEndpoint(value: unknown, path: string, limits: SceneLimits, errors:
   return { instanceId, portId };
 }
 
-function readConnection(value: unknown, path: string, limits: SceneLimits, errors: Errors): SceneConnection | undefined {
+function readConnection(value: unknown, path: string, version: SchemaVersion, limits: SceneLimits, errors: Errors): SceneConnection | undefined {
   if (!isObject(value)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a connection object.' });
     return undefined;
   }
   const before = errors.length;
-  checkKeys(value, connectionKeys, path, errors);
+  checkKeys(value, connectionKeys[version], path, errors);
   const id = readId(value.id, `${path}.id`, limits, errors);
   const from = readEndpoint(value.from, `${path}.from`, limits, errors);
   const to = readEndpoint(value.to, `${path}.to`, limits, errors);
+  // Version 4 fields (ADR-0023); older versions reject them as unknown keys above.
+  const extra: Pick<SceneConnection, 'domain' | 'relationship' | 'properties'> = {};
+  if (version === 4) {
+    if (value.domain !== undefined) {
+      if ((portKinds as readonly unknown[]).includes(value.domain)) extra.domain = value.domain as PortKind;
+      else errors.push({ code: 'INVALID_FIELD', path: `${path}.domain`, message: `Unknown connection domain ${describe(value.domain)}; expected one of ${portKinds.join(', ')}.` });
+    }
+    if (value.relationship !== undefined) {
+      if (isRelationship(value.relationship)) extra.relationship = value.relationship;
+      else errors.push({ code: 'INVALID_FIELD', path: `${path}.relationship`, message: `Unknown relationship ${describe(value.relationship)}; expected one of ${relationshipKinds.join(', ')}, or a namespaced name such as "com.example.supervises".` });
+    }
+    if (value.properties !== undefined) {
+      const properties = readProperties(value.properties, `${path}.properties`, limits, errors);
+      for (const key of Object.keys(properties ?? {})) {
+        if (isSecretKey(key)) errors.push({ code: 'SECRET_FIELD', path: `${path}.properties.${key}`, message: `"${key}" looks like a credential; store a reference in the host instead.` });
+      }
+      if (properties) extra.properties = properties;
+    }
+  }
   if (errors.length > before || !id || !from || !to) return undefined;
-  return { id, from, to };
+  return { id, ...extra, from, to };
 }
 
 function readBinding(value: unknown, path: string, limits: SceneLimits, errors: Errors): TagBinding | undefined {
@@ -723,6 +751,10 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
       errors.push({ code: 'INCOMPATIBLE_PORTS', path, message: `Incompatible ports: ${check.reason}.` });
       return;
     }
+    if (connection.domain !== undefined && connection.domain !== fromPort.kind) {
+      errors.push({ code: 'INCOMPATIBLE_PORTS', path: `${path}.domain`, message: `The connection is marked ${connection.domain}, but its ports are ${fromPort.kind} ports.` });
+      return;
+    }
     const fromKey = endpointKey(connection.from);
     const toKey = endpointKey(connection.to);
     const pair = [fromKey, toKey].sort().join('|');
@@ -819,7 +851,7 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
     readComponent(item, path, version, limits, errors, extensionBudget, options.resolveType),
   );
   const connections = readList(input.connections, 'connections', limits.maxConnections, errors, (item, path) =>
-    readConnection(item, path, limits, errors),
+    readConnection(item, path, version, limits, errors),
   );
   const tagBindings =
     version !== 1 && input.tagBindings !== undefined

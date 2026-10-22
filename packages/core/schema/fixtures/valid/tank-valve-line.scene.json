@@ -53,6 +53,8 @@
   "connections": [
     {
       "id": "c1",
+      "domain": "fluid",
+      "relationship": "feeds",
       "from": {
         "instanceId": "T-101",
         "portId": "outlet"
@@ -60,6 +62,10 @@
       "to": {
         "instanceId": "XV-101",
         "portId": "in"
+      },
+      "properties": {
+        "lengthM": 2.5,
+        "medium": "raw milk"
       }
     }
   ],

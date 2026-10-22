@@ -48,3 +48,44 @@ test('an editor without the registration refuses a file that uses the host type'
   await expect(page.getByRole('alert')).toContainText('components[0].type');
   expect((await sceneJson(page)).components).toEqual([]);
 });
+
+test('a wired connection between host types is drawn as a coloured line and keeps its fields (ADR-0023)', async ({ page }) => {
+  await installThreeHook(page);
+  await page.goto('/?custom');
+  await waitForCanvas(page);
+  const at = (id: string, type: string, x: number) => ({ id, type, position: { x, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: {} });
+  const doc = {
+    schemaVersion: 4,
+    documentType: 'industrial.scene',
+    units: 'm',
+    components: [at('PLC-01', 'com.example.controller', 0), at('VFD-101', 'com.example.drive', 3)],
+    connections: [
+      { id: 'w1', domain: 'signal', relationship: 'controls', from: { instanceId: 'PLC-01', portId: 'do0' }, to: { instanceId: 'VFD-101', portId: 'run' }, properties: { cable: 'LiYCY 2x0.75', lengthM: 4 } },
+      { id: 'n1', relationship: 'communicates', from: { instanceId: 'PLC-01', portId: 'eth' }, to: { instanceId: 'VFD-101', portId: 'eth' } },
+    ],
+  };
+  await page.getByLabel('Import JSON text').fill(JSON.stringify(doc));
+  await page.getByRole('button', { name: 'Load text' }).click();
+  await expect(page.getByText('Loaded 2 components and 2 connections.')).toBeVisible();
+
+  const wires = () => page.evaluate(() => {
+    const found: { id: string; domain: string; color: string }[] = [];
+    type Node = { userData: Record<string, unknown>; material?: { color?: { getHexString(): string } }; traverse(f: (o: Node) => void): void };
+    for (const scene of (window as unknown as { __scenes: Node[] }).__scenes)
+      scene.traverse((o) => {
+        if (typeof o.userData?.wireConnectionId === 'string') found.push({ id: o.userData.wireConnectionId, domain: String(o.userData.domain), color: `#${o.material?.color?.getHexString()}` });
+      });
+    return found.sort((a, b) => a.id.localeCompare(b.id));
+  });
+  await expect.poll(wires).toEqual([
+    { id: 'n1', domain: 'network', color: '#2fb36d' },
+    { id: 'w1', domain: 'signal', color: '#3d8bfd' },
+  ]);
+
+  // Saved exactly as authored: fields kept, nothing derived into the file.
+  const saved = JSON.parse(await page.getByLabel('Scene JSON').inputValue());
+  expect(saved.connections).toEqual([
+    { id: 'w1', domain: 'signal', relationship: 'controls', from: doc.connections[0].from, to: doc.connections[0].to, properties: { cable: 'LiYCY 2x0.75', lengthM: 4 } },
+    { id: 'n1', relationship: 'communicates', from: doc.connections[1].from, to: doc.connections[1].to },
+  ]);
+});
