@@ -1428,3 +1428,37 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - The walkthrough spec run five times in parallel: 30 of 30 passed.
   - Browser check in the owner's Chrome: P menu, chose Vertical Tank (Dished), looked down, the ghost showed "Place Vertical Tank at (3.74, 4.81)", a click placed it ("Placed Vertical Tank 1."), and X stopped placing.
   - `pnpm verify:consumer` NOT RUN.
+
+## 2026-10-22 — T-067: industrial SDK audit and plan
+- Owner request: the master development prompt (universal industrial 3D SCADA SDK). It asks for an audit and a plan before any large code change.
+- Branch `docs/T-067-industrial-architecture-plan`, from `develop` at `db9d408`. Documentation only; no code changed.
+- How the audit was done:
+  - Three parallel read-only audits: core; components/react/simulation/asset-import with the apps; docs and backlog together with the z-factory repository (public, shallow clone at `2a04219`).
+  - Key claims were checked directly in code:
+    - the closed `componentKinds` list (`scene.ts:26`) and the `UNKNOWN_COMPONENT_KIND` check (`validation.ts:298`);
+    - `PortKind` declares `electrical` and `signal`, but every catalog port is `fluid`;
+    - no `*.schema.json` exists;
+    - SDK `Quality` lacks z-factory's `DISCONNECTED`;
+    - z-factory does not depend on `@sakibcoolz/*`.
+- Output: `docs/INDUSTRIAL_SDK_PLAN.md`.
+  - It contains the inventory labelled IMPLEMENTED / PARTIAL / NOT IMPLEMENTED / NOT VERIFIED, the gaps, and the proposed Scene v4 (evolving v3 losslessly).
+  - Its model sections cover the open registry, port and connection domains, the three tag layers with typed protocol addresses, multi-view, runtime mode and the Z-Factory boundary.
+  - It ends with phases 0–11 mapped to T-067..T-097 (milestone M9), the risks, and owner decisions D1–D7.
+- Found during the audit (to fix in Phase 1):
+  - PRD persona 5 and FR-01/FR-12 claim custom components can be added without SDK edits; the code does not support this.
+  - Stale doc text: SCENE_AND_CONNECTIONS `version === 1`; `@scada3d` in ADR titles; roadmap.md WebSocket/MQTT adapter; PROJECT_SUMMARY and MVP status text; the `serialization.ts:60` comment.
+- Checks: documentation only. No build or tests run (NOT RUN, no code change).
+- Next: owner review and decisions D1–D7, then Phase 1 (T-068 Scene v4 and ADR-0021).
+- Owner decision D6 (same day): "dont make z factory changes … just keep sdk independent". The plan was updated:
+  - No Z-Factory changes, adapters, types or documents, now or later. Z_FACTORY_INTEGRATION.md will not be created.
+  - Host integration will be documented generically.
+  - The z-factory audit stays only as background for the host-neutral model.
+- Decisions D1–D5 and D7 are still open.
+- Owner: "approve". D1–D5 and D7 were approved as recommended, and D6 was already decided:
+  - scene v4 with an integer version;
+  - `ajv` as a test-only dependency;
+  - a `@sakibcoolz/views-2d` package;
+  - command requests are describe-only, behind an ADR amending ADR-0003;
+  - the SDK stays host-independent;
+  - release as 0.2.0.
+- Recorded in INDUSTRIAL_SDK_PLAN §11 and in the DECISION_LOG planning table. Backlog rows T-068..T-070 (Phase 1) were added as TODO.
