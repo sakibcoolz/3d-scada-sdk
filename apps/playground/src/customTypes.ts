@@ -1,10 +1,10 @@
-import { createComponentRegistry, pipeSizes } from '@sakibcoolz/components';
+import { pipeSizes, type ComponentTypeDefinition } from '@sakibcoolz/components';
 
-// `?custom` registers these example host types (ADR-0022): an inline filter housing with DN150 fluid
+// `?custom` adds these example host types (ADR-0022): an inline filter housing with DN150 fluid
 // ports, and a controller and a drive with signal and network terminals (ADR-0023), built from the
 // same primitive parts as the catalog. No SDK change is involved.
 const bore = pipeSizes.DN150.bore;
-export const exampleRegistry = createComponentRegistry({
+export const exampleTypes: ComponentTypeDefinition[] = [{
   type: 'com.example.filter',
   version: '1',
   category: 'process',
@@ -41,4 +41,4 @@ export const exampleRegistry = createComponentRegistry({
   ],
   bounds: { min: [-0.25, 0, -0.2], max: [0.25, 1, 0.2] },
   parts: [{ shape: 'box', role: 'shell', center: [0, 0.5, 0], size: [0.5, 1, 0.4], text: 'VFD' }],
-});
+}];

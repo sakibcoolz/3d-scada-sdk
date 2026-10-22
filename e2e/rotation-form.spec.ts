@@ -7,7 +7,7 @@ test('every component type has rotation fields', async ({ page }) => {
   await page.goto('/');
   await waitForCanvas(page);
   for (const label of ['Vertical Tank +', 'Straight Pipe +', '90° Elbow +', 'T-Junction +', 'Ball Valve +', 'Centrifugal Pump +', 'Sensor +', 'Motor +']) {
-    await page.getByRole('button', { name: label }).click();
+    await page.getByRole('button', { name: label, exact: true }).click();
     for (const axis of ['X', 'Y', 'Z']) await expect(field(page, axis)).toHaveValue('0');
   }
 });

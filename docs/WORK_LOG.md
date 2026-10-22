@@ -1851,3 +1851,22 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0 (prints the control chain).
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — Playground: control library always registered (fix, ADR-0025)
+- Owner report: a scene exported from `?control` was refused at `/` with "Unknown component type "sdk.motor"…" for every library part. The playground registered the library only under `?control`; the SDK itself behaved as designed (hosts opt in).
+- Branch `fix/playground-control-library` from `origin/develop`.
+- Change:
+  - playground `main.tsx` now always uses `createComponentRegistry(...controlLibrary, ...(?custom ? exampleTypes : []))`, so every playground mode loads files any mode exports;
+  - `customTypes.ts` exports `exampleTypes` (definitions) instead of a registry;
+  - `controlDemo.ts` no longer builds its own registry.
+- Tests:
+  - e2e `control-demo.spec.ts`: export from `?control`, then import at `/` loads the same scene;
+  - `rotation-form.spec.ts` now matches "Motor +" exactly, because "AC Induction Motor +" is in the palette.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1571 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (133 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0.
+  - GitHub Actions CI not awaited.

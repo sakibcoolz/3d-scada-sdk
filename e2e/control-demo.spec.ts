@@ -55,3 +55,15 @@ test('the control demo saves and reloads unchanged', async ({ page }) => {
   await expect(page.getByText('Loaded 14 components and 19 connections.')).toBeVisible();
   await expect(page.getByLabel('Scene JSON')).toHaveValue(saved);
 });
+
+test('a control scene exported from ?control loads in the plain playground', async ({ page }) => {
+  await page.goto('/?control');
+  await waitForCanvas(page);
+  const saved = await page.getByLabel('Scene JSON').inputValue();
+  await page.goto('/');
+  await waitForCanvas(page);
+  await page.getByLabel('Import JSON text').fill(saved);
+  await page.getByRole('button', { name: 'Load text' }).click();
+  await expect(page.getByText('Loaded 14 components and 19 connections.')).toBeVisible();
+  await expect(page.getByLabel('Scene JSON')).toHaveValue(saved);
+});
