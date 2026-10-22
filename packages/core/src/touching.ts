@@ -1,4 +1,4 @@
-import { portsCompatible, type ComponentInstance, type ComponentType, type ConnectionPort, type ScadaScene, type SceneConnection } from './scene.js';
+import { matesPhysically, portCapacity, portsCompatible, type ComponentInstance, type ComponentType, type ConnectionPort, type ScadaScene, type SceneConnection } from './scene.js';
 import { portToWorld, type WorldPort } from './transforms.js';
 import { validateScene, type SceneValidationOptions } from './validation.js';
 
@@ -40,13 +40,15 @@ const key = (e: Endpoint) => JSON.stringify([e.instanceId, e.portId]);
 export function findTouchingPorts(scene: ScadaScene, options: TouchingOptions): TouchingResult {
   const tolerance = options.tolerance ?? 0.001;
   const minOpposition = Math.cos(options.maxAngle ?? Math.PI / 180);
-  const occupied = new Set(scene.connections.flatMap((c) => [key(c.from), key(c.to)]));
+  const occupied = new Map<string, number>();
+  for (const e of scene.connections.flatMap((c) => [c.from, c.to])) occupied.set(key(e), (occupied.get(key(e)) ?? 0) + 1);
+  const full = (e: Entry) => (occupied.get(key(e.endpoint)) ?? 0) >= portCapacity(e.port);
   // Pairs that are already joined to each other (either way round) are done, not problems.
   const joined = new Set(scene.connections.flatMap((c) => [`${key(c.from)}|${key(c.to)}`, `${key(c.to)}|${key(c.from)}`]));
 
   type Entry = { endpoint: Endpoint; port: ConnectionPort; world: WorldPort };
   const entries: Entry[] = scene.components.flatMap((c) =>
-    (options.resolvePorts(c.type, c.properties) ?? []).map((port) => ({ endpoint: { instanceId: c.id, portId: port.id }, port, world: portToWorld(c, port) })),
+    (options.resolvePorts(c.type, c.properties) ?? []).filter(matesPhysically).map((port) => ({ endpoint: { instanceId: c.id, portId: port.id }, port, world: portToWorld(c, port) })),
   );
 
   // Spatial hash: cells of the tolerance size; neighbours are found in the 27 surrounding cells.
@@ -87,7 +89,7 @@ export function findTouchingPorts(scene: ScadaScene, options: TouchingOptions): 
     if (joined.has(`${key(a.endpoint)}|${key(b.endpoint)}`)) continue;
     if (touches.get(key(a.endpoint))! > 1 || touches.get(key(b.endpoint))! > 1) rejected.push({ ...pair, reason: 'ambiguous' });
     else if (!portsCompatible(a.port, b.port)) rejected.push({ ...pair, reason: 'incompatible' });
-    else if (occupied.has(key(a.endpoint)) || occupied.has(key(b.endpoint))) rejected.push({ ...pair, reason: 'occupied' });
+    else if (full(a) || full(b)) rejected.push({ ...pair, reason: 'occupied' });
     else matches.push(pair);
   }
   const order = (x: TouchingMatch, y: TouchingMatch) => (key(x.from) < key(y.from) ? -1 : key(x.from) > key(y.from) ? 1 : key(x.to) < key(y.to) ? -1 : 1);

@@ -1,10 +1,12 @@
 import { connect } from './graph.js';
 import { seatOnConnection } from './joints.js';
-import { portsCompatible, type ComponentInstance, type ComponentType, type ConnectionPort, type ScadaScene, type SceneConnection } from './scene.js';
+import { matesPhysically, portCapacity, portsCompatible, type ComponentInstance, type ComponentType, type ConnectionPort, type ScadaScene, type SceneConnection } from './scene.js';
 import { portToWorld } from './transforms.js';
 
 export interface AttachOptions {
   resolvePorts: (type: ComponentType, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
+  /** Whether the host knows a type (ADR-0022); without it only built-in kinds connect. */
+  resolveType?: (type: ComponentType) => boolean;
   createId: () => string;
 }
 
@@ -22,8 +24,9 @@ export function attachComponents(scene: ScadaScene, fixedId: string, movingId: s
   const fixed = byId.get(fixedId), moving = byId.get(movingId);
   if (!fixed || !moving) return { ok: false, error: { code: 'UNKNOWN_INSTANCE', message: `No component "${!fixed ? fixedId : movingId}".` } };
   if (fixedId === movingId) return { ok: false, error: { code: 'SAME_COMPONENT', message: 'A part cannot be attached to itself.' } };
-  const used = new Set(scene.connections.flatMap((c) => [c.from, c.to]).map((e) => `${e.instanceId}\u0000${e.portId}`));
-  const free = (c: ComponentInstance) => (options.resolvePorts(c.type, c.properties) ?? []).filter((p) => !used.has(`${c.id}\u0000${p.id}`)).map((p) => ({ port: p, at: portToWorld(c, p).position }));
+  const used = new Map<string, number>();
+  for (const e of scene.connections.flatMap((c) => [c.from, c.to])) used.set(`${e.instanceId}\u0000${e.portId}`, (used.get(`${e.instanceId}\u0000${e.portId}`) ?? 0) + 1);
+  const free = (c: ComponentInstance) => (options.resolvePorts(c.type, c.properties) ?? []).filter((p) => matesPhysically(p) && (used.get(`${c.id}\u0000${p.id}`) ?? 0) < portCapacity(p)).map((p) => ({ port: p, at: portToWorld(c, p).position }));
   const pairs = free(moving).flatMap((m) => free(fixed).filter((f) => portsCompatible(m.port, f.port)).map((f) => ({ m, f, distance: Math.hypot(...m.at.map((n, i) => n - f.at[i])) })));
   if (pairs.length === 0) return { ok: false, error: { code: 'NO_MATCHING_PORTS', message: 'These parts have no free ports of the same type and size.' } };
   pairs.sort((a, b) => a.distance - b.distance || a.m.port.id.localeCompare(b.m.port.id) || a.f.port.id.localeCompare(b.f.port.id));

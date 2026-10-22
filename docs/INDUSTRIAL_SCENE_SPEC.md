@@ -63,14 +63,20 @@ Ports are **not** stored in the file. They come from the component definition th
 ## 5. Connections
 `{ id, from: { instanceId, portId }, to: { instanceId, portId } }`
 - Each connection joins two existing ports on two different components.
-- The ports must be compatible: same kind, and the same nominal size within 0.1 mm.
-- Each port takes one connection. Duplicate edges in either direction are rejected.
+- The ports must be compatible under the rule table of ADR-0023 (`checkPorts`):
+  - the same domain (`fluid, mechanical, power, signal, network`);
+  - the same nominal size within 0.1 mm when both give one;
+  - signal: one output to one input of the same class, equal ranges and units;
+  - power: same kind, voltage and phases, PE only to PE, never two sources;
+  - network: same medium and a shared protocol.
+
+  Missing port details never fail a check.
+- Each port takes up to its `maxConnections` connections, by default one (fluid ports always one). Duplicate edges in either direction are rejected.
 - Routes between ports are derived and never saved.
 - **PLANNED (Phases 3–4, new ADRs):**
-  - a `domain` field (fluid, mechanical, power, signal, network, logical) and a `relationship` field;
-  - edge `properties`;
-  - association edges without ports;
-  - `maxConnections` per port.
+  - a `domain` field and a `relationship` field (T-074);
+  - edge `properties` (T-074);
+  - port-less associations in a root `associations` array (T-075).
 
 ## 6. Tag bindings
 Two shapes (ADR-0006):

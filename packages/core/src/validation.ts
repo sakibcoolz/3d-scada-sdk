@@ -1,5 +1,6 @@
 import {
-  portsCompatible,
+  checkPorts,
+  portCapacity,
   SCENE_DOCUMENT_TYPE,
   type JsonValue,
   type SceneExtensions,
@@ -684,7 +685,7 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
   });
 
   const connectionIds = new Set<string>();
-  const occupied = new Set<string>();
+  const occupied = new Map<string, number>();
   const pairs = new Set<string>();
   const endpointKey = (e: SceneConnection['from']) => JSON.stringify([e.instanceId, e.portId]);
 
@@ -717,8 +718,9 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
       errors.push({ code: 'SELF_CONNECTION', path, message: 'A component cannot connect to itself.' });
       return;
     }
-    if (!portsCompatible(fromPort, toPort)) {
-      errors.push({ code: 'INCOMPATIBLE_PORTS', path, message: 'Port domains or nominal sizes do not match.' });
+    const check = checkPorts(fromPort, toPort);
+    if (!check.ok) {
+      errors.push({ code: 'INCOMPATIBLE_PORTS', path, message: `Incompatible ports: ${check.reason}.` });
       return;
     }
     const fromKey = endpointKey(connection.from);
@@ -729,16 +731,17 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
       return;
     }
     let free = true;
-    for (const [side, key] of [['from', fromKey], ['to', toKey]] as const) {
-      if (occupied.has(key)) {
-        errors.push({ code: 'PORT_OCCUPIED', path: `${path}.${side}`, message: 'Port already has a connection.' });
+    for (const [side, key, port] of [['from', fromKey, fromPort], ['to', toKey, toPort]] as const) {
+      const capacity = portCapacity(port);
+      if ((occupied.get(key) ?? 0) >= capacity) {
+        errors.push({ code: 'PORT_OCCUPIED', path: `${path}.${side}`, message: capacity === 1 ? 'Port already has a connection.' : `Port already has ${capacity} connections, its maximum.` });
         free = false;
       }
     }
     if (!free) return;
     pairs.add(pair);
-    occupied.add(fromKey);
-    occupied.add(toKey);
+    occupied.set(fromKey, (occupied.get(fromKey) ?? 0) + 1);
+    occupied.set(toKey, (occupied.get(toKey) ?? 0) + 1);
   });
 }
 

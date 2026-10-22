@@ -70,7 +70,12 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-068 | M9 (industrial model) | P0 | T-067 | DONE | Phase 1a: Scene v4 in core (ADR-0021): `documentType`, `project`, component `name`/`labels`/`manufacturer`/`model`/`typeVersion`, `extensions`; lossless v3→v4 migration; deterministic v4 serialization; secret-key rejection |
 | T-069 | M9 (industrial model) | P0 | T-068 | DONE | Phase 1b: JSON Schema (draft 2020-12) for v4 with valid/invalid fixtures; `ajv` dev dependency proves schema and validator agree |
 | T-070 | M9 (industrial model) | P1 | T-068 | DONE | Phase 1c: INDUSTRIAL_SCENE_SPEC.md and fixes to stale docs found in the audit |
-| T-071 | M9 (industrial model) | P0 | T-070 | REVIEW | Phase 2: open component registry (ADR-0022): namespaced host types, core `resolveType`, `createComponentRegistry`/`builtInRegistry`, viewer/editor `registry` prop, placeholder for unknown types, schema and consumer check |
+| T-071 | M9 (industrial model) | P0 | T-070 | DONE | Phase 2: open component registry (ADR-0022): namespaced host types, core `resolveType`, `createComponentRegistry`/`builtInRegistry`, viewer/editor `registry` prop, placeholder for unknown types, schema and consumer check |
+| T-072 | M9 (industrial model) | P0 | T-071 | DONE | Phase 2b: folded into T-071 (registry rules, placeholder and consumer check shipped there) |
+| T-073 | M9 (industrial model) | P0 | T-071 | REVIEW | Phase 3a (ADR-0023): port domains `power`/`network`, signal/power/network metadata, `maxConnections`, per-domain compatibility rule table, registry rules |
+| T-074 | M9 (industrial model) | P0 | T-073 | TODO | Phase 3b (ADR-0023): connection `domain`/`relationship`/`properties`; schema, fixtures, spec; routing and simulation fluid-only; viewer draws non-fluid connections as lines |
+| T-075 | M9 (industrial model) | P0 | T-074 | TODO | Phase 4a (ADR-0023): root `associations` (port-less logical links), validation, `addAssociation`/`removeAssociation`, schema and spec |
+| T-076 | M9 (industrial model) | P0 | T-075 | TODO | Phase 4b (ADR-0023): `neighbours`, `relatedComponents`, `pathBetween` with domain/relationship filters; PLC→VFD→Motor, network and 4–20 mA acceptance scenes; consumer example |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.

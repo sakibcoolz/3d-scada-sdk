@@ -106,6 +106,35 @@ describe('createComponentRegistry', () => {
     expect(bad({ parameters: { width: { label: 'Width', unit: 'm', default: 9, min: 0.8, max: 3, step: 0.1 } } })).toThrow('parameter "width" has a default outside its range or choices');
     expect(bad({ label: '' })).toThrow('needs a label');
   });
+
+  it('registers power, signal and network ports with their details (ADR-0023)', () => {
+    const vfd = createComponentRegistry({
+      ...press(),
+      type: 'com.example.vfd',
+      build: undefined,
+      ports: [
+        { id: 'L1-L3', kind: 'power', position: [0, 1, -0.4], direction: [0, 0, -1], flow: 'in', terminal: 'X1:1-3', power: { kind: 'AC', voltage: 400, phases: 3 } },
+        { id: 'run', kind: 'signal', position: [0.1, 1, -0.4], direction: [0, 0, -1], name: 'Run command', signal: { type: 'DI' } },
+        { id: 'speed', kind: 'signal', position: [0.2, 1, -0.4], direction: [0, 0, -1], signal: { type: 'AI', range: [4, 20], unit: 'mA' } },
+        { id: 'eth', kind: 'network', position: [0.3, 1, -0.4], direction: [0, 0, -1], network: { medium: 'ethernet', protocols: ['modbus-tcp'] }, maxConnections: 2 },
+        { id: 'PE', kind: 'power', position: [0.4, 1, -0.4], direction: [0, 0, -1], power: { kind: 'PE' }, maxConnections: 4 },
+      ],
+    });
+    expect(vfd.resolvers.resolvePorts('com.example.vfd', {})?.map((p) => p.id)).toEqual(['L1-L3', 'run', 'speed', 'eth', 'PE']);
+  });
+
+  it('refuses port details that do not fit the port', () => {
+    const withPort = (extra: object) => () => createComponentRegistry({ ...press(), build: undefined, ports: [{ id: 'p', kind: 'signal', position: [0, 0, 0], direction: [1, 0, 0], ...extra } as ComponentTypeDefinition['ports'][number]] });
+    expect(withPort({ kind: 'logical' })).toThrow('port "p" has an unknown kind');
+    expect(withPort({ power: { kind: 'AC' } })).toThrow('port "p" has power details but is a signal port');
+    expect(withPort({ signal: { type: 'XX' } })).toThrow('port "p" has an unknown signal type');
+    expect(withPort({ signal: { type: 'AI', range: [20, 4] } })).toThrow('port "p" needs a signal range with min < max');
+    expect(withPort({ kind: 'power', power: { kind: 'AC', voltage: -1, phases: 2 } })).toThrow('port "p" needs a positive voltage; "com.example.press" port "p" needs 1 or 3 phases');
+    expect(withPort({ kind: 'network', network: { medium: '' } })).toThrow('port "p" needs a network medium');
+    expect(withPort({ flow: 'sideways' })).toThrow('port "p" has an unknown flow');
+    expect(withPort({ maxConnections: 0 })).toThrow('needs maxConnections as a whole number of at least 1');
+    expect(withPort({ kind: 'fluid', maxConnections: 2 })).toThrow('port "p" is a fluid port, which takes exactly one connection');
+  });
 });
 
 describe('a host type in a scene, through core', () => {

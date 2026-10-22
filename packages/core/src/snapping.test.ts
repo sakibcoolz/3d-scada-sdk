@@ -81,11 +81,9 @@ describe('findSnapCandidates', () => {
     );
   });
 
-  it('marks a port of another domain as incompatible', () => {
+  it('never offers a wired (signal) port for snapping (ADR-0023)', () => {
     const sensor = instance('sensor-1', 'sensor', [1.35, -0.9, 0]);
-    expect(findSnapCandidates(sceneWith(tank), sensor, options)).toEqual([
-      expect.objectContaining({ movingPortId: 'signal', status: 'incompatible' }),
-    ]);
+    expect(findSnapCandidates(sceneWith(tank), sensor, options)).toEqual([]);
   });
 
   it('marks an occupied target port as occupied', () => {
