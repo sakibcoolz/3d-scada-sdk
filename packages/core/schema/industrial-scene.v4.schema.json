@@ -33,6 +33,12 @@
     },
     "tagBindings": { "type": "array", "maxItems": 20000, "items": { "$ref": "#/$defs/tagBinding" } },
     "underlay": { "$ref": "#/$defs/underlay" },
+    "views": {
+      "description": "2D layouts per view (ADR-0026): symbol placements by component id and routes by connection or association id, in drawing units (1 mm, x right, y down). Layout only; the model stays in components and connections.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "process": { "$ref": "#/$defs/viewLayout" }, "electrical": { "$ref": "#/$defs/viewLayout" } }
+    },
     "extensions": { "$ref": "#/$defs/extensions" }
   },
   "$defs": {
@@ -248,6 +254,47 @@
           }
         }
       ]
+    },
+    "viewCoordinate": { "type": "number", "minimum": -1000000, "maximum": 1000000 },
+    "viewLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "symbols": {
+          "type": "object",
+          "maxProperties": 10000,
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y"],
+            "properties": {
+              "x": { "$ref": "#/$defs/viewCoordinate" },
+              "y": { "$ref": "#/$defs/viewCoordinate" },
+              "rotation": { "enum": [0, 90, 180, 270] },
+              "hidden": { "const": true }
+            }
+          }
+        },
+        "routes": {
+          "type": "object",
+          "maxProperties": 40000,
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["points"],
+            "properties": {
+              "points": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 1000,
+                "items": { "type": "array", "prefixItems": [{ "$ref": "#/$defs/viewCoordinate" }, { "$ref": "#/$defs/viewCoordinate" }], "items": false, "minItems": 2 }
+              }
+            }
+          }
+        }
+      }
     },
     "underlay": {
       "description": "Sanitized SVG reference drawing on the ground (ADR-0012); at most 512 KiB of UTF-8.",

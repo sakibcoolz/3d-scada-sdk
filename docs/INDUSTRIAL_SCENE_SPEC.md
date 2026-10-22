@@ -41,6 +41,7 @@ It **never** holds live measurements, credentials or executable code. Live value
 | `runtimeVariables` | no | array (≤ 20,000) | §6.2 |
 | `tagBindings` | no | array (≤ 20,000) | §6 |
 | `underlay` | no | object | §7 |
+| `views` | no | object | §7.1 |
 | `extensions` | no | object | §8 |
 
 Unknown fields are rejected (`UNKNOWN_FIELD`), never dropped.
@@ -155,6 +156,19 @@ Rules:
 
 The underlay is display only. Hosts sanitize the SVG through `validateUnderlay` (`INVALID_UNDERLAY`).
 
+### 7.1 Views (ADR-0026)
+`views: { process?, electrical? }`. Each is a layout `{ symbols?, routes? }` for one 2D view.
+- **`symbols`:** by component ID, `{ x, y, rotation?, hidden? }`.
+  - `x` and `y` are drawing units (1 mm), x right and y down, within ±1,000,000;
+  - `rotation` is 0, 90, 180 or 270;
+  - `hidden` is `true` or absent, and hides the symbol in that view only.
+- **`routes`:** by connection or association ID, `{ points }`, with 2 to 1,000 `[x, y]` points.
+- **Layout only:** equipment, ports, wiring and tags stay in the model. Views are not a second copy.
+- **References:** an ID that is not a component (symbols) or a connection or association (routes) is `UNKNOWN_VIEW_REFERENCE`. At most as many symbols as `maxComponents`, and as many routes as `maxConnections` plus `maxAssociations`.
+- **Clean-up:** `removeComponent`, `disconnect` and `removeAssociation` drop what they leave unplaced. An emptied layout or `views` field is removed.
+- **Not stored:** camera, zoom, pan and selection.
+- Other host views belong in `extensions`.
+
 ## 8. Extensions
 Root and component `extensions` hold host or library data:
 - **Keys:** reverse-DNS namespaces, such as `"com.example.app"`.
@@ -173,9 +187,10 @@ Root and component `extensions` hold host or library data:
 ## 10. Canonical serialization
 `serializeScene` writes one canonical form, so save → load → save is byte-identical:
 - two-space indent and a trailing newline;
-- root key order: `schemaVersion, documentType, units, project?, components, connections, associations?, dataSources?, runtimeVariables?, tagBindings?, underlay?, extensions?`;
+- root key order: `schemaVersion, documentType, units, project?, components, connections, associations?, dataSources?, runtimeVariables?, tagBindings?, underlay?, views?, extensions?`;
 - data source key order: `id, name?, protocol, deviceId?, endpointRef?, properties?`; variable key order: `id, name?, componentId?, dataType, unit?, access, source? (dataSourceId, variable?, address?), scaling? (kind, rawMin, rawMax, min, max)`; address keys sorted;
 - association key order: `id, relationship, from, to, properties?`;
+- views: `process` before `electrical`, `symbols` before `routes`, symbol and route IDs sorted, symbol key order `x, y, rotation?, hidden?`;
 - component key order: `id, name?, type, typeVersion?, manufacturer?, model?, parentId?, position, rotation, scale, properties, labels?, extensions?`;
 - connection key order: `id, domain?, relationship?, from, to, properties?`;
 - vectors in `x, y, z(, w)` order; `-0` written as `0`;
@@ -227,6 +242,7 @@ Hosts may change the limits through `validateScene`'s `limits` option. The JSON 
   - `UNKNOWN_CONNECTION`, `UNBINDABLE_PROPERTY`, `INVALID_UNIT`, `TYPE_MISMATCH`;
   - `DUPLICATE_BINDING_ID`, `DUPLICATE_BINDING_TARGET`.
 - **Underlay:** `INVALID_UNDERLAY`.
+- **Views:** `UNKNOWN_VIEW_REFERENCE`.
 - **Acquisition:** `DUPLICATE_DATA_SOURCE_ID`, `DUPLICATE_VARIABLE_ID`, `UNKNOWN_DATA_SOURCE`, `INVALID_ADDRESS`.
 
 Every error has `{ code, path, message }`. The path uses the input's own field names, for example `connections[2].to.instanceId`. All errors are reported, in input order, and the input is never repaired.

@@ -67,5 +67,6 @@ export const baseV4 = () => ({
     { id: 'LT-101', name: 'Level', componentId: 'tank', dataType: 'float32', unit: '%', access: 'read', source: { dataSourceId: 'ds', variable: 'L', address: { area: 'holding', address: 40, unitId: 1 } }, scaling: { kind: 'linear', rawMin: 0, rawMax: 27648, min: 0, max: 100 } },
   ],
   tagBindings: [{ id: 'b1', tagId: 'LT-101', kind: 'property', instanceId: 'tank', property: 'level', unit: '%' }],
+  views: { process: { symbols: { tank: { x: 0, y: 0 }, valve: { x: 50, y: 10, rotation: 90 } }, routes: { e1: { points: [[10, 0], [40, 10]] } } }, electrical: { symbols: { valve: { x: 0, y: 0, hidden: true } } } },
   extensions: { 'org.example.b': { n: 1, s: 'x', arr: [[], {}] } },
 });

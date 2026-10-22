@@ -154,6 +154,12 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## 2D view layouts (T-083, ADR-0026)
+- **`scene.views`** (optional): `{ process?, electrical? }`, each `{ symbols?: Record<componentId, { x, y, rotation?, hidden? }>, routes?: Record<edgeId, { points }> }` in drawing units (1 mm, y down). Layout only.
+- **Validation:** IDs must exist (`UNKNOWN_VIEW_REFERENCE`). Coordinates are finite within ±1,000,000, rotation is 0/90/180/270, and a route has 2 to 1,000 points.
+- **Clean-up:** `removeComponent`, `disconnect` and `removeAssociation` drop what they leave unplaced.
+- **Exports:** `viewKinds` (`['process', 'electrical']`) and the types `SceneViews`, `ViewKind`, `ViewLayout`, `SymbolPlacement`, `ViewRoute`.
+
 ## Control equipment library (T-080..T-082, ADR-0025)
 - **Opting in:** `controlLibrary` is an array of generic `sdk.*` definitions. Use `createComponentRegistry(...controlLibrary, ...yourTypes)`; without it nothing changes.
 - **T-080 types:**

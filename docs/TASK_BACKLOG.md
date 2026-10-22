@@ -81,7 +81,11 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-079 | M9 (industrial model) | P1 | T-078 | DONE | Phase 5c (ADR-0024): variable templates on definitions, `suggestVariables` (proposals only), `reviewTags` findings |
 | T-080 | M9 (industrial model) | P0 | T-079 | DONE | Phase 6a (ADR-0025): `controlLibrary` control and I/O types (PLC CPU, DI/DO/AI/AO modules, DCS controller, Ethernet switch, 24 V PSU); reserved `sdk.` prefix; definition tests |
 | T-081 | M9 (industrial model) | P0 | T-080 | DONE | Phase 6b (ADR-0025): VFD, motor, transmitter, digital sensor, panel; compatibility tests |
-| T-082 | M9 (industrial model) | P1 | T-081 | REVIEW | Phase 6c (ADR-0025): playground `?control` PLC → VFD → Motor → pump demo scene, e2e, consumer example, library documentation |
+| T-082 | M9 (industrial model) | P1 | T-081 | DONE | Phase 6c (ADR-0025): playground `?control` PLC → VFD → Motor → pump demo scene, e2e, consumer example, library documentation |
+| T-083 | M9 (industrial model) | P0 | T-082 | REVIEW | Phase 7a (ADR-0026): optional `views` layouts in the scene (process, electrical), validation (`UNKNOWN_VIEW_REFERENCE`), canonical serialization, clean-up on removal, schema and fixtures |
+| T-084 | M9 (industrial model) | P0 | T-083 | TODO | Phase 7b (ADR-0026): `@sakibcoolz/views-2d` package, process symbols, `layoutView` and routes, `<ProcessView>` with selection, pan/zoom, live values and drag-to-place |
+| T-085 | M9 (industrial model) | P0 | T-084 | TODO | Phase 7c (ADR-0026): electrical symbols and `<ElectricalView>`; host `symbol2D`/`electricalSymbol`, sanitized at registration |
+| T-086 | M9 (industrial model) | P1 | T-085 | TODO | Phase 7d (ADR-0026): controlled selection in the editor, `<ScadaWorkspace>` split layout, playground `?control&layout=split`, e2e selection sync, layout round trip and 1,000-component budget |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.
