@@ -1,12 +1,10 @@
 import type { ComponentInstance, ScadaScene, Vector3Tuple } from '@sakibcoolz/core';
-import { controlLibrary, createComponentRegistry } from '@sakibcoolz/components';
 import type { TagRow } from './DemoFeed';
 
 // `?control` (ADR-0025): a PLC → VFD → Motor → pump line from the opt-in control library. A tank
 // feeds a pump; a motor on a plinth drives it (association); a drive powers the motor; a PLC in a
 // panel runs the drive and reads a level transmitter and a high-level switch on the tank. Tags come
 // from a `host` data source, which the playground's demo feed stands in for.
-export const controlRegistry = createComponentRegistry(...controlLibrary);
 
 const yaw180 = { x: 0, y: 1, z: 0, w: 0 };
 const at = (id: string, type: string, position: Vector3Tuple, properties: ComponentInstance['properties'] = {}, extra: Partial<ComponentInstance> = {}): ComponentInstance => ({
