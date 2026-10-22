@@ -62,3 +62,20 @@ The owner asked whether the SDK can do a VR walkthrough of a plant, and later co
 - The aim label lists the editing keys for the selected part.
 - Mouse-look ignores single movements over 200 px. Chrome can report one bogus jump just after the pointer locks, which spun the walker, and this made an e2e test flaky under parallel load.
 - No new editing code: the editor's handlers, edit lock and undo history apply unchanged.
+
+## Amendment (T-065, owner, 2026-10-22): place new parts at the crosshair
+- **New view prop:** `Scada3DViewer` takes `walkPlacing?: WalkPlacing`, with `parts`, `holding`, `onHold`, `onAimFloor` and `onPlace`. The editor supplies it, and supplies nothing while editing is locked.
+  - The view only reports input: the chosen part, the floor point under the crosshair (10 times a second, within 30 m) and clicks.
+  - The editor plans the drop with the palette's own `planDrop` and shows it as the usual `preview` ghost with port snapping. `applyDrop` places it as one undo step, with the "Placed …" or "connects to …" message.
+- **Keys in Walk:**
+  - **P** opens a parts menu (the palette's kinds and presets). The pointer is released while it is open, and losing the lock then does not leave Walk.
+  - Choosing a part closes the menu, locks the pointer again and holds the part. The crosshair turns amber, and a label shows the part and the keys.
+  - A **click** places the held part, and the walker keeps holding it to place more.
+  - **X** or right-click stops placing.
+  - **Esc** closes the menu first, and otherwise leaves Walk.
+- **No floor under the crosshair:** looking above the horizon or further than 30 m gives no point. Clicking then says "Aim at the floor to place …".
+- **Robustness:**
+  - A key tap is held until a frame has moved the walker with it, as well as for at least 150 ms.
+  - The movement time step per frame is capped at 0.25 s (was 0.1 s), so slow frames still move at close to real speed.
+  - Before this, a taxed browser could drop taps; the walkthrough e2e test failed 1 time in 18 under parallel load, and passes 30 of 30 after the change.
+- **VR:** placing from a hand-held palette in VR is not part of this amendment (planned next).

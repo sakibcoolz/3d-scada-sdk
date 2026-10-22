@@ -1409,3 +1409,22 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - The walkthrough spec run four times in parallel: 20 of 20 passed.
   - Browser check in the owner's Chrome: crosshair click selected the tank, R turned it to Y 90°, Delete removed it and Cmd+Z restored it, all while walking.
   - `pnpm verify:consumer` NOT RUN.
+
+## 2026-10-22 — T-065: place new parts at the Walk crosshair
+- Owner: "merged and start step 3". #67 is merged. Branch `feat/T-065-walk-place`, from `develop`.
+- Change:
+  - Walk: P opens a parts menu (the palette's kinds and presets); the pointer is released, and losing the lock does not leave Walk. Choosing a part holds it.
+  - While holding, the walk reports the floor point under the crosshair (10 Hz, within 30 m). A click places the part, X or right-click stops, and Esc closes the menu before it leaves Walk.
+  - Editor: the held part is planned with `planDrop` (port snapping) and shown as the `preview` ghost. `onPlace` applies `applyDrop` as one undo step with the "Placed …" or "connects to …" message. Nothing is supplied while editing is locked.
+  - New view prop `walkPlacing` and type `WalkPlacing`.
+  - Robustness: a key tap is held until a frame sees it, and the frame time step cap is now 0.25 s (was 0.1 s). The Walk e2e test had failed 1 time in 18 under parallel load.
+  - ADR-0020 amended. Backlog: T-065 REVIEW, T-066 (VR hand palette) TODO.
+- Tests: a new e2e test covers P, the menu, choosing Ball Valve, looking down, a click placing one and a second, X stopping, and undo. It runs in drag-to-look mode, because synthetic mouse moves do not turn a pointer-locked view.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1267 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (126 tests).
+  - The walkthrough spec run five times in parallel: 30 of 30 passed.
+  - Browser check in the owner's Chrome: P menu, chose Vertical Tank (Dished), looked down, the ghost showed "Place Vertical Tank at (3.74, 4.81)", a click placed it ("Placed Vertical Tank 1."), and X stopped placing.
+  - `pnpm verify:consumer` NOT RUN.
