@@ -154,7 +154,7 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
-## Control equipment library (T-080..T-081, ADR-0025)
+## Control equipment library (T-080..T-082, ADR-0025)
 - **Opting in:** `controlLibrary` is an array of generic `sdk.*` definitions. Use `createComponentRegistry(...controlLibrary, ...yourTypes)`; without it nothing changes.
 - **T-080 types:**
   - `sdk.plc.cpu`;
@@ -173,6 +173,8 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **What they carry:** typed ports and variable templates, so `suggestVariables` proposes one tag per channel.
 - **The `sdk.` prefix is reserved** for the library's own definitions.
 - **Not product data:** the ratings drive compatibility checks only. For example, a 230 V motor on a 400 V drive, or a transmitter on a 0-10 V input, is refused as `INCOMPATIBLE_PORTS`.
+- **Example:** the playground's `?control` opens a PLC → VFD → motor → pump line. See COMPONENT_STANDARD.md, "Component library".
+- **Viewer:** wired connections get no flow state, so they are left out of flow markers and the flow summary.
 
 ## Tag suggestions and review (T-079, ADR-0024)
 - **Templates:** component definitions may list `variables: [{ name, dataType, unit?, property? }]`. `registry.resolvers.resolveVariables` serves them.

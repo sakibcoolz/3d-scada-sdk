@@ -1,6 +1,6 @@
 # ADR-0025: Control equipment library
 
-Status: Accepted (owner, 2026-10-22: `sdk.` prefix, the equipment list, and motor → pump by association); T-080..T-081 implemented, T-082 pending. M9 Phase 6 of docs/INDUSTRIAL_SDK_PLAN.md (§9), tasks T-080..T-082.
+Status: Accepted (owner, 2026-10-22: `sdk.` prefix, the equipment list, and motor → pump by association); T-080..T-082 implemented. M9 Phase 6 of docs/INDUSTRIAL_SDK_PLAN.md (§9), tasks T-080..T-082.
 
 ## Context
 Phases 2–5 built the machinery:
@@ -134,3 +134,18 @@ These are generic, vendor-neutral types, drawn from the catalog's primitive part
   - other refusals: DC on motor terminals, digital on analog, output to output, two motors on one drive output, and shaft to network;
   - parameters change frame size, ratings and the PV unit;
   - tag suggestions.
+
+## Implementation notes (T-082)
+- **Scene:** `apps/playground/src/controlDemo.ts`, opened with `?control`. The playground validates it against `createComponentRegistry(...controlLibrary)`.
+  - Hydraulics: a tank feeds a pump through one bound flow tag. The pump's suction is level with the tank outlet.
+  - A 45 kW motor, turned to face the pump with its shaft centre at the pump's centre, drives it through a `drives` association.
+  - A 45 kW drive powers the motor.
+  - A panel holds a PSU, PLC CPU, DI, DO, AI, AO modules and a switch as assembly children on its front face.
+  - A level transmitter and a high-level switch sit on the tank.
+  - Wiring: 19 connections in all, of which 9 power (motor power, 24 V, earth), 7 signal and 2 network wires plus the pipe.
+  - Associations: `controls`, `drives` and two `measures`.
+  - Tags: a `host` data source with five runtime variables. Level and flow bindings are fed GOOD, and the tank temperature arrives `DISCONNECTED`.
+- **Viewer fix found by the demo:** `resolveFlow` gives every connection a state, so wired connections showed as "unknown (no reading)" in the flow summary. The viewer now drops wired connections (as `wireSegments` classifies them) from flow states. Core is unchanged.
+- **e2e (`e2e/control-demo.spec.ts`, 2):** the scene loads whole; library parts render with their own geometry; every wire is drawn in its domain colour (9 power, 7 signal, 2 network); the telemetry summary shows the disconnected tag; the flow summary counts only the pipe; the palette offers the library; and save and reload round-trips.
+- **Consumer:** `examples/consumer-vite/node-check.mjs` registers the library, finds the chain PLC → switch → VFD → motor → pump with `pathBetween`, refuses a 230 V motor on a 400 V drive, and checks that the library is opt-in. It prints the chain.
+- **Docs:** COMPONENT_STANDARD "Component library"; API.md; roadmap Phase 6 ticked.

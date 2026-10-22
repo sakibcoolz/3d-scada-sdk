@@ -20,6 +20,7 @@ Reusable industrial 3D visualization SDK for Three.js, with a React editor/viewe
 - `@sakibcoolz/react`: React Three Fiber rendering and editor
 - `@sakibcoolz/asset-import`: SVG sanitizer for reference underlays (no DOM; shapes and paths only)
 - `@sakibcoolz/simulation`: optional deterministic mass-balance simulation (always labelled SIMULATED; playground `?simulate`)
+- Control equipment library: opt-in `controlLibrary` of generic PLC, I/O, drive, motor, instrument and panel types (playground `?control`)
 - `apps/playground`: Vite research playground
 - `examples/consumer-vite`: stand-alone app that installs the packed SDK tarballs (see [release packaging](docs/RELEASE.md))
 

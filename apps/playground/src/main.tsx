@@ -7,6 +7,7 @@ import { demoScene, demoTagRows, generatedScene } from './demo';
 import { useDemoFeed } from './DemoFeed';
 import { useSimulation } from './SimulationPanel';
 import { exampleRegistry } from './customTypes';
+import { controlRegistry, controlScene, controlTagRows } from './controlDemo';
 
 const params = new URLSearchParams(location.search);
 // `?generate=N` loads the named benchmark scene "chain-N" with a live flow feed (see docs/PERFORMANCE.md).
@@ -15,9 +16,11 @@ const generated = params.has('generate') ? generatedScene(Math.max(2, Math.min(5
 // `?simulate=hydraulic` starts with the hydraulic model (ADR-0011).
 const simulate = params.has('simulate');
 // `?custom` adds an example host component type through the registry (ADR-0022).
-const registry = params.has('custom') ? exampleRegistry : undefined;
+// `?control` opens the PLC → VFD → Motor → pump demo built from the control library (ADR-0025).
+const control = params.has('control');
+const registry = control ? controlRegistry : params.has('custom') ? exampleRegistry : undefined;
 const simulateModel = params.get('simulate') === 'hydraulic' ? 'hydraulic' : 'mass-balance';
-const demo = params.has('demo') || generated !== undefined || simulate;
+const demo = params.has('demo') || generated !== undefined || simulate || control;
 // `?collisions=off` shows the host switch for the default-on collision highlight.
 const collisions = params.get('collisions') !== 'off';
 // `?locked` starts the editor in view-only mode.
@@ -32,7 +35,7 @@ const floorDefault = params.get('floor') !== 'off';
 // `?demo` opens the MVP demo network, validated like any imported scene, with a demo tag feed.
 function initialScene(): ScadaScene | undefined {
   if (!demo) return undefined;
-  const result = validateScene(generated?.scene ?? demoScene, catalogResolvers);
+  const result = validateScene(generated?.scene ?? (control ? controlScene : demoScene), registry?.resolvers ?? catalogResolvers);
   if (!result.ok) {
     console.error('Demo scene is invalid', result.errors);
     return undefined;
@@ -44,7 +47,7 @@ const start = initialScene();
 
 function App() {
   const [scene, setScene] = useState<ScadaScene>(start ?? createEmptyScene());
-  const { telemetry, panel } = useDemoFeed(scene, generated?.rows ?? (demo && !simulate ? demoTagRows : {}));
+  const { telemetry, panel } = useDemoFeed(scene, generated?.rows ?? (control ? controlTagRows : demo && !simulate ? demoTagRows : {}));
   const simulation = useSimulation(scene, simulate, simulateModel);
   const [mounted, setMounted] = useState(true);
   const [second, setSecond] = useState(false);
