@@ -29,7 +29,12 @@ import {
   modbusAreas,
   protocols,
   type SceneConnection,
+  type SceneViews,
+  type SymbolPlacement,
+  type ViewLayout,
+  type ViewRoute,
   type Vector3Tuple,
+  viewKinds,
 } from './scene.js';
 import { quaternionFromEuler } from './quaternion.js';
 import { isKnownUnit } from './units.js';
@@ -66,7 +71,8 @@ export type SceneValidationErrorCode =
   | 'DUPLICATE_VARIABLE_ID'
   | 'UNKNOWN_DATA_SOURCE'
   | 'INVALID_ADDRESS'
-  | 'TYPE_MISMATCH';
+  | 'TYPE_MISMATCH'
+  | 'UNKNOWN_VIEW_REFERENCE';
 
 export interface SceneValidationError {
   code: SceneValidationErrorCode;
@@ -152,9 +158,14 @@ const sceneKeys: Record<SchemaVersion, string[]> = {
   1: ['version', 'components', 'connections'],
   2: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings'],
   3: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings', 'underlay'],
-  4: ['schemaVersion', 'documentType', 'units', 'project', 'components', 'connections', 'associations', 'dataSources', 'runtimeVariables', 'tagBindings', 'underlay', 'extensions'],
+  4: ['schemaVersion', 'documentType', 'units', 'project', 'components', 'connections', 'associations', 'dataSources', 'runtimeVariables', 'tagBindings', 'underlay', 'views', 'extensions'],
 };
 const projectKeys = ['id', 'name', 'revision', 'description'];
+const viewLayoutKeys = ['symbols', 'routes'];
+const symbolKeys = ['x', 'y', 'rotation', 'hidden'];
+/** Drawing coordinates (ADR-0026) stay within ±1,000,000 units; a route has 2 to 1,000 points. */
+const MAX_VIEW_COORDINATE = 1_000_000;
+const MAX_ROUTE_POINTS = 1_000;
 const underlayKeys = ['svg', 'position', 'width', 'rotation', 'opacity'];
 const componentKeys: Record<SchemaVersion, string[]> = {
   1: ['id', 'kind', 'position', 'rotation', 'properties'],
@@ -1045,6 +1056,123 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
   });
 }
 
+/**
+ * Reads the optional 2D layouts (ADR-0026): per view, symbol placements by component id and routes by
+ * connection id. Structure only; `checkViews` checks that the ids exist.
+ */
+function readViews(value: unknown, limits: SceneLimits, errors: Errors): SceneViews | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path: 'views', message: 'Expected an object of views.' });
+    return undefined;
+  }
+  checkKeys(value, [...viewKinds], 'views', errors);
+  const views: SceneViews = {};
+  for (const kind of viewKinds) {
+    if (value[kind] === undefined) continue;
+    const layout = readViewLayout(value[kind], `views.${kind}`, limits, errors);
+    if (layout) views[kind] = layout;
+  }
+  return views;
+}
+
+function readViewLayout(value: unknown, path: string, limits: SceneLimits, errors: Errors): ViewLayout | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a view layout object.' });
+    return undefined;
+  }
+  checkKeys(value, viewLayoutKeys, path, errors);
+  const layout: ViewLayout = {};
+  const coordinate = (v: unknown, at: string): number | undefined => {
+    if (typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > MAX_VIEW_COORDINATE) {
+      errors.push({ code: 'INVALID_FIELD', path: at, message: `Expected a finite number within ±${MAX_VIEW_COORDINATE}.` });
+      return undefined;
+    }
+    return v === 0 ? 0 : v; // -0 is written as 0, so read it as 0
+  };
+  const entries = (field: 'symbols' | 'routes', max: number): [string, unknown, string][] | undefined => {
+    const record = value[field];
+    if (record === undefined) return undefined;
+    const at = `${path}.${field}`;
+    if (!isObject(record)) {
+      errors.push({ code: 'INVALID_FIELD', path: at, message: 'Expected an object keyed by id.' });
+      return undefined;
+    }
+    const list = Object.entries(record);
+    if (list.length > max) {
+      errors.push({ code: 'LIMIT_EXCEEDED', path: at, message: `More than ${max} entries.` });
+      return undefined;
+    }
+    return list.filter(([key]) => readId(key, `${at}.${key}`, limits, errors) !== undefined).map(([key, v]) => [key, v, `${at}.${key}`]);
+  };
+
+  const symbolEntries = entries('symbols', limits.maxComponents);
+  if (symbolEntries) {
+    const symbols: Record<string, SymbolPlacement> = {};
+    for (const [id, v, at] of symbolEntries) {
+      if (!isObject(v)) {
+        errors.push({ code: 'INVALID_FIELD', path: at, message: 'Expected a symbol placement object.' });
+        continue;
+      }
+      const before = errors.length;
+      checkKeys(v, symbolKeys, at, errors);
+      const x = coordinate(v.x, `${at}.x`), y = coordinate(v.y, `${at}.y`);
+      if (v.rotation !== undefined && !(v.rotation === 0 || v.rotation === 90 || v.rotation === 180 || v.rotation === 270)) {
+        errors.push({ code: 'INVALID_FIELD', path: `${at}.rotation`, message: 'Expected a rotation of 0, 90, 180 or 270.' });
+      }
+      if (v.hidden !== undefined && v.hidden !== true) errors.push({ code: 'INVALID_FIELD', path: `${at}.hidden`, message: 'Expected true, or no field.' });
+      if (errors.length > before || x === undefined || y === undefined) continue;
+      put(symbols, id, { x, y, ...(v.rotation !== undefined ? { rotation: v.rotation as SymbolPlacement['rotation'] } : {}), ...(v.hidden ? { hidden: true as const } : {}) });
+    }
+    layout.symbols = symbols;
+  }
+
+  const routeEntries = entries('routes', limits.maxConnections + limits.maxAssociations);
+  if (routeEntries) {
+    const routes: Record<string, ViewRoute> = {};
+    for (const [id, v, at] of routeEntries) {
+      if (!isObject(v)) {
+        errors.push({ code: 'INVALID_FIELD', path: at, message: 'Expected a route object.' });
+        continue;
+      }
+      checkKeys(v, ['points'], at, errors);
+      const points = v.points;
+      if (!Array.isArray(points) || points.length < 2 || points.length > MAX_ROUTE_POINTS) {
+        errors.push({ code: 'INVALID_FIELD', path: `${at}.points`, message: `Expected 2 to ${MAX_ROUTE_POINTS} points.` });
+        continue;
+      }
+      const read: [number, number][] = [];
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        if (!Array.isArray(p) || p.length !== 2) {
+          errors.push({ code: 'INVALID_FIELD', path: `${at}.points[${i}]`, message: 'Expected an [x, y] point.' });
+          continue;
+        }
+        const x = coordinate(p[0], `${at}.points[${i}][0]`), y = coordinate(p[1], `${at}.points[${i}][1]`);
+        if (x !== undefined && y !== undefined) read.push([x, y]);
+      }
+      if (read.length === points.length) put(routes, id, { points: read });
+    }
+    layout.routes = routes;
+  }
+  return layout;
+}
+
+/** Every placed symbol is a component, and every route a connection or association (ADR-0026). */
+function checkViews(scene: ScadaScene, errors: Errors): void {
+  if (!scene.views) return;
+  const components = new Set(scene.components.map((c) => c.id));
+  const edges = new Set([...scene.connections.map((c) => c.id), ...(scene.associations ?? []).map((a) => a.id)]);
+  for (const kind of viewKinds) {
+    const layout = scene.views[kind];
+    for (const id of Object.keys(layout?.symbols ?? {})) {
+      if (!components.has(id)) errors.push({ code: 'UNKNOWN_VIEW_REFERENCE', path: `views.${kind}.symbols.${id}`, message: `No component "${id}" to place.` });
+    }
+    for (const id of Object.keys(layout?.routes ?? {})) {
+      if (!edges.has(id)) errors.push({ code: 'UNKNOWN_VIEW_REFERENCE', path: `views.${kind}.routes.${id}`, message: `No connection or association "${id}" to route.` });
+    }
+  }
+}
+
 /** Reads the optional reference drawing (ADR-0012); sanitizing is the host's `validateUnderlay`. */
 function readUnderlay(value: unknown, limits: SceneLimits, options: SceneValidationOptions, errors: Errors): SceneUnderlay | undefined {
   if (!isObject(value)) {
@@ -1138,6 +1266,7 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
       ? readList(input.tagBindings, 'tagBindings', limits.maxBindings, errors, (item, path) => readBinding(item, path, limits, errors))
       : undefined;
   const underlay = version >= 3 && input.underlay !== undefined ? readUnderlay(input.underlay, limits, options, errors) : undefined;
+  const views = version === 4 && input.views !== undefined ? readViews(input.views, limits, errors) : undefined;
   const extensions = version === 4 && input.extensions !== undefined ? readExtensions(input.extensions, 'extensions', extensionBudget, limits, errors) : undefined;
   if (errors.length > 0 || !components || !connections) return { ok: false, errors };
 
@@ -1153,9 +1282,11 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
     ...(runtimeVariables ? { runtimeVariables } : {}),
     ...(tagBindings ? { tagBindings } : {}),
     ...(underlay ? { underlay } : {}),
+    ...(views ? { views } : {}),
     ...(extensions ? { extensions } : {}),
   };
   checkReferences(scene, options, errors);
+  checkViews(scene, errors);
   checkBindings(scene, options, errors);
   checkAcquisition(scene, options, errors);
   if (errors.length > 0) return { ok: false, errors };

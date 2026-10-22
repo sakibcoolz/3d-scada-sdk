@@ -54,5 +54,9 @@
   "writable-variable.scene.json": {
     "code": "INVALID_FIELD",
     "path": "runtimeVariables[0].access"
+  },
+  "view-rotation.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "views.process.symbols.V1.rotation"
   }
 }

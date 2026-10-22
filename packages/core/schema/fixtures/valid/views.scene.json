@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
+  "units": "m",
+  "components": [
+    {
+      "id": "T1",
+      "type": "tank",
+      "position": {
+        "x": 0,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "V1",
+      "type": "valve",
+      "position": {
+        "x": 2,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "id": "c",
+      "from": {
+        "instanceId": "T1",
+        "portId": "outlet"
+      },
+      "to": {
+        "instanceId": "V1",
+        "portId": "in"
+      }
+    }
+  ],
+  "associations": [
+    {
+      "id": "a1",
+      "relationship": "feeds",
+      "from": "T1",
+      "to": "V1",
+      "properties": {
+        "note": "gravity feed"
+      }
+    },
+    {
+      "id": "a2",
+      "relationship": "com.example.supervises",
+      "from": "V1",
+      "to": "T1"
+    }
+  ],
+  "views": {
+    "process": {
+      "symbols": {
+        "T1": {
+          "x": 40,
+          "y": 120
+        },
+        "V1": {
+          "x": 160,
+          "y": 120,
+          "rotation": 90
+        }
+      },
+      "routes": {
+        "c": {
+          "points": [
+            [
+              60,
+              120
+            ],
+            [
+              110,
+              120
+            ],
+            [
+              110,
+              130
+            ],
+            [
+              150,
+              130
+            ]
+          ]
+        }
+      }
+    },
+    "electrical": {
+      "symbols": {
+        "V1": {
+          "x": 0,
+          "y": 0,
+          "hidden": true
+        }
+      },
+      "routes": {
+        "a1": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              10,
+              0
+            ]
+          ]
+        }
+      }
+    }
+  }
+}

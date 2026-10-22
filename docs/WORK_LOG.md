@@ -1852,6 +1852,26 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
 
+## 2026-10-23 — T-083: view layouts in the scene document (Phase 7a, ADR-0026)
+- Owner merged #83 (T-082) and approved ADR-0026 ("approve"). Branch `docs/T-083-views-2d-adr` from `origin/develop`.
+- Change:
+  - **core:** optional `views` (process and electrical layouts: symbols by component ID, routes by connection or association ID);
+  - validation with `UNKNOWN_VIEW_REFERENCE`, canonical serialization, and clean-up in `removeComponent`, `disconnect` and `removeAssociation`;
+  - JSON Schema and fixtures; the fuzz base carries views.
+- Found by the fuzz: `-0` coordinates did not round-trip, so they are now read as 0.
+- Tests: new `views.test.ts` (8); schema fixtures (3); API and security code lists updated.
+- Docs:
+  - ADR-0026 Accepted with T-083 notes; DECISION_LOG;
+  - INDUSTRIAL_SCENE_SPEC §3, §7.1, §10 and §13; SCENE_AND_CONNECTIONS; API.md; RELEASE.md;
+  - backlog T-082 DONE, T-083 REVIEW, T-084..T-086 TODO; plan Phase 7 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1582 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (132 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+
 ## 2026-10-23 — Playground: control library always registered (fix, ADR-0025)
 - Owner report: a scene exported from `?control` was refused at `/` with "Unknown component type "sdk.motor"…" for every library part. The playground registered the library only under `?control`; the SDK itself behaved as designed (hosts opt in).
 - Branch `fix/playground-control-library` from `origin/develop`.

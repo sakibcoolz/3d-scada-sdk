@@ -74,6 +74,7 @@ const publicApi = [
   'unlockFromParent',
   'upgradeDimensions',
   'validateScene',
+  'viewKinds',
 ];
 
 describe('@sakibcoolz/core public API', () => {

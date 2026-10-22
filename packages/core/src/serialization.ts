@@ -1,4 +1,4 @@
-import { SCENE_DOCUMENT_TYPE, type JsonValue, type ScadaScene } from './scene.js';
+import { SCENE_DOCUMENT_TYPE, viewKinds, type JsonValue, type ScadaScene, type SceneViews } from './scene.js';
 import { validateScene, type SceneValidationOptions, type SceneValidationResult } from './validation.js';
 
 export interface ParseSceneOptions extends SceneValidationOptions {
@@ -22,9 +22,25 @@ function canonicalJson(value: JsonValue): unknown {
   return value;
 }
 
+/** Views in fixed order (process, electrical), with symbol and route ids sorted (ADR-0026). */
+function canonicalViews(views: SceneViews): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const kind of viewKinds) {
+    const layout = views[kind];
+    if (!layout) continue;
+    out[kind] = {
+      ...(layout.symbols
+        ? { symbols: sortedObject(layout.symbols, (s) => ({ x: s.x, y: s.y, ...(s.rotation !== undefined ? { rotation: s.rotation } : {}), ...(s.hidden ? { hidden: true } : {}) })) }
+        : {}),
+      ...(layout.routes ? { routes: sortedObject(layout.routes, (r) => ({ points: r.points.map(([x, y]) => [x, y]) })) } : {}),
+    };
+  }
+  return out;
+}
+
 /**
  * Canonical JSON for a scene: current schema version (4, ADR-0021), vectors as named objects in
- * x, y, z(, w) order, fixed key order, keys of properties, labels and extensions sorted, two-space
+ * x, y, z(, w) order, fixed key order, keys of properties, labels, extensions and view entries sorted, two-space
  * indent and a trailing newline. Only authored fields are written, so the same scene always
  * produces the same bytes. Array order (components, connections) is preserved.
  */
@@ -134,6 +150,7 @@ export function serializeScene(scene: ScadaScene): string {
           },
         }
       : {}),
+    ...(scene.views !== undefined ? { views: canonicalViews(scene.views) } : {}),
     ...(scene.extensions !== undefined ? { extensions: sortedObject(scene.extensions, canonicalJson) } : {}),
   };
   // JSON.stringify already writes -0 as 0.

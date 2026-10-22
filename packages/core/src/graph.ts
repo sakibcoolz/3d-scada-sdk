@@ -1,4 +1,4 @@
-import type { ComponentInstance, ComponentType, ConnectionPort, PortKind, Relationship, ScadaScene, SceneAssociation, SceneConnection } from './scene.js';
+import { viewKinds, type ComponentInstance, type ComponentType, type ConnectionPort, type PortKind, type Relationship, type ScadaScene, type SceneAssociation, type SceneConnection, type SceneViews, type ViewLayout } from './scene.js';
 import { validateScene, type SceneValidationErrorCode, type SceneValidationOptions } from './validation.js';
 
 export type GraphErrorCode = SceneValidationErrorCode | 'UNKNOWN_CONNECTION' | 'UNKNOWN_ASSOCIATION';
@@ -30,7 +30,7 @@ export function disconnect(scene: ScadaScene, connectionId: string): GraphResult
     return { ok: false, error: { code: 'UNKNOWN_CONNECTION', message: `No connection "${connectionId}".` } };
   }
   const next = { ...scene, connections: scene.connections.filter((c) => c.id !== connectionId) };
-  return { ok: true, scene: withoutDanglingBindings(next) };
+  return { ok: true, scene: withoutDanglingViews(withoutDanglingBindings(next)) };
 }
 
 /**
@@ -51,7 +51,7 @@ export function removeAssociation(scene: ScadaScene, associationId: string): Gra
   if (!scene.associations?.some((a) => a.id === associationId)) {
     return { ok: false, error: { code: 'UNKNOWN_ASSOCIATION', message: `No association "${associationId}".` } };
   }
-  return { ok: true, scene: withAssociations(scene, scene.associations.filter((a) => a.id !== associationId)) };
+  return { ok: true, scene: withoutDanglingViews(withAssociations(scene, scene.associations.filter((a) => a.id !== associationId))) };
 }
 
 /** The scene with `associations`, leaving the field out when the list is empty. */
@@ -62,7 +62,8 @@ function withAssociations(scene: ScadaScene, associations: SceneAssociation[]): 
 
 /**
  * Removes a component with every connection and association that touches it, so no edge is left
- * dangling; its children are freed, and data sources and variables keep their description but lose the link.
+ * dangling; its children are freed, data sources and variables keep their description but lose the
+ * link, and its symbol and edge routes leave every view (ADR-0026).
  */
 export function removeComponent(scene: ScadaScene, instanceId: string): GraphResult {
   if (!scene.components.some((c) => c.id === instanceId)) {
@@ -80,7 +81,7 @@ export function removeComponent(scene: ScadaScene, instanceId: string): GraphRes
     connections: scene.connections.filter((c) => c.from.instanceId !== instanceId && c.to.instanceId !== instanceId),
   };
   const kept = scene.associations ? withAssociations(next, scene.associations.filter((a) => a.from !== instanceId && a.to !== instanceId)) : next;
-  return { ok: true, scene: withoutDanglingBindings(unlinkAcquisition(kept, instanceId)) };
+  return { ok: true, scene: withoutDanglingViews(withoutDanglingBindings(unlinkAcquisition(kept, instanceId))) };
 }
 
 /**
@@ -108,6 +109,31 @@ function withoutDanglingBindings(scene: ScadaScene): ScadaScene {
   const connections = new Set(scene.connections.map((c) => c.id));
   const tagBindings = scene.tagBindings.filter((b) => (b.kind === 'property' ? components.has(b.instanceId) : connections.has(b.connectionId)));
   return { ...scene, tagBindings };
+}
+
+/**
+ * Drops view symbols and routes whose component or edge no longer exists (ADR-0026). Layouts, views
+ * and the `views` field that become empty go too; a scene with nothing to drop is returned as is.
+ */
+function withoutDanglingViews(scene: ScadaScene): ScadaScene {
+  if (!scene.views) return scene;
+  const components = new Set(scene.components.map((c) => c.id));
+  const edges = new Set([...scene.connections.map((c) => c.id), ...(scene.associations ?? []).map((a) => a.id)]);
+  const keep = <T>(record: Record<string, T> | undefined, known: Set<string>) =>
+    record && Object.fromEntries(Object.entries(record).filter(([id]) => known.has(id)));
+  let dropped = false;
+  const views: SceneViews = {};
+  for (const kind of viewKinds) {
+    const layout = scene.views[kind];
+    if (!layout) continue;
+    const symbols = keep(layout.symbols, components), routes = keep(layout.routes, edges);
+    dropped ||= Object.keys(symbols ?? {}).length !== Object.keys(layout.symbols ?? {}).length || Object.keys(routes ?? {}).length !== Object.keys(layout.routes ?? {}).length;
+    const next: ViewLayout = { ...(symbols && Object.keys(symbols).length > 0 ? { symbols } : {}), ...(routes && Object.keys(routes).length > 0 ? { routes } : {}) };
+    if (next.symbols || next.routes) views[kind] = next;
+  }
+  if (!dropped) return scene;
+  const { views: _, ...rest } = scene;
+  return Object.keys(views).length > 0 ? { ...rest, views } : rest;
 }
 
 /**

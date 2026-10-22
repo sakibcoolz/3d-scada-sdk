@@ -248,9 +248,35 @@ export interface ScadaScene {
   tagBindings?: TagBinding[];
   /** Optional reference drawing (ADR-0012); absent when there is none. */
   underlay?: SceneUnderlay;
+  /** Optional 2D layouts per view (ADR-0026); absent when nothing has been placed. */
+  views?: SceneViews;
   /** Host or library data, keyed by reverse-DNS namespace (ADR-0021). */
   extensions?: SceneExtensions;
 }
+/** The 2D views a scene can lay out (ADR-0026). Host views go in `extensions`. */
+export const viewKinds = ['process', 'electrical'] as const;
+export type ViewKind = (typeof viewKinds)[number];
+/** Where a component's symbol sits in one view, in drawing units (1 mm), x right and y down. */
+export interface SymbolPlacement {
+  x: number;
+  y: number;
+  rotation?: 0 | 90 | 180 | 270;
+  /** Hidden in this view only. */
+  hidden?: true;
+}
+/** A connection's or association's drawn line in one view: at least two points. */
+export interface ViewRoute {
+  points: [number, number][];
+}
+/** Layout only: equipment, ports and wiring stay in the model (ADR-0026). */
+export interface ViewLayout {
+  /** By component id. */
+  symbols?: Record<string, SymbolPlacement>;
+  /** By connection or association id. */
+  routes?: Record<string, ViewRoute>;
+}
+export type SceneViews = Partial<Record<ViewKind, ViewLayout>>;
+
 export function createEmptyScene(): ScadaScene {
   return { schemaVersion: 4, documentType: SCENE_DOCUMENT_TYPE, units: 'm', components: [], connections: [] };
 }

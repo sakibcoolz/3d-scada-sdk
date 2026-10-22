@@ -16,6 +16,7 @@ SceneDocument {
   connections: ConnectionEdge[];
   tagBindings?: TagBinding[];
   underlay?: SceneUnderlay; // ADR-0012: { svg, position: { x, z }, width, rotation, opacity }
+  views?: { process?: ViewLayout; electrical?: ViewLayout }; // ADR-0026: 2D layout only
 }
 ConnectionEdge {
   id: string;
