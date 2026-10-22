@@ -154,7 +154,7 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
-## Control equipment library (T-080, ADR-0025)
+## Control equipment library (T-080..T-081, ADR-0025)
 - **Opting in:** `controlLibrary` is an array of generic `sdk.*` definitions. Use `createComponentRegistry(...controlLibrary, ...yourTypes)`; without it nothing changes.
 - **T-080 types:**
   - `sdk.plc.cpu`;
@@ -163,9 +163,16 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
   - `sdk.dcs.controller`;
   - `sdk.network.switch` (`ports` 5/8/16);
   - `sdk.psu`.
+- **T-081 types:**
+  - `sdk.vfd` (`ratedPowerKw` 0.75–90, `supply` 230/400/480 V): three-phase mains in and motor out at the supply voltage, PE, run/reset DI, 4-20 mA speed reference and actual speed, fault DO, Ethernet;
+  - `sdk.motor` (`ratedPowerKw`, `voltage` 230/400/480 V): three-phase terminals, PE and a mechanical `shaft`. It has no tags; a motor drives a pump through a `drives` association;
+  - `sdk.transmitter` (`measures` pressure/temperature/level/flow): a 4-20 mA output, 24 V supply and a `PV` tag in bar, °C, % or m³/h;
+  - `sdk.switch`, a digital sensor: a DO output, 24 V supply and a `STATE` tag;
+  - `sdk.panel` (`width`, `height`, `depth` in m): a PE bar for 32 connections and an AC mains entry. Equipment goes inside as assembly children.
+- **Frame size:** drives and motors grow with `ratedPowerKw`.
 - **What they carry:** typed ports and variable templates, so `suggestVariables` proposes one tag per channel.
 - **The `sdk.` prefix is reserved** for the library's own definitions.
-- **Not product data:** the ratings drive compatibility checks only.
+- **Not product data:** the ratings drive compatibility checks only. For example, a 230 V motor on a 400 V drive, or a transmitter on a 0-10 V input, is refused as `INCOMPATIBLE_PORTS`.
 
 ## Tag suggestions and review (T-079, ADR-0024)
 - **Templates:** component definitions may list `variables: [{ name, dataType, unit?, property? }]`. `registry.resolvers.resolveVariables` serves them.

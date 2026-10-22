@@ -1,6 +1,6 @@
 # ADR-0025: Control equipment library
 
-Status: Accepted (owner, 2026-10-22: `sdk.` prefix, the equipment list, and motor → pump by association); T-080 implemented, T-081..T-082 pending. M9 Phase 6 of docs/INDUSTRIAL_SDK_PLAN.md (§9), tasks T-080..T-082.
+Status: Accepted (owner, 2026-10-22: `sdk.` prefix, the equipment list, and motor → pump by association); T-080..T-081 implemented, T-082 pending. M9 Phase 6 of docs/INDUSTRIAL_SDK_PLAN.md (§9), tasks T-080..T-082.
 
 ## Context
 Phases 2–5 built the machinery:
@@ -106,4 +106,31 @@ These are generic, vendor-neutral types, drawn from the catalog's primitive part
   - channel ports and templates;
   - the opt-in boundary and the reserved prefix;
   - accepted and refused wiring;
+  - tag suggestions.
+
+## Implementation notes (T-081)
+- **Types:** `sdk.vfd`, `sdk.motor`, `sdk.transmitter`, `sdk.switch` and `sdk.panel` join `controlLibrary`, after the T-080 types.
+- **Number parameters:**
+  - `ratedPowerKw` (0.75–90 kW, default 7.5) sets the frame size of drives and motors, scaled by the square root of power. It is not a rating used in checks.
+  - The panel's `width`, `height` and `depth` are in metres.
+- **Ratings used for checks:**
+  - drive mains in and motor out are AC three-phase at the `supply` voltage;
+  - motor terminals are AC three-phase at the motor's `voltage`, so a 230 V motor on a 400 V drive is refused;
+  - drive `speedRef` (AI) and `speed` (AO) and the transmitter output (AO) are 4–20 mA;
+  - the panel mains entry is AC with no voltage, so it accepts any AC feed;
+  - the panel PE bar takes 32 connections.
+- **Port IDs:** the drive's power ports are `L1-L3` and `U-V-W`; signal ports are named by function (`run`, `reset`, `speedRef`, `speed`, `fault`) with terminal labels such as `DI1` and `AO1`.
+- **Geometry:**
+  - the drive is a box with a label and a keypad plate;
+  - the motor lies along x: a finned cylinder on a foot, a terminal box on top (power terminals face up), and the shaft out of the +x end;
+  - the transmitter and the digital sensor share a field-device shape: a stem and a round head with terminals on its face;
+  - the panel is a box with its mains entry on the roof and the PE bar at the bottom front.
+- **No fluid port on instruments:** a transmitter is placed on a tank or pipe by assembly or association, as with the motor and pump.
+- **Tests (`library/control.test.ts`, 80 in all):**
+  - every choice, and every number at its minimum, default and maximum, re-registers under a host ID with terminals inside its bounds;
+  - a full PLC → VFD → motor line with a transmitter and a level switch validates;
+  - `pathBetween` follows network, power and the `drives` association from the CPU to the pump;
+  - the ADR's refusals: a 230 V motor on a 400 V drive, and a transmitter on a 0–10 V input;
+  - other refusals: DC on motor terminals, digital on analog, output to output, two motors on one drive output, and shaft to network;
+  - parameters change frame size, ratings and the PV unit;
   - tag suggestions.
