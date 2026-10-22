@@ -22,6 +22,7 @@ High-level progress. `docs/TASK_BACKLOG.md` owns task status; a checked box mean
 - [x] Phase 5: tag engine: runtime variables, data sources, typed protocol addresses, DISCONNECTED, acquisition projection, tag review and suggestions (ADR-0024, T-077..T-079)
 - [x] Phase 6: control equipment libraries: PLC, DCS, VFD, sensors, motors, panels, and the `?control` demo (ADR-0025, T-080..T-082)
 - [x] Phase 7: 2D process and electrical views, synchronized with 3D (ADR-0026, T-083..T-086)
-- [ ] Phases 8–9: advanced editor and locked runtime mode
+- [x] Phase 8: advanced editor: port and terminal inspector, relationship explorer, wiring picker with reasons, relationship editing, and the tag and variable editor (ADR-0027, T-087..T-089)
+- [ ] Phase 9: locked runtime mode
 - [ ] Phase 10: host-neutral acquisition projection and command-request boundary
 - [ ] Phase 11: hardening and the 0.2.0 release

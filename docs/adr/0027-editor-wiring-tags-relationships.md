@@ -1,6 +1,6 @@
 # ADR-0027: Editing ports, wiring, tags and relationships
 
-Status: Accepted (owner, 2026-10-23: wiring through a picker in the Properties panel, the tag editor as a dialog, and connection properties as a key and value list); T-087..T-088 implemented, T-089 pending. M9 Phase 8 of docs/INDUSTRIAL_SDK_PLAN.md (§9), tasks T-087..T-089.
+Status: Accepted (owner, 2026-10-23: wiring through a picker in the Properties panel, the tag editor as a dialog, and connection properties as a key and value list); T-087..T-089 implemented. M9 Phase 8 of docs/INDUSTRIAL_SDK_PLAN.md (§9), tasks T-087..T-089.
 
 ## Context
 The document can now describe a whole control line:
@@ -150,3 +150,31 @@ But the editor can only **place** parts, join pipes by snapping, and bind a tag 
   - the 230 V motor refused with its reason, then wired at 400 V, the electrical diagram redrawn, undo and redo;
   - DO0 to the drive's run input, with the relationship and cable properties, a credential-like name refused, and disconnect;
   - a relationship added, the duplicate refused, removal, and nothing offered while locked.
+
+## Implementation notes (T-089)
+- **`tagForms.ts` (pure):**
+  - data source and variable forms as text;
+  - `toDataSource` (keeps existing `properties`) and `toVariable`:
+    - typed numbers; text that is not a number is passed through, so core names the field;
+    - addresses by `addressKind(protocol)`: Modbus `{area, address, unitId, byteOrder?, wordOrder?, bit?}`, OPC UA `{nodeId, namespaceUri?}`, none for `host`, and JSON for namespaced protocols (a parse error is reported on its field);
+    - `access` is always `read`;
+  - `variableForm` and `dataSourceForm` read existing entries back;
+  - `commitEntry` puts the entry into the scene, runs `validateScene`, and returns the scene or errors keyed by form field (`errorField`: the last path segment; the whole address becomes `address`; anything else is `_`);
+  - `removeEntry`.
+- **`tagEditor.tsx`, the dialog** (`role="dialog"`, `aria-label="Tags"`; Escape, ×, or a click outside closes it):
+  - **Data sources:** a list with Edit and Remove, and a form (ID, name, protocol with a datalist of built-ins, device, endpoint reference with a "never a password" hint).
+  - **Variables:** a list and a form (tag ID, name, component, data type, unit, source, source variable name; Modbus, OPC UA or JSON address; optional linear scaling).
+  - **Suggestions:** checkboxes, all checked at first; "Add N selected" calls `applyTagSuggestions` with the chosen variables and their bindings.
+  - **Review:** `reviewTags` findings, with "Show component" (selects it and closes the dialog) or "Edit variable".
+  - **Errors:** each field shows its error below it and is marked `aria-invalid`. Controls carry their label as `aria-label`, so a select's name is not mixed with its option text.
+  - **Removal:** removing an entry is validated too. A data source still used by a variable cannot be removed, and the reason is shown.
+- **Editor:**
+  - "Tags…" sits beside the lock button, outside the locked fieldset, so the dialog opens read only while locked;
+  - every save is one undo step;
+  - the property and flow tag fields offer the scene's variable IDs (datalist `s3-variable-ids`).
+- **Tests:**
+  - `tagForms.test.ts` (6);
+  - e2e `tag-editor.spec.ts` (3):
+    - a credential endpoint and an out-of-range register refused at their fields, then a Modbus variable built, bound to the tank level, and saved and reloaded unchanged; a used data source cannot be removed;
+    - suggestions applied with one unchecked, review "Edit variable", Escape, and one undo for the whole batch;
+    - read only while locked.
