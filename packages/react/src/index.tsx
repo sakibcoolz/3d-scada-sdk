@@ -23,6 +23,7 @@ import { PortsInspector, RelationsExplorer } from './inspector.js';
 import { describePorts } from './ports.js';
 import { describeRelations } from './relations.js';
 import { wiringCandidates } from './wiring.js';
+import { TagEditor } from './tagEditor.js';
 import { nudge } from './keyboard.js';
 import { degreesFromRotation, rotationFromDegrees, turnAboutWorldAxis } from './rotationForm.js';
 import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, viewModes, type ViewMode } from './appearance.js';
@@ -863,10 +864,10 @@ function defaultProperties(type: ComponentType, registry: ComponentRegistry): Co
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 /** A text field that commits on Enter or blur, so typing a tag is one undo step. */
-function CommitField({ label, value, onCommit }: { label: string; value: string; onCommit: (value: string) => void }) {
+function CommitField({ label, value, onCommit, list }: { label: string; value: string; onCommit: (value: string) => void; /** A datalist of suggested values. */ list?: string }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
-  return <label className="s3-stack" style={{fontSize:12}}>{label} <input aria-label={label} value={draft} placeholder="tag id"
+  return <label className="s3-stack" style={{fontSize:12}}>{label} <input aria-label={label} value={draft} placeholder="tag id" list={list}
     onChange={e=>setDraft(e.target.value)} onBlur={()=>onCommit(draft)} onKeyDown={e=>{if(e.key==='Enter')onCommit(draft);}}/></label>;
 }
 
@@ -886,14 +887,16 @@ function BindingsEditor({ component, scene, live, onSet }: {
   const states = live?.filter(p => p.instanceId === component.id) ?? [];
   if (Object.keys(bindable).length === 0 && connections.length === 0) return null;
   return <div>
+    {/* The scene's variables, offered as tag ids; opaque host tags stay allowed (ADR-0027). */}
+    <datalist id="s3-variable-ids">{(scene.runtimeVariables??[]).map(v=><option key={v.id} value={v.id}/>)}</datalist>
     {Object.keys(bindable).map(property => {
       const match = (b: TagBinding) => b.kind === 'property' && b.instanceId === component.id && b.property === property;
-      return <CommitField key={property} label={`Tag for ${property}`} value={scene.tagBindings?.find(match)?.tagId ?? ''}
+      return <CommitField key={property} list="s3-variable-ids" label={`Tag for ${property}`} value={scene.tagBindings?.find(match)?.tagId ?? ''}
         onCommit={tag => onSet(match, tagId => ({ id: newId(), tagId, kind: 'property', instanceId: component.id, property }), tag)}/>;
     })}
     {connections.map(c => {
       const match = (b: TagBinding) => b.kind === 'flow' && b.connectionId === c.id;
-      return <CommitField key={c.id} label={`Flow tag for connection to ${neighbourLabel(c)}`} value={scene.tagBindings?.find(match)?.tagId ?? ''}
+      return <CommitField key={c.id} list="s3-variable-ids" label={`Flow tag for connection to ${neighbourLabel(c)}`} value={scene.tagBindings?.find(match)?.tagId ?? ''}
         onCommit={tag => onSet(match, tagId => ({ id: newId(), tagId, kind: 'flow', connectionId: c.id }), tag)}/>;
     })}
     {states.length > 0 && <ul aria-label="Live values" style={{fontSize:12,paddingLeft:16,margin:'6px 0'}}>
@@ -1248,6 +1251,7 @@ function EditorBody({initialScene,onChange,selectedIds,onSelectionChange,flow,te
   }
   /** Short-lived canvas message after the user connects parts or locks an assembly. */
   const [notice,setNotice]=useState<string[]>([]);
+  const [tagsOpen,setTagsOpen]=useState(false);
   useEffect(()=>{if(notice.length===0)return;const t=setTimeout(()=>setNotice([]),NOTICE_MS);return()=>clearTimeout(t);},[notice]);
   function announceConnections(before:ScadaScene,after:ScadaScene){const lines=describeNewConnections(before,after,registry);if(lines.length)setNotice(lines);}
   const camera=useRef<Camera|undefined>(undefined);
@@ -1441,6 +1445,9 @@ function EditorBody({initialScene,onChange,selectedIds,onSelectionChange,flow,te
     <style>{EDITOR_CSS}</style>
     <aside style={{padding:14,borderRight:'1px solid #3c5366',overflowY:'auto',minHeight:0}}>
       <button aria-pressed={isLocked} onClick={()=>setLocked(!isLocked)} className="s3-block" style={{marginTop:0}}>{isLocked?'Unlock editing':'Lock editing'}</button>
+      {/* Outside the locked fieldset: while locked the dialog opens read only (ADR-0027). */}
+      <button onClick={()=>setTagsOpen(true)} className="s3-block" title="Data sources, variables, suggestions and review">Tags…</button>
+      {tagsOpen&&<TagEditor scene={scene} registry={registry} readOnly={isLocked} onCommit={next=>update(next)} onSelectComponent={setSelected} onClose={()=>setTagsOpen(false)}/>}
       <fieldset disabled={isLocked}>
       <div className="s3-row">
         <button onClick={()=>travel(undo)} disabled={!canUndo(history)} title="Undo (Ctrl+Z)">Undo</button>

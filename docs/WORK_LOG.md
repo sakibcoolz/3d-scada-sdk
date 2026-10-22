@@ -2006,3 +2006,24 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-089: tag and variable editor (Phase 8c, ADR-0027)
+- Owner merged #90 (T-088). Branch `feat/T-089-tag-editor` from `origin/develop`.
+- Change:
+  - **react:** new `tagForms.ts` (form models, `commitEntry` validating with core and mapping errors to fields, `removeEntry`) and `tagEditor.tsx` (dialog with data sources, variables, address forms, scaling, suggestions and review);
+  - "Tags…" button beside the lock;
+  - tag fields gain a datalist of variable IDs.
+- Found in e2e:
+  - an error message labelled like its field made the field ambiguous, so errors now set `aria-invalid` and controls carry explicit `aria-label`s;
+  - a select's name included its option text, fixed by the same change;
+  - "Tags…" sat inside the locked fieldset, so the read-only dialog could not open while locked; it now sits beside the lock button.
+- Tests: `tagForms.test.ts` (6); e2e `tag-editor.spec.ts` (3).
+- Docs: ADR-0027 implemented with T-089 notes; API.md; roadmap Phase 8 ticked; backlog T-088 DONE, T-089 REVIEW; plan Phase 8 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1617 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (156 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

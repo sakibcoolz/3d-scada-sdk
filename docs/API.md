@@ -154,6 +154,18 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Editor: tags and variables (T-089, ADR-0027)
+- **"Tags…"** opens a dialog for the scene's data sources and read-only runtime variables:
+  - protocol address forms (Modbus, OPC UA, host, or JSON for host protocols) and linear scaling;
+  - every save is validated by core, with errors beside their field;
+  - an endpoint with credentials is refused;
+  - suggestions are applied in one step;
+  - review findings link to their component or variable.
+
+  The dialog is read only while editing is locked.
+- **Tag fields** for properties and pipes suggest the scene's variable IDs.
+- **Public API:** no change.
+
 ## Editor: wiring and relationships (T-088, ADR-0027)
 - **Wiring:** in the Ports section, "Wire…" opens a picker of same-kind ports on other components. Incompatible or full ports are disabled with the reason. Choosing one uses core `connect`.
 - **Wire edits:** each wire has "Details" (relationship, and properties such as cable or length, validated as on load) and "Disconnect".
