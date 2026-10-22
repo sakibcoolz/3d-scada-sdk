@@ -15,7 +15,6 @@
     "@sakibcoolz/core": "workspace:*",
     "@sakibcoolz/react": "workspace:*",
     "@sakibcoolz/simulation": "workspace:*",
-    "@sakibcoolz/views-2d": "workspace:*",
     "@vitejs/plugin-react": "^4.3.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

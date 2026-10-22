@@ -59,4 +59,7 @@ createComponentRegistry({
 
 The SVG is sanitized when you register it, using the allow-list sanitizer from `@sakibcoolz/asset-import`. Scripts, event handlers and external references fail registration.
 
+## With the 3D editor
+`ScadaWorkspace` in `@sakibcoolz/react` puts the 3D editor and both diagrams over one scene and one selection. Dragged symbols go into the editor's undo history and saved JSON.
+
 Architecture: ADR-0026 in the repository.

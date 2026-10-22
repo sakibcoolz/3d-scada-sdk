@@ -44,9 +44,6 @@ importers:
       '@sakibcoolz/simulation':
         specifier: workspace:*
         version: link:../../packages/simulation
-      '@sakibcoolz/views-2d':
-        specifier: workspace:*
-        version: link:../../packages/views-2d
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.7.0(vite@6.4.4(@types/node@22.20.5))
@@ -103,6 +100,9 @@ importers:
       '@sakibcoolz/core':
         specifier: workspace:*
         version: link:../core
+      '@sakibcoolz/views-2d':
+        specifier: workspace:*
+        version: link:../views-2d
       '@types/three':
         specifier: ^0.175.0
         version: 0.175.0

@@ -154,6 +154,16 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Workspace and shared selection (`@sakibcoolz/react`, T-086, ADR-0026)
+- **`<ScadaWorkspace>`** takes the editor's props plus:
+  - `layout` / `defaultLayout` / `onLayoutChange` (`'3d' | 'process' | 'electrical' | 'split'`, default split) and `defaultDiagram`;
+  - `selectedIds` / `onSelectionChange`, shared by every view and never saved;
+  - `editorRef` and `style`.
+
+  It shows the 3D editor and the 2D diagrams over one scene. A symbol dragged in 2D is committed to the editor's history, so it undoes, saves and respects the edit lock.
+- **`Scada3DEditor`** gains controlled `selectedIds` and `onSelectionChange(ids)`. Its handle gains `setViews(views)`, which commits 2D layouts as one undo step and returns false while locked.
+- **Types:** `ScadaWorkspaceProps` and `WorkspaceLayout`.
+
 ## 2D electrical view and host symbols (T-085, ADR-0026)
 - **`<ElectricalView>`** takes the same props as `<ProcessView>`. It shows wired equipment in columns (supplies, controllers, I/O cards, field devices, loads) with wires in domain colours.
 - **`terminalBlock(title, ports)`** generates an electrical symbol from a type's ports. **`electricalTier(ports)`** gives its column. **`hostSymbol(registered)`** draws a host symbol.

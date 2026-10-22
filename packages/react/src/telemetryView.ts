@@ -1,4 +1,5 @@
 import { canonicalUnits, type PropertyState, type Quantity, type TelemetryUnknownReason } from '@sakibcoolz/core';
+import { describeLiveValue } from '@sakibcoolz/views-2d';
 
 const reasonLabels: Record<TelemetryUnknownReason, string> = {
   STALE: 'stale',
@@ -10,13 +11,10 @@ const reasonLabels: Record<TelemetryUnknownReason, string> = {
   INVALID_UNIT: 'invalid unit',
 };
 
-const format = (value: number | boolean) => (typeof value === 'number' ? String(Math.round(value * 100) / 100) : String(value));
-
 /** One line for a bound property, e.g. "level: 62.46 % · GOOD" or "level: unknown (stale)". */
 export function describeProperty(state: PropertyState, quantity?: Quantity): string {
-  if (state.status === 'unknown') return `${state.property}: unknown (${reasonLabels[state.reason]})`;
-  const unit = quantity ? canonicalUnits[quantity] : '';
-  return `${state.property}: ${format(state.value)}${unit ? ` ${unit}` : ''} · ${state.quality}`;
+  // One format for the 3D and 2D views (ADR-0026).
+  return describeLiveValue(state, quantity ? canonicalUnits[quantity] : undefined);
 }
 
 /** Overlay summary of all bound property values. */

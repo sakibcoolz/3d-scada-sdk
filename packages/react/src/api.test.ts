@@ -8,6 +8,7 @@ describe('@sakibcoolz/react public API', () => {
       'MAX_SCENE_FILE_BYTES',
       'Scada3DEditor',
       'Scada3DViewer',
+      'ScadaWorkspace',
       'formatSceneErrors',
       'importSceneText',
       'viewModes',
