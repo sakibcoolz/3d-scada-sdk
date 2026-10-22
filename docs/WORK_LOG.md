@@ -1695,3 +1695,32 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0 (node-check ok).
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-077: data sources and runtime variables (Phase 5a, ADR-0024)
+- Owner approved ADR-0024 ("1 yes 2 yes and approved": read-only access, a separate `reviewTags`, and the ADR). Branch `docs/T-077-tag-engine-adr` from `origin/develop`.
+- Change:
+  - **core:**
+    - optional root `dataSources` and `runtimeVariables`, with types `SceneDataSource`, `RuntimeVariable`, `ModbusAddress`, `OpcUaAddress` and `VariableAddress`;
+    - validation, version 4 only:
+      - protocol, data-type and read-only access checks;
+      - linear scaling;
+      - references and uniqueness;
+      - protocol-typed addresses: Modbus area/type, register span, unit ID, bit, orders; OPC UA nodeId; host takes no address; a namespaced protocol goes through `validateAddress`, with credential keys rejected;
+      - `endpointRef` with user info is `SECRET_FIELD`;
+      - new codes and limits;
+    - canonical serialization;
+    - `removeComponent` keeps sources and variables but unlinks them.
+  - **schema:** new sections and definitions; 5 fixtures; the fuzz base and the security fuzz code list are extended.
+- Tests: new `acquisition.test.ts` (core, 14): round trip and key order, the accepted protocol forms, v3 rejection, data source rules, credential checks, variable rules, scaling, references, every Modbus rule, OPC UA and host addresses, `validateAddress`, limits, removal.
+- Docs:
+  - ADR-0024 Accepted with T-077 notes; DECISION_LOG;
+  - spec §3, §6.1, §6.2, §10 and §12; API.md; RELEASE.md; SECURITY_AND_SAFETY;
+  - backlog T-076 DONE, T-077 REVIEW, T-078..T-079 TODO; plan Phase 5 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1464 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (130 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

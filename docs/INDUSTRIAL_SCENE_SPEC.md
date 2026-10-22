@@ -37,6 +37,8 @@ It **never** holds live measurements, credentials or executable code. Live value
 | `components` | yes | array (≤ 10,000) | §4 |
 | `connections` | yes | array (≤ 20,000) | §5 |
 | `associations` | no | array (≤ 20,000) | §5.1 |
+| `dataSources` | no | array (≤ 1,000) | §6.1 |
+| `runtimeVariables` | no | array (≤ 20,000) | §6.2 |
 | `tagBindings` | no | array (≤ 20,000) | §6 |
 | `underlay` | no | object | §7 |
 | `extensions` | no | object | §8 |
@@ -102,7 +104,38 @@ Rules:
 - One binding per target.
 - Bindings to a removed component or connection are dropped by the graph helpers.
 
-**PLANNED (Phase 5, new ADR):** `runtimeVariables` (data type, access, scaling, source device and variable, typed protocol addresses) and `dataSources` (credential *references* only). Existing bindings stay valid.
+### 6.1 Data sources (ADR-0024)
+`{ id, name?, protocol, deviceId?, endpointRef?, properties? }`
+- `protocol`: `opcua`, `modbus-tcp`, `modbus-rtu`, `host`, or a namespaced host protocol.
+- `deviceId`: when present, it names a component.
+- `endpointRef`: an opaque reference the host resolves. A URL with user info (`scheme://user:pass@…`) is `SECRET_FIELD`.
+- Credentials are never stored, and the SDK never connects.
+
+### 6.2 Runtime variables (ADR-0024)
+`{ id, name?, componentId?, dataType, unit?, access, source?, scaling? }`
+- **`id`** is the tag ID observations and bindings carry. IDs are unique.
+- **`dataType`:** `bool, int16, uint16, int32, uint32, float32, float64, string`. `unit` is at most 32 characters.
+- **`access`:** `read` only. Writable variables wait for the command ADR (D5).
+- **`source`:** `{ dataSourceId, variable?, address? }`. The address is typed by the source's protocol:
+
+  | Protocol | Address |
+  |---|---|
+  | `opcua` | required `{ nodeId, namespaceUri? }` |
+  | `modbus-tcp`, `modbus-rtu` | required `{ area: coil \| discrete \| input \| holding, address 0–65535, unitId 0–255, byteOrder?, wordOrder?, bit? }` |
+  | `host` | none |
+  | namespaced | plain JSON, checked by the host's `validateAddress`; credential-like keys rejected |
+
+  Modbus rules:
+  - coils and discrete inputs hold `bool` only;
+  - a value spans 1, 2 or 4 registers and must fit below 65536;
+  - `bit` (0–15) applies only to a `bool` in a holding or input register;
+  - `string` is not addressable.
+
+  Violations are `INVALID_ADDRESS`.
+- **`scaling`:** `{ kind: "linear", rawMin, rawMax, min, max }`, with `rawMin ≠ rawMax`. It is descriptive only: observations arrive in engineering units.
+- **Removing a component** keeps its variables and sources and drops their link to it.
+
+**PLANNED (T-078):** binding ↔ variable type and unit checks, `DISCONNECTED` quality and `projectAcquisition`. Existing bindings stay valid.
 
 ## 7. Underlay
 `{ svg, position: { x, z }, width, rotation, opacity }` (ADR-0012):
@@ -131,7 +164,8 @@ Root and component `extensions` hold host or library data:
 ## 10. Canonical serialization
 `serializeScene` writes one canonical form, so save → load → save is byte-identical:
 - two-space indent and a trailing newline;
-- root key order: `schemaVersion, documentType, units, project?, components, connections, associations?, tagBindings?, underlay?, extensions?`;
+- root key order: `schemaVersion, documentType, units, project?, components, connections, associations?, dataSources?, runtimeVariables?, tagBindings?, underlay?, extensions?`;
+- data source key order: `id, name?, protocol, deviceId?, endpointRef?, properties?`; variable key order: `id, name?, componentId?, dataType, unit?, access, source? (dataSourceId, variable?, address?), scaling? (kind, rawMin, rawMax, min, max)`; address keys sorted;
 - association key order: `id, relationship, from, to, properties?`;
 - component key order: `id, name?, type, typeVersion?, manufacturer?, model?, parentId?, position, rotation, scale, properties, labels?, extensions?`;
 - connection key order: `id, domain?, relationship?, from, to, properties?`;
@@ -156,6 +190,7 @@ Root and component `extensions` hold host or library data:
 | Limit | Default |
 |---|---|
 | components / connections / associations / bindings | 10,000 / 20,000 / 20,000 / 20,000 |
+| data sources / runtime variables | 1,000 / 20,000 |
 | ID length | 128 |
 | properties or labels per component | 64 |
 | string length | 1024 characters |

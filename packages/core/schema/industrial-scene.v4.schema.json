@@ -19,6 +19,18 @@
       "maxItems": 20000,
       "items": { "$ref": "#/$defs/association" }
     },
+    "dataSources": {
+      "description": "Where values come from: a PLC, drive or gateway the host reaches (ADR-0024). Never credentials.",
+      "type": "array",
+      "maxItems": 1000,
+      "items": { "$ref": "#/$defs/dataSource" }
+    },
+    "runtimeVariables": {
+      "description": "Typed tags: data type, unit, read-only access and a protocol-typed address (ADR-0024). Values arrive as observations, never in the document.",
+      "type": "array",
+      "maxItems": 20000,
+      "items": { "$ref": "#/$defs/runtimeVariable" }
+    },
     "tagBindings": { "type": "array", "maxItems": 20000, "items": { "$ref": "#/$defs/tagBinding" } },
     "underlay": { "$ref": "#/$defs/underlay" },
     "extensions": { "$ref": "#/$defs/extensions" }
@@ -135,6 +147,64 @@
         "from": { "$ref": "#/$defs/endpoint" },
         "to": { "$ref": "#/$defs/endpoint" },
         "properties": { "$ref": "#/$defs/edgeProperties" }
+      }
+    },
+    "dataSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "protocol"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "$ref": "#/$defs/text" },
+        "protocol": {
+          "description": "A built-in protocol, or a namespaced host protocol such as com.vendor.bus.",
+          "anyOf": [
+            { "enum": ["opcua", "modbus-tcp", "modbus-rtu", "host"] },
+            { "type": "string", "maxLength": 128, "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$" }
+          ]
+        },
+        "deviceId": { "$ref": "#/$defs/id" },
+        "endpointRef": { "description": "Opaque reference the host resolves. validateScene rejects URLs with user info.", "$ref": "#/$defs/text" },
+        "properties": { "$ref": "#/$defs/edgeProperties" }
+      }
+    },
+    "runtimeVariable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "dataType", "access"],
+      "properties": {
+        "id": { "description": "The tag id observations and bindings carry.", "$ref": "#/$defs/id" },
+        "name": { "$ref": "#/$defs/text" },
+        "componentId": { "$ref": "#/$defs/id" },
+        "dataType": { "enum": ["bool", "int16", "uint16", "int32", "uint32", "float32", "float64", "string"] },
+        "unit": { "type": "string", "maxLength": 32 },
+        "access": { "description": "Read-only until an approved command boundary (ADR-0024, D5).", "const": "read" },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dataSourceId"],
+          "properties": {
+            "dataSourceId": { "$ref": "#/$defs/id" },
+            "variable": { "$ref": "#/$defs/text" },
+            "address": {
+              "description": "Typed by the data source's protocol (OPC UA nodeId, Modbus area/address/unitId…); validateScene checks it against that protocol.",
+              "type": "object"
+            }
+          }
+        },
+        "scaling": {
+          "description": "How the host converts raw values; descriptive only.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "rawMin", "rawMax", "min", "max"],
+          "properties": {
+            "kind": { "const": "linear" },
+            "rawMin": { "type": "number" },
+            "rawMax": { "type": "number" },
+            "min": { "type": "number" },
+            "max": { "type": "number" }
+          }
+        }
       }
     },
     "association": {

@@ -78,6 +78,40 @@ export function serializeScene(scene: ScadaScene): string {
           })),
         }
       : {}),
+    ...(scene.dataSources
+      ? {
+          dataSources: scene.dataSources.map((s) => ({
+            id: s.id,
+            ...(s.name !== undefined ? { name: s.name } : {}),
+            protocol: s.protocol,
+            ...(s.deviceId !== undefined ? { deviceId: s.deviceId } : {}),
+            ...(s.endpointRef !== undefined ? { endpointRef: s.endpointRef } : {}),
+            ...(s.properties !== undefined ? { properties: sortedObject(s.properties) } : {}),
+          })),
+        }
+      : {}),
+    ...(scene.runtimeVariables
+      ? {
+          runtimeVariables: scene.runtimeVariables.map((v) => ({
+            id: v.id,
+            ...(v.name !== undefined ? { name: v.name } : {}),
+            ...(v.componentId !== undefined ? { componentId: v.componentId } : {}),
+            dataType: v.dataType,
+            ...(v.unit !== undefined ? { unit: v.unit } : {}),
+            access: v.access,
+            ...(v.source
+              ? {
+                  source: {
+                    dataSourceId: v.source.dataSourceId,
+                    ...(v.source.variable !== undefined ? { variable: v.source.variable } : {}),
+                    ...(v.source.address !== undefined ? { address: canonicalJson(v.source.address as JsonValue) } : {}),
+                  },
+                }
+              : {}),
+            ...(v.scaling ? { scaling: { kind: v.scaling.kind, rawMin: v.scaling.rawMin, rawMax: v.scaling.rawMax, min: v.scaling.min, max: v.scaling.max } } : {}),
+          })),
+        }
+      : {}),
     ...(scene.tagBindings
       ? {
           tagBindings: scene.tagBindings.map((b) => ({

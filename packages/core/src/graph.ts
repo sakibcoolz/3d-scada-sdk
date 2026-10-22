@@ -60,7 +60,10 @@ function withAssociations(scene: ScadaScene, associations: SceneAssociation[]): 
   return associations.length > 0 ? { ...rest, associations } : rest;
 }
 
-/** Removes a component with every connection and association that touches it, so no edge is left dangling; its children are freed. */
+/**
+ * Removes a component with every connection and association that touches it, so no edge is left
+ * dangling; its children are freed, and data sources and variables keep their description but lose the link.
+ */
 export function removeComponent(scene: ScadaScene, instanceId: string): GraphResult {
   if (!scene.components.some((c) => c.id === instanceId)) {
     return { ok: false, error: { code: 'UNKNOWN_INSTANCE', message: `No component "${instanceId}".` } };
@@ -76,8 +79,26 @@ export function removeComponent(scene: ScadaScene, instanceId: string): GraphRes
       }),
     connections: scene.connections.filter((c) => c.from.instanceId !== instanceId && c.to.instanceId !== instanceId),
   };
-  const kept = scene.associations && withAssociations(next, scene.associations.filter((a) => a.from !== instanceId && a.to !== instanceId));
-  return { ok: true, scene: withoutDanglingBindings(kept ?? next) };
+  const kept = scene.associations ? withAssociations(next, scene.associations.filter((a) => a.from !== instanceId && a.to !== instanceId)) : next;
+  return { ok: true, scene: withoutDanglingBindings(unlinkAcquisition(kept, instanceId)) };
+}
+
+/**
+ * Clears a removed component's links from data sources (`deviceId`) and runtime variables
+ * (`componentId`), keeping the acquisition description itself (ADR-0024).
+ */
+function unlinkAcquisition(scene: ScadaScene, instanceId: string): ScadaScene {
+  const dataSources = scene.dataSources?.map((s) => {
+    if (s.deviceId !== instanceId) return s;
+    const { deviceId: _, ...rest } = s;
+    return rest;
+  });
+  const runtimeVariables = scene.runtimeVariables?.map((v) => {
+    if (v.componentId !== instanceId) return v;
+    const { componentId: _, ...rest } = v;
+    return rest;
+  });
+  return { ...scene, ...(dataSources ? { dataSources } : {}), ...(runtimeVariables ? { runtimeVariables } : {}) };
 }
 
 /** Drops tag bindings whose component or connection no longer exists. Absent bindings stay absent. */

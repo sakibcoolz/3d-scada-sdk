@@ -50,5 +50,9 @@
   "association-without-relationship.scene.json": {
     "code": "INVALID_FIELD",
     "path": "associations[0].relationship"
+  },
+  "writable-variable.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "runtimeVariables[0].access"
   }
 }

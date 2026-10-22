@@ -62,6 +62,10 @@ export const baseV4 = () => ({
   ],
   connections: [{ id: 'e1', domain: 'fluid', relationship: 'feeds', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'valve', portId: 'in' }, properties: { lengthM: 2, cable: 'n/a' } }],
   associations: [{ id: 'a1', relationship: 'controls', from: 'valve', to: 'tank', properties: { note: 'x' } }],
+  dataSources: [{ id: 'ds', name: 'PLC', protocol: 'modbus-tcp', deviceId: 'valve', endpointRef: 'host:plc', properties: { pollMs: 500 } }],
+  runtimeVariables: [
+    { id: 'LT-101', name: 'Level', componentId: 'tank', dataType: 'float32', unit: '%', access: 'read', source: { dataSourceId: 'ds', variable: 'L', address: { area: 'holding', address: 40, unitId: 1 } }, scaling: { kind: 'linear', rawMin: 0, rawMax: 27648, min: 0, max: 100 } },
+  ],
   tagBindings: [{ id: 'b1', tagId: 'LT-101', kind: 'property', instanceId: 'tank', property: 'level', unit: '%' }],
   extensions: { 'org.example.b': { n: 1, s: 'x', arr: [[], {}] } },
 });
