@@ -154,6 +154,11 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Bindings, quality and acquisition (T-078, ADR-0024)
+- **Binding checks:** a binding to a described tag must fit its data type (`TYPE_MISMATCH`). The tag's unit applies when the binding gives none, in validation and in `resolveTelemetry`.
+- **`Quality`** gains `DISCONNECTED`: the source link is down. Properties and flows become unknown with reason `DISCONNECTED`, and the viewer says "disconnected".
+- **`projectAcquisition(scene)`** returns `{ sourceRevision?, dataSources, variables: AcquisitionVariable[] }` for a host's gateway configuration. It is pure and deterministic, and the SDK never sends it anywhere.
+
 ## Data sources and runtime variables (T-077, ADR-0024)
 - **`scene.dataSources`:** optional `{ id, name?, protocol, deviceId?, endpointRef?, properties? }`. `endpointRef` is an opaque host reference and never holds credentials.
 - **`scene.runtimeVariables`:** optional `{ id, name?, componentId?, dataType, unit?, access: 'read', source?: { dataSourceId, variable?, address? }, scaling? }`.

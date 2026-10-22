@@ -48,6 +48,7 @@ const publicApi = [
   'portToWorld',
   'portsCompatible',
   'powerKinds',
+  'projectAcquisition',
   'protocols',
   'quaternionFromEuler',
   'quaternionToEuler',

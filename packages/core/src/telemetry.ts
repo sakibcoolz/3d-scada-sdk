@@ -12,11 +12,11 @@ export interface Observation {
   sourceTimestamp: string;
   /** Default MEASURED. */
   source?: ValueSource;
-  /** Unit of `value`; when absent the binding's unit, then the canonical unit, is assumed. */
+  /** Unit of `value`; when absent the binding's unit, then the runtime variable's unit, then the canonical unit, is assumed. */
   unit?: string;
 }
 
-export type TelemetryUnknownReason = 'NO_READING' | 'BAD_QUALITY' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE' | 'INVALID_UNIT';
+export type TelemetryUnknownReason = 'NO_READING' | 'BAD_QUALITY' | 'DISCONNECTED' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE' | 'INVALID_UNIT';
 
 type Target = { bindingId: string; instanceId: string; property: string };
 
@@ -89,13 +89,15 @@ export function resolveTelemetry(scene: ScadaScene, observations: readonly Obser
   }
 
   const components = new Map(scene.components.map((c) => [c.id, c]));
+  // A runtime variable's unit applies when neither the observation nor the binding gives one (ADR-0024).
+  const variableUnits = new Map((scene.runtimeVariables ?? []).filter((v) => v.unit !== undefined).map((v) => [v.id, v.unit]));
   const properties: PropertyState[] = [];
   const flowReadings: FlowReading[] = [];
   for (const binding of bindings) {
     const o = latest.get(binding.tagId);
     if (binding.kind === 'flow') {
       if (!o) continue;
-      const converted = convert(o.value, 'flow', o.unit ?? binding.unit);
+      const converted = convert(o.value, 'flow', o.unit ?? binding.unit ?? variableUnits.get(binding.tagId));
       flowReadings.push({
         connectionId: binding.connectionId,
         rate: 'value' in converted ? (converted.value as number) : Number.NaN,
@@ -113,7 +115,7 @@ export function resolveTelemetry(scene: ScadaScene, observations: readonly Obser
     const meta = { quality: o.quality, source, sourceTimestamp: o.sourceTimestamp };
     const owner = components.get(binding.instanceId);
     const quantity = owner ? options.resolveBindable?.(owner.type)?.[binding.property] : undefined;
-    const converted = convert(o.value, quantity, o.unit ?? binding.unit);
+    const converted = convert(o.value, quantity, o.unit ?? binding.unit ?? variableUnits.get(binding.tagId));
     const problem = 'reason' in converted ? converted.reason : assessObservation(o, options);
     if (problem) properties.push({ ...target, status: 'unknown', reason: problem, ...meta });
     else properties.push({ ...target, status: 'ok', value: (converted as { value: number | boolean }).value, ...meta, uncertain: o.quality === 'UNCERTAIN' });

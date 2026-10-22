@@ -1,6 +1,6 @@
 # ADR-0024: Runtime variables and data sources (tag engine)
 
-Status: Accepted (owner, 2026-10-22: read-only access and a separate `reviewTags` explicitly approved); T-077 implemented, T-078..T-079 pending. M9 Phase 5 of docs/INDUSTRIAL_SDK_PLAN.md (§5.3, §5.4, §8.2), tasks T-077..T-079.
+Status: Accepted (owner, 2026-10-22: read-only access and a separate `reviewTags` explicitly approved); T-077 and T-078 implemented, T-079 pending. M9 Phase 5 of docs/INDUSTRIAL_SDK_PLAN.md (§5.3, §5.4, §8.2), tasks T-077..T-079.
 
 ## Context
 Today a tag is an opaque string.
@@ -163,3 +163,20 @@ ADR-0023 gave the model typed ports and explicit links (PLC → VFD → Motor). 
   - an address is any object in the schema, and checked by protocol in the validator;
   - new fixtures: `valid/acquisition`, `invalid/writable-variable`, `validator-only/modbus-coil-float`, `validator-only/endpoint-with-credentials` and `validator-only/unknown-data-source`;
   - the fuzz base carries a source and a variable, and the security fuzz knows the new codes.
+
+## Implementation notes (T-078)
+- **Bindings:** when a binding's `tagId` names a runtime variable, `checkBindings` refuses with `TYPE_MISMATCH` (at `tagBindings[i].tagId`) when:
+  - a `string` tag drives anything;
+  - a non-`bool` tag drives a boolean;
+  - a `bool` tag drives a number.
+
+  When the binding has no unit and the tag's unit is not accepted for the quantity, it is `INVALID_UNIT`. Without `resolveBindable`, only the `string` rule applies. Bindings to undescribed tags are unchanged.
+- **Telemetry:** the unit used to convert an observation is the observation's, else the binding's, else the runtime variable's, else canonical.
+- **`DISCONNECTED`:**
+  - added to `Quality` and `qualities`;
+  - `assessObservation` reports it after timestamp checks and like `BAD`;
+  - `TelemetryUnknownReason` and `FlowUnknownReason` gain `DISCONNECTED`;
+  - the viewer shows "unknown (disconnected)", with flows drawn in the bad-quality colour;
+  - the playground demo feed offers it.
+- **`projectAcquisition(scene)`:** `{ sourceRevision?, dataSources, variables }`. Only variables with a source are included, in scene order, as deep copies. There are no component links, names, geometry or views.
+- **Consumer:** `node-check.mjs` projects a Modbus tag through the packed packages and checks that an endpoint with credentials is refused.

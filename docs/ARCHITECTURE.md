@@ -219,7 +219,7 @@ sequenceDiagram
 
 Proposed interface (API name not finalized):
 ```ts
-type Quality = 'GOOD' | 'BAD' | 'UNCERTAIN' | 'STALE';
+type Quality = 'GOOD' | 'BAD' | 'UNCERTAIN' | 'STALE' | 'DISCONNECTED'; // DISCONNECTED: source link down (ADR-0024), treated like BAD
 type Observation = { tagId:string; value:number | boolean | string; sourceTimestamp:string; quality:Quality; unit?:string; source?:'MEASURED' | 'SIMULATED' };
 interface DataProvider {
   getSnapshot?(): Observation[] | Promise<Observation[]>;

@@ -1,7 +1,8 @@
 import { assessObservation, isNewer, qualities } from './observation.js';
 import type { ScadaScene } from './scene.js';
 
-export type Quality = 'GOOD' | 'BAD' | 'UNCERTAIN' | 'STALE';
+/** `DISCONNECTED`: the link to the source is down, as distinct from a bad reading (ADR-0024). */
+export type Quality = 'GOOD' | 'BAD' | 'UNCERTAIN' | 'STALE' | 'DISCONNECTED';
 export type ValueSource = 'MEASURED' | 'SIMULATED';
 
 /** One flow observation supplied by the host. The SDK never fetches readings itself. */
@@ -16,7 +17,7 @@ export interface FlowReading {
 }
 
 export type FlowDirection = 'forward' | 'reverse' | 'stopped' | 'unknown';
-export type FlowUnknownReason = 'NO_READING' | 'BAD_QUALITY' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE';
+export type FlowUnknownReason = 'NO_READING' | 'BAD_QUALITY' | 'DISCONNECTED' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE';
 
 export type FlowState =
   | {

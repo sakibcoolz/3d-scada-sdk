@@ -65,7 +65,8 @@ export type SceneValidationErrorCode =
   | 'DUPLICATE_DATA_SOURCE_ID'
   | 'DUPLICATE_VARIABLE_ID'
   | 'UNKNOWN_DATA_SOURCE'
-  | 'INVALID_ADDRESS';
+  | 'INVALID_ADDRESS'
+  | 'TYPE_MISMATCH';
 
 export interface SceneValidationError {
   code: SceneValidationErrorCode;
@@ -833,6 +834,7 @@ function readBinding(value: unknown, path: string, limits: SceneLimits, errors: 
 function checkBindings(scene: ScadaScene, options: SceneValidationOptions, errors: Errors): void {
   const components = new Map(scene.components.map((c) => [c.id, c]));
   const connections = new Set(scene.connections.map((c) => c.id));
+  const variables = new Map((scene.runtimeVariables ?? []).map((v) => [v.id, v]));
   const ids = new Set<string>();
   const targets = new Set<string>();
   scene.tagBindings?.forEach((binding, i) => {
@@ -865,6 +867,20 @@ function checkBindings(scene: ScadaScene, options: SceneValidationOptions, error
       }
       quantity = 'flow';
       target = JSON.stringify(['flow', binding.connectionId]);
+    }
+    const variable = variables.get(binding.tagId);
+    if (variable) {
+      // The tag is described (ADR-0024): its data type must fit the property, and its unit applies when the binding gives none.
+      const fits = variable.dataType === 'string' ? false : quantity === undefined ? true : (quantity === 'boolean') === (variable.dataType === 'bool');
+      if (!fits) {
+        const needs = quantity === 'boolean' ? 'a bool' : quantity ? `a number (${quantity})` : 'a bool or a number';
+        errors.push({ code: 'TYPE_MISMATCH', path: `${path}.tagId`, message: `Tag "${binding.tagId}" is ${variable.dataType}, but this binding needs ${needs}.` });
+        return;
+      }
+      if (quantity && binding.unit === undefined && variable.unit !== undefined && !isKnownUnit(quantity, variable.unit)) {
+        errors.push({ code: 'INVALID_UNIT', path: `${path}.tagId`, message: `Tag "${binding.tagId}" is in "${variable.unit}", which is not accepted for ${quantity}.` });
+        return;
+      }
     }
     if (quantity && !isKnownUnit(quantity, binding.unit)) {
       errors.push({ code: 'INVALID_UNIT', path: `${path}.unit`, message: `Unit "${binding.unit}" is not accepted for ${quantity}.` });

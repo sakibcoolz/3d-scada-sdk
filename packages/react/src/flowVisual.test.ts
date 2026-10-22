@@ -13,7 +13,7 @@ const known = (direction: 'forward' | 'reverse' | 'stopped', overrides: Partial<
     uncertain: false,
     ...overrides,
   }) as FlowState;
-const unknown = (reason: 'NO_READING' | 'BAD_QUALITY' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE'): FlowState => ({
+const unknown = (reason: 'NO_READING' | 'BAD_QUALITY' | 'DISCONNECTED' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE'): FlowState => ({
   connectionId: 'e1',
   direction: 'unknown',
   reason,
@@ -24,9 +24,11 @@ describe('flowAppearance', () => {
     expect(flowAppearance(known('forward')).motion).toBe('forward');
     expect(flowAppearance(known('reverse')).motion).toBe('reverse');
     expect(flowAppearance(known('stopped')).motion).toBe('still');
-    for (const reason of ['NO_READING', 'BAD_QUALITY', 'STALE', 'INVALID_TIMESTAMP', 'INVALID_VALUE'] as const) {
+    for (const reason of ['NO_READING', 'BAD_QUALITY', 'DISCONNECTED', 'STALE', 'INVALID_TIMESTAMP', 'INVALID_VALUE'] as const) {
       expect(flowAppearance(unknown(reason))).toEqual(expect.objectContaining({ motion: 'none', dashed: true }));
     }
+    // A lost link is shown like a bad reading, not like a missing one.
+    expect(flowAppearance(unknown('DISCONNECTED')).color).toBe(flowAppearance(unknown('BAD_QUALITY')).color);
   });
 
   it('colours measured and simulated flow differently', () => {

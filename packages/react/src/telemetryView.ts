@@ -3,6 +3,7 @@ import { canonicalUnits, type PropertyState, type Quantity, type TelemetryUnknow
 const reasonLabels: Record<TelemetryUnknownReason, string> = {
   STALE: 'stale',
   BAD_QUALITY: 'bad quality',
+  DISCONNECTED: 'disconnected',
   NO_READING: 'no reading',
   INVALID_TIMESTAMP: 'invalid timestamp',
   INVALID_VALUE: 'invalid value',

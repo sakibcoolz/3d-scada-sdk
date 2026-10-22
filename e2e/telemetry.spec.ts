@@ -27,6 +27,12 @@ test.describe('demo telemetry', () => {
     await expect.poll(async () => (await part(page, 'tank', 'liquid')).visible).toBe(false);
     await expect(live).toContainText('level: unknown (bad quality)');
     await expect(page.getByLabel('Telemetry summary')).toHaveText('Tags: 2 good, 0 uncertain, 1 unknown (1 bad quality)');
+
+    // A lost source link (ADR-0024) is unknown too, and says so.
+    await page.getByLabel('Quality LT-101').selectOption('DISCONNECTED');
+    await expect(live).toContainText('level: unknown (disconnected)');
+    await expect.poll(async () => (await part(page, 'tank', 'liquid')).visible).toBe(false);
+    await expect(page.getByLabel('Telemetry summary')).toHaveText('Tags: 2 good, 0 uncertain, 1 unknown (1 disconnected)');
   });
 
   test('a valve shows open, closed, or unknown from its tag', async ({ page }) => {

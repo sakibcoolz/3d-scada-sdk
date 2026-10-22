@@ -1,7 +1,7 @@
 import type { Quality } from './flow.js';
 
 /** Quality and timestamp rules shared by flow readings and tag observations. */
-export const qualities: readonly Quality[] = ['GOOD', 'BAD', 'UNCERTAIN', 'STALE'];
+export const qualities: readonly Quality[] = ['GOOD', 'BAD', 'UNCERTAIN', 'STALE', 'DISCONNECTED'];
 
 export interface FreshnessOptions {
   /** Current time in epoch milliseconds. */
@@ -17,7 +17,7 @@ function parseTimestamp(value: unknown): number {
   return typeof value === 'string' ? Date.parse(value) : Number.NaN;
 }
 
-export type ObservationProblem = 'BAD_QUALITY' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE';
+export type ObservationProblem = 'BAD_QUALITY' | 'DISCONNECTED' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE';
 
 /** Why an observation cannot be trusted, or undefined if it can (UNCERTAIN is trusted but flagged). */
 export function assessObservation(o: { quality: Quality; sourceTimestamp: string }, options: FreshnessOptions): ObservationProblem | undefined {
@@ -25,6 +25,8 @@ export function assessObservation(o: { quality: Quality; sourceTimestamp: string
   const observedAt = parseTimestamp(o.sourceTimestamp);
   if (Number.isNaN(observedAt) || observedAt - options.now > (options.maxClockSkewMs ?? 5_000)) return 'INVALID_TIMESTAMP';
   if (o.quality === 'BAD') return 'BAD_QUALITY';
+  // Like BAD: the last value is never shown as current while the source link is down.
+  if (o.quality === 'DISCONNECTED') return 'DISCONNECTED';
   if (o.quality === 'STALE' || options.now - observedAt > (options.staleAfterMs ?? 10_000)) return 'STALE';
   return undefined;
 }
