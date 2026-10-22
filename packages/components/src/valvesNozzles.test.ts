@@ -75,7 +75,7 @@ const part = (id: string, type: ComponentInstance['type'], x: number, properties
 describe('older files with 1.2 m valves', () => {
   // Saved after T-050: pipe [-1, 1] — old valve [1, 2.2] — pipe [2.2, 4.2] — ASME elbow at 4.2.
   const saved: ScadaScene = {
-    schemaVersion: 3, units: 'm',
+    schemaVersion: 4, documentType: 'industrial.scene', units: 'm',
     components: [part('p1', 'pipe', 0), part('v', 'valve', 1.6), part('p2', 'pipe', 3.2), part('e', 'elbow', 4.2 + asme.DN150.elbowLR90)],
     connections: [
       { id: 'c1', from: { instanceId: 'p1', portId: 'out' }, to: { instanceId: 'v', portId: 'in' } },

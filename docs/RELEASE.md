@@ -42,6 +42,11 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, scene version 4 (T-068, ADR-0021):**
+  - Saved files are now `schemaVersion: 4` with `documentType: "industrial.scene"`. Older SDKs (0.1.x) cannot open them.
+  - v1, v2 and v3 files still load, and report `migratedFrom`. The editor's import message says "(migrated from version 3)" for them.
+  - The in-memory `ScadaScene` type now has `schemaVersion: 4` and `documentType`. Code that builds scenes by hand updates the literal, or starts from `createEmptyScene()`.
+  - The new optional identity, label and extension fields need no change in hosts that do not use them.
 - **0.1.0 → ASME fittings (T-050, ADR-0014):** elbows, tees and reducers changed size, so their ports moved. The editor's import upgrades older files automatically. A host that loads saved scenes itself (`parseScene`/`validateScene` and then the viewer) must also call:
 
   ```ts

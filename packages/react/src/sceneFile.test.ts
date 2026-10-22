@@ -4,7 +4,8 @@ import { asme } from '@sakibcoolz/components';
 import { formatSceneErrors, importSceneText, MAX_SCENE_FILE_BYTES } from './sceneFile.js';
 
 const linked: ScadaScene = {
-  schemaVersion: 3,
+  schemaVersion: 4,
+  documentType: 'industrial.scene',
   units: 'm',
   components: [
     { id: 'tank', type: 'tank', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { level: 60 } },
@@ -83,7 +84,7 @@ describe('importSceneText with tag bindings', () => {
 });
 
 describe('importSceneText with an underlay (ADR-0012)', () => {
-  const scene = (svg: string) => JSON.stringify({ schemaVersion: 3, units: 'm', components: [], connections: [], underlay: { svg, position: { x: 0, z: 0 }, width: 20, rotation: 0, opacity: 0.6 } });
+  const scene = (svg: string) => JSON.stringify({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [], connections: [], underlay: { svg, position: { x: 0, z: 0 }, width: 20, rotation: 0, opacity: 0.6 } });
 
   it('accepts a sanitized underlay', () => {
     const r = importSceneText(scene('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0L5 5"/></svg>'));

@@ -50,7 +50,8 @@ const edge = (id: string, from: [string, string], to: [string, string]): SceneCo
 /** tank -> valve -> tee, tee branches to valve-a and valve-b; valve-x stands alone. */
 function teeNetwork(): ScadaScene {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm',
     components: [
       component('tank', 'tank'),
@@ -114,7 +115,8 @@ describe('connect', () => {
 
   it('allows closing a loop', () => {
     const scene: ScadaScene = {
-      schemaVersion: 3,
+      schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm',
       components: [component('a', 'valve'), component('b', 'valve')],
       connections: [edge('e1', ['a', 'out'], ['b', 'in'])],
@@ -180,7 +182,8 @@ describe('reachableComponents', () => {
 
   it('terminates on a cycle', () => {
     const loop: ScadaScene = {
-      schemaVersion: 3,
+      schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm',
       components: [component('a', 'valve'), component('b', 'valve'), component('t', 'tee')],
       connections: [
@@ -201,7 +204,8 @@ describe('reachableComponents', () => {
     const count = 5000;
     const components = Array.from({ length: count }, (_, i) => component(`v${i}`, 'valve'));
     const connections = Array.from({ length: count - 1 }, (_, i) => edge(`e${i}`, [`v${i}`, 'out'], [`v${i + 1}`, 'in']));
-    expect(reachableComponents({ schemaVersion: 3,
+    expect(reachableComponents({ schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm', components, connections }, 'v0')).toHaveLength(count);
   });
 });
@@ -212,7 +216,8 @@ describe('connectedGroups', () => {
   });
 
   it('returns no groups for an empty scene', () => {
-    expect(connectedGroups({ schemaVersion: 3,
+    expect(connectedGroups({ schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm', components: [], connections: [] })).toEqual([]);
   });
 });

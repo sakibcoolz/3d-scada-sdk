@@ -44,7 +44,7 @@ const instance = (id: string, type: ComponentKind, [px, py, pz]: Vector3Tuple, [
 
 const tank = instance('tank-1', 'tank', [0, 0, 0]);
 // Tank outlet is at world (1.2, -0.9, 0) facing +X.
-const sceneWith = (...components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 3, units: 'm', components, connections: [] });
+const sceneWith = (...components: ComponentInstance[]): ScadaScene => ({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components, connections: [] });
 
 function expectClose(actual: readonly number[], expected: readonly number[], digits = 9): void {
   actual.forEach((value, i) => expect(value).toBeCloseTo(expected[i], digits));
@@ -183,7 +183,8 @@ describe('snapComponent', () => {
     const result = snapComponent(sceneWith(tank), pipe, options);
     if (!result.ok) throw new Error('expected a snap');
     const scene = {
-      schemaVersion: 3,
+      schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm',
       components: [tank, { ...pipe, position: result.position, rotation: result.rotation }],
       connections: [{ id: 'e1', ...result.connection }],

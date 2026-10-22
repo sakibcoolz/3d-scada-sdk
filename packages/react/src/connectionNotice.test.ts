@@ -12,7 +12,7 @@ const part = (id: string, type: ComponentInstance['type'], parentId?: string): C
   properties: {},
 });
 const joint = (id: string, a: string, ap: string, b: string, bp: string): SceneConnection => ({ id, from: { instanceId: a, portId: ap }, to: { instanceId: b, portId: bp } });
-const scene = (components: ComponentInstance[], connections: SceneConnection[] = []): ScadaScene => ({ schemaVersion: 3, units: 'm', components, connections });
+const scene = (components: ComponentInstance[], connections: SceneConnection[] = []): ScadaScene => ({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components, connections });
 
 describe('describeNewConnections', () => {
   it('says nothing when no connection was added', () => {

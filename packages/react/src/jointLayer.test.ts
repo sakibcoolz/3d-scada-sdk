@@ -6,7 +6,7 @@ import { jointPlacements } from './jointLayer.js';
 const I = { x: 0, y: 0, z: 0, w: 1 };
 const part = (id: string, type: ComponentKind, x: number, y = 0.2, properties: ComponentInstance['properties'] = {}): ComponentInstance => ({ id, type, position: { x, y, z: 0 }, rotation: I, scale: { x: 1, y: 1, z: 1 }, properties });
 const join = (id: string, a: string, ap: string, b: string, bp: string): SceneConnection => ({ id, from: { instanceId: a, portId: ap }, to: { instanceId: b, portId: bp } });
-const scene = (components: ComponentInstance[], connections: SceneConnection[] = []): ScadaScene => ({ schemaVersion: 3, units: 'm', components, connections });
+const scene = (components: ComponentInstance[], connections: SceneConnection[] = []): ScadaScene => ({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components, connections });
 const place = (s: ScadaScene) => jointPlacements(s, routeScene(s, catalogResolvers));
 const origin = (m: readonly number[]) => [m[12], m[13], m[14]].map((n) => Math.round(n * 1e9) / 1e9);
 const xAxis = (m: readonly number[]) => [m[0], m[1], m[2]].map((n) => Math.round(n * 1e9) / 1e9);

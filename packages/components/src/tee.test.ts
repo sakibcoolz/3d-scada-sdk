@@ -84,7 +84,7 @@ describe('T-junction cross-check', () => {
   it('refuses a port of another size, e.g. the default reducer outlet (DN100)', () => {
     const out = componentCatalog.reducer.ports.find((p) => p.id === 'out')!;
     const other = seat('reducer', out, portToWorld(teeAtOrigin, tee.ports[0]));
-    const placed: ScadaScene = { schemaVersion: 3, units: 'm', components: [teeAtOrigin, other], connections: [] };
+    const placed: ScadaScene = { schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [teeAtOrigin, other], connections: [] };
     expect(findTouchingPorts(placed, catalogResolvers).rejected).toEqual([expect.objectContaining({ reason: 'incompatible' })]);
     expect(connect(placed, { id: 'j', from: { instanceId: 'tee', portId: 'left' }, to: { instanceId: 'other', portId: 'out' } }, catalogResolvers).ok).toBe(false);
   });
@@ -95,7 +95,7 @@ describe('T-junction cross-check', () => {
     expect(radiiAtPort(type, port)).toEqual([pipeOuterRadius]);
 
     const other = seat(type, port, portToWorld(teeAtOrigin, teePort));
-    const placed: ScadaScene = { schemaVersion: 3, units: 'm', components: [teeAtOrigin, other], connections: [] };
+    const placed: ScadaScene = { schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [teeAtOrigin, other], connections: [] };
 
     // The ports meet: same point, opposite directions.
     const a = portToWorld(teeAtOrigin, teePort), b = portToWorld(other, port);

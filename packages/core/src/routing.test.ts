@@ -49,7 +49,8 @@ const nozzle = (id: string, [px, py, pz]: Vector3Tuple, face: keyof typeof facin
 
 function pair(a: ComponentInstance, b: ComponentInstance): ScadaScene {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
+    documentType: 'industrial.scene',
     units: 'm',
     components: [a, b],
     connections: [{ id: 'e1', from: { instanceId: a.id, portId: 'p' }, to: { instanceId: b.id, portId: 'p' } }],
@@ -198,7 +199,8 @@ describe('routeConnection', () => {
 
 describe('routeScene', () => {
   const network = (): ScadaScene => ({
-    schemaVersion: 3,
+    schemaVersion: 4,
+    documentType: 'industrial.scene',
     units: 'm',
     components: [
       nozzle('src', [-3, 0, 0], '+x'),

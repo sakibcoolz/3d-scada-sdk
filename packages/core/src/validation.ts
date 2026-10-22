@@ -1,6 +1,10 @@
 import {
   componentKinds,
   portsCompatible,
+  SCENE_DOCUMENT_TYPE,
+  type JsonValue,
+  type SceneExtensions,
+  type SceneProject,
   type ComponentInstance,
   type ComponentKind,
   type ConnectionPort,
@@ -43,7 +47,8 @@ export type SceneValidationErrorCode =
   | 'INVALID_PROPERTY'
   | 'UNKNOWN_PARENT'
   | 'PARENT_CYCLE'
-  | 'INVALID_UNDERLAY';
+  | 'INVALID_UNDERLAY'
+  | 'SECRET_FIELD';
 
 export interface SceneValidationError {
   code: SceneValidationErrorCode;
@@ -54,7 +59,7 @@ export interface SceneValidationError {
 
 export type SceneValidationResult =
   /** `migratedFrom` is set when the input was an older schema version that was upgraded. */
-  | { ok: true; scene: ScadaScene; migratedFrom?: 1 | 2 }
+  | { ok: true; scene: ScadaScene; migratedFrom?: 1 | 2 | 3 }
   | { ok: false; errors: SceneValidationError[] };
 
 export interface SceneLimits {
@@ -105,18 +110,34 @@ export interface SceneValidationOptions {
 type Errors = SceneValidationError[];
 type Json = Record<string, unknown>;
 
-type SchemaVersion = 1 | 2 | 3;
+type SchemaVersion = 1 | 2 | 3 | 4;
 const sceneKeys: Record<SchemaVersion, string[]> = {
   1: ['version', 'components', 'connections'],
   2: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings'],
   3: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings', 'underlay'],
+  4: ['schemaVersion', 'documentType', 'units', 'project', 'components', 'connections', 'tagBindings', 'underlay', 'extensions'],
 };
+const projectKeys = ['id', 'name', 'revision', 'description'];
 const underlayKeys = ['svg', 'position', 'width', 'rotation', 'opacity'];
 const componentKeys: Record<SchemaVersion, string[]> = {
   1: ['id', 'kind', 'position', 'rotation', 'properties'],
   2: ['id', 'type', 'position', 'rotation', 'scale', 'properties'],
   3: ['id', 'type', 'parentId', 'position', 'rotation', 'scale', 'properties'],
+  4: ['id', 'name', 'type', 'typeVersion', 'manufacturer', 'model', 'parentId', 'position', 'rotation', 'scale', 'properties', 'labels', 'extensions'],
 };
+/** Deepest nesting accepted inside one extension value, and most values in all extensions of a scene (ADR-0021). */
+const MAX_EXTENSION_DEPTH = 16;
+const MAX_EXTENSION_VALUES = 10_000;
+/** Reverse-DNS namespace for extension keys, e.g. `com.example.app`. */
+const NAMESPACE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
+/** Keys that would reach an object's prototype if copied naively. */
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const SECRET_WORDS = ['password', 'passwd', 'secret', 'credential', 'apikey', 'privatekey'];
+/** True for a key that names a credential: scene documents carry references to secrets, never secrets (ADR-0021). */
+export function isSecretKey(key: string): boolean {
+  const k = key.toLowerCase().replace(/[-_.\s]/g, '');
+  return k === 'pwd' || k.endsWith('token') || SECRET_WORDS.some((w) => k.includes(w));
+}
 /** Accepted deviation of a rotation quaternion's length from 1; larger values are rejected, never renormalised. */
 const UNIT_TOLERANCE = 1e-6;
 const connectionKeys = ['id', 'from', 'to'];
@@ -273,10 +294,156 @@ function readProperties(
   return valid ? properties : undefined;
 }
 
+/** A non-empty string no longer than the string limit. */
+function readText(value: unknown, path: string, limits: SceneLimits, errors: Errors): string | undefined {
+  if (typeof value !== 'string' || value.length === 0) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a non-empty string.' });
+    return undefined;
+  }
+  if (value.length > limits.maxStringLength) {
+    errors.push({ code: 'LIMIT_EXCEEDED', path, message: `String longer than ${limits.maxStringLength} characters.` });
+    return undefined;
+  }
+  return value;
+}
+
+/** Defines a key as plain data, so keys such as "__proto__" never touch the prototype. */
+function put<T>(target: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+}
+
+function readProject(value: unknown, limits: SceneLimits, errors: Errors): SceneProject | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path: 'project', message: 'Expected a project object.' });
+    return undefined;
+  }
+  checkKeys(value, projectKeys, 'project', errors);
+  const project: SceneProject = {};
+  if (value.id !== undefined) {
+    const id = readId(value.id, 'project.id', limits, errors);
+    if (id !== undefined) project.id = id;
+  }
+  for (const key of ['name', 'revision', 'description'] as const) {
+    if (value[key] !== undefined) {
+      const text = readText(value[key], `project.${key}`, limits, errors);
+      if (text !== undefined) project[key] = text;
+    }
+  }
+  return project;
+}
+
+/** Identification labels: string keys to string values, no credentials (ADR-0021). */
+function readLabels(value: unknown, path: string, limits: SceneLimits, errors: Errors): Record<string, string> | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected an object of labels.' });
+    return undefined;
+  }
+  const entries = Object.entries(value);
+  if (entries.length > limits.maxProperties) {
+    errors.push({ code: 'LIMIT_EXCEEDED', path, message: `More than ${limits.maxProperties} labels.` });
+    return undefined;
+  }
+  const labels: Record<string, string> = {};
+  for (const [key, v] of entries) {
+    const labelPath = `${path}.${key}`;
+    if (key.length === 0 || key.length > limits.maxIdLength) {
+      errors.push({ code: 'INVALID_FIELD', path: labelPath, message: `Label names must be 1 to ${limits.maxIdLength} characters.` });
+      continue;
+    }
+    if (isSecretKey(key)) {
+      errors.push({ code: 'SECRET_FIELD', path: labelPath, message: `"${key}" looks like a credential; store a reference in the host instead.` });
+      continue;
+    }
+    if (typeof v !== 'string') {
+      errors.push({ code: 'INVALID_FIELD', path: labelPath, message: 'Expected a string label.' });
+      continue;
+    }
+    if (v.length > limits.maxStringLength) {
+      errors.push({ code: 'LIMIT_EXCEEDED', path: labelPath, message: `String longer than ${limits.maxStringLength} characters.` });
+      continue;
+    }
+    put(labels, key, v);
+  }
+  return labels;
+}
+
+/**
+ * Extensions: reverse-DNS namespaces to plain JSON, bounded in depth and size, with no prototype
+ * keys and no credentials anywhere inside (ADR-0021). Returns a fresh copy.
+ */
+function readExtensions(value: unknown, path: string, budget: { left: number }, limits: SceneLimits, errors: Errors): SceneExtensions | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected an object keyed by namespace.' });
+    return undefined;
+  }
+  const out: SceneExtensions = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (!NAMESPACE.test(key)) {
+      errors.push({ code: 'INVALID_FIELD', path: `${path}.${key}`, message: 'Extension keys must be reverse-DNS namespaces such as "com.example.app".' });
+      continue;
+    }
+    const copy = readJson(v, `${path}.${key}`, 1, budget, limits, errors);
+    if (copy !== undefined) put(out, key, copy);
+  }
+  return out;
+}
+
+function readJson(value: unknown, path: string, depth: number, budget: { left: number }, limits: SceneLimits, errors: Errors): JsonValue | undefined {
+  if (--budget.left < 0) {
+    if (budget.left === -1) errors.push({ code: 'LIMIT_EXCEEDED', path, message: `Extensions hold more than ${MAX_EXTENSION_VALUES} values.` });
+    return undefined;
+  }
+  if (depth > MAX_EXTENSION_DEPTH) {
+    errors.push({ code: 'LIMIT_EXCEEDED', path, message: `Extension values nest deeper than ${MAX_EXTENSION_DEPTH} levels.` });
+    return undefined;
+  }
+  if (value === null || typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) return plusZero(value);
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a finite number.' });
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    if (value.length <= limits.maxStringLength) return value;
+    errors.push({ code: 'LIMIT_EXCEEDED', path, message: `String longer than ${limits.maxStringLength} characters.` });
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    const out: JsonValue[] = [];
+    for (let i = 0; i < value.length; i++) {
+      const item = readJson(value[i], `${path}[${i}]`, depth + 1, budget, limits, errors);
+      if (item === undefined) return undefined;
+      out.push(item);
+    }
+    return out;
+  }
+  if (isObject(value)) {
+    const out: { [key: string]: JsonValue } = {};
+    for (const [key, v] of Object.entries(value)) {
+      const keyPath = `${path}.${key}`;
+      if (FORBIDDEN_KEYS.has(key)) {
+        errors.push({ code: 'INVALID_FIELD', path: keyPath, message: `"${key}" is not allowed as a key.` });
+        return undefined;
+      }
+      if (isSecretKey(key)) {
+        errors.push({ code: 'SECRET_FIELD', path: keyPath, message: `"${key}" looks like a credential; store a reference in the host instead.` });
+        return undefined;
+      }
+      const item = readJson(v, keyPath, depth + 1, budget, limits, errors);
+      if (item === undefined) return undefined;
+      put(out, key, item);
+    }
+    return out;
+  }
+  errors.push({ code: 'INVALID_FIELD', path, message: 'Expected plain JSON.' });
+  return undefined;
+}
+
 /**
  * Reads one component in the input's own schema version and returns it in the current model.
- * Version 3 uses named { x, y, z } / { x, y, z, w } objects. Version 2 uses arrays. Version 1 uses
- * `kind` and Euler XYZ radians and has no scale. Older versions migrate to the version 3 objects.
+ * Versions 3 and 4 use named { x, y, z } / { x, y, z, w } objects; version 4 adds identity, labels and
+ * extensions. Version 2 uses arrays. Version 1 uses `kind` and Euler XYZ radians and has no scale.
+ * Older versions migrate to the current model.
  */
 function readComponent(
   value: unknown,
@@ -284,6 +451,7 @@ function readComponent(
   version: SchemaVersion,
   limits: SceneLimits,
   errors: Errors,
+  extensionBudget: { left: number },
 ): ComponentInstance | undefined {
   if (!isObject(value)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a component object.' });
@@ -300,8 +468,8 @@ function readComponent(
   let position: Vector3Like | undefined;
   let rotation: QuaternionLike | undefined;
   let scale: Vector3Like | undefined;
-  const parentId = version === 3 && value.parentId !== undefined ? readId(value.parentId, `${path}.parentId`, limits, errors) : undefined;
-  if (version === 3) {
+  const parentId = version >= 3 && value.parentId !== undefined ? readId(value.parentId, `${path}.parentId`, limits, errors) : undefined;
+  if (version >= 3) {
     position = readVectorObject(value.position, `${path}.position`, errors);
     rotation = readQuaternionObject(value.rotation, `${path}.rotation`, errors);
     scale = readVectorObject(value.scale, `${path}.scale`, errors, true);
@@ -320,8 +488,28 @@ function readComponent(
     }
   }
   const properties = readProperties(value.properties, `${path}.properties`, limits, errors);
+  const identity: Pick<ComponentInstance, 'name' | 'typeVersion' | 'manufacturer' | 'model' | 'labels' | 'extensions'> = {};
+  if (version === 4) {
+    for (const key of ['name', 'typeVersion', 'manufacturer', 'model'] as const) {
+      if (value[key] !== undefined) {
+        const text = readText(value[key], `${path}.${key}`, limits, errors);
+        if (text !== undefined) identity[key] = text;
+      }
+    }
+    if (value.labels !== undefined) identity.labels = readLabels(value.labels, `${path}.labels`, limits, errors);
+    if (value.extensions !== undefined) identity.extensions = readExtensions(value.extensions, `${path}.extensions`, extensionBudget, limits, errors);
+  }
   if (errors.length > before || !id || !position || !rotation || !scale || !properties) return undefined;
-  return { id, type: type as ComponentKind, ...(parentId ? { parentId } : {}), position, rotation, scale, properties };
+  return {
+    id,
+    type: type as ComponentKind,
+    ...(parentId ? { parentId } : {}),
+    position,
+    rotation,
+    scale,
+    properties,
+    ...identity,
+  };
 }
 
 function readEndpoint(value: unknown, path: string, limits: SceneLimits, errors: Errors): SceneConnection['from'] | undefined {
@@ -542,15 +730,7 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
   });
 }
 
-/**
- * Validates an untrusted value as a scene and returns it in the current (version 3) model.
- * Version 1 (`version: 1`) and version 2 (array vectors) input is migrated deterministically and
- * reported via `migratedFrom`.
- * Never mutates or repairs the input: on success it returns a fresh copy, otherwise every error
- * found, in input order, with paths in the input's own field names. Reference checks (ids, ports,
- * compatibility, occupancy, scale policy) run only once the structure is valid. Each port accepts
- * one connection.
- */
+/** Reads the optional reference drawing (ADR-0012); sanitizing is the host's `validateUnderlay`. */
 function readUnderlay(value: unknown, limits: SceneLimits, options: SceneValidationOptions, errors: Errors): SceneUnderlay | undefined {
   if (!isObject(value)) {
     errors.push({ code: 'INVALID_FIELD', path: 'underlay', message: 'Expected an underlay object.' });
@@ -583,6 +763,15 @@ function readUnderlay(value: unknown, limits: SceneLimits, options: SceneValidat
   return { svg, position: { x, z }, width, rotation, opacity };
 }
 
+/**
+ * Validates an untrusted value as a scene and returns it in the current (version 4) model.
+ * Version 1 (`version: 1`), version 2 (array vectors) and version 3 input is migrated
+ * deterministically and reported via `migratedFrom` (ADR-0021).
+ * Never mutates or repairs the input: on success it returns a fresh copy, otherwise every error
+ * found, in input order, with paths in the input's own field names. Reference checks (ids, ports,
+ * compatibility, occupancy, scale policy) run only once the structure is valid. Each port accepts
+ * one connection.
+ */
 export function validateScene(input: unknown, options: SceneValidationOptions): SceneValidationResult {
   const limits: SceneLimits = { ...defaultSceneLimits, ...options.limits };
   const errors: Errors = [];
@@ -592,9 +781,12 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
   let version: SchemaVersion;
   if ('schemaVersion' in input) {
     // Unsupported numbers are reported and read with the newest rules.
-    version = input.schemaVersion === 2 ? 2 : 3;
-    if (input.schemaVersion !== 2 && input.schemaVersion !== 3) {
+    version = input.schemaVersion === 2 || input.schemaVersion === 3 ? input.schemaVersion : 4;
+    if (input.schemaVersion !== 2 && input.schemaVersion !== 3 && input.schemaVersion !== 4) {
       errors.push({ code: 'UNSUPPORTED_VERSION', path: 'schemaVersion', message: `Unsupported schemaVersion ${describe(input.schemaVersion)}.` });
+    }
+    if (input.schemaVersion === 4 && input.documentType !== SCENE_DOCUMENT_TYPE) {
+      errors.push({ code: 'INVALID_FIELD', path: 'documentType', message: `Expected documentType "${SCENE_DOCUMENT_TYPE}".` });
     }
     if (input.units !== 'm') {
       errors.push({ code: 'INVALID_FIELD', path: 'units', message: 'Expected units "m".' });
@@ -606,8 +798,10 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
     }
   }
   checkKeys(input, sceneKeys[version], '', errors);
+  const extensionBudget = { left: MAX_EXTENSION_VALUES };
+  const project = version === 4 && input.project !== undefined ? readProject(input.project, limits, errors) : undefined;
   const components = readList(input.components, 'components', limits.maxComponents, errors, (item, path) =>
-    readComponent(item, path, version, limits, errors),
+    readComponent(item, path, version, limits, errors, extensionBudget),
   );
   const connections = readList(input.connections, 'connections', limits.maxConnections, errors, (item, path) =>
     readConnection(item, path, limits, errors),
@@ -616,12 +810,23 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
     version !== 1 && input.tagBindings !== undefined
       ? readList(input.tagBindings, 'tagBindings', limits.maxBindings, errors, (item, path) => readBinding(item, path, limits, errors))
       : undefined;
-  const underlay = version === 3 && input.underlay !== undefined ? readUnderlay(input.underlay, limits, options, errors) : undefined;
+  const underlay = version >= 3 && input.underlay !== undefined ? readUnderlay(input.underlay, limits, options, errors) : undefined;
+  const extensions = version === 4 && input.extensions !== undefined ? readExtensions(input.extensions, 'extensions', extensionBudget, limits, errors) : undefined;
   if (errors.length > 0 || !components || !connections) return { ok: false, errors };
 
-  const scene: ScadaScene = { schemaVersion: 3, units: 'm', components, connections, ...(tagBindings ? { tagBindings } : {}), ...(underlay ? { underlay } : {}) };
+  const scene: ScadaScene = {
+    schemaVersion: 4,
+    documentType: SCENE_DOCUMENT_TYPE,
+    units: 'm',
+    ...(project ? { project } : {}),
+    components,
+    connections,
+    ...(tagBindings ? { tagBindings } : {}),
+    ...(underlay ? { underlay } : {}),
+    ...(extensions ? { extensions } : {}),
+  };
   checkReferences(scene, options, errors);
   checkBindings(scene, options, errors);
   if (errors.length > 0) return { ok: false, errors };
-  return version === 3 ? { ok: true, scene } : { ok: true, scene, migratedFrom: version };
+  return version === 4 ? { ok: true, scene } : { ok: true, scene, migratedFrom: version };
 }

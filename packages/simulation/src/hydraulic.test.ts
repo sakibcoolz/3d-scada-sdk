@@ -12,7 +12,7 @@ const part = (id: string, type: ComponentKind, at: [number, number, number], pro
   properties,
 });
 const join = (id: string, a: string, ap: string, b: string, bp: string): SceneConnection => ({ id, from: { instanceId: a, portId: ap }, to: { instanceId: b, portId: bp } });
-const scene = (components: ComponentInstance[], connections: SceneConnection[]): ScadaScene => ({ schemaVersion: 3, units: 'm', components, connections });
+const scene = (components: ComponentInstance[], connections: SceneConnection[]): ScadaScene => ({ schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components, connections });
 const clock = () => '2026-10-16T00:00:00.000Z';
 const hydraulic = { model: 'hydraulic' as const, clock };
 

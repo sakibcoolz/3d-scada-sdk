@@ -137,7 +137,7 @@ const at = (id: string, type: ComponentKind, x: number, properties: ComponentIns
 
 describe('joining different sizes', () => {
   it('refuses a DN150 pipe joined straight to a DN100 pipe', () => {
-    const scene: ScadaScene = { schemaVersion: 3, units: 'm', components: [at('a', 'pipe', 0, { length: 2 }), at('b', 'pipe', 2, { length: 2, size: 'DN100' })], connections: [{ id: 'j', from: { instanceId: 'a', portId: 'out' }, to: { instanceId: 'b', portId: 'in' } }] };
+    const scene: ScadaScene = { schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [at('a', 'pipe', 0, { length: 2 }), at('b', 'pipe', 2, { length: 2, size: 'DN100' })], connections: [{ id: 'j', from: { instanceId: 'a', portId: 'out' }, to: { instanceId: 'b', portId: 'in' } }] };
     const result = validateScene(scene, catalogResolvers);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors[0].code).toBe('INCOMPATIBLE_PORTS');
@@ -147,7 +147,8 @@ describe('joining different sizes', () => {
     const reducer = definitionFor('reducer', {});
     const [rin, rout] = reducer.ports;
     const scene: ScadaScene = {
-      schemaVersion: 3,
+      schemaVersion: 4,
+      documentType: 'industrial.scene',
       units: 'm',
       components: [at('a', 'pipe', 0, { length: 2 }), at('r', 'reducer', 1 - rin.position[0]), at('b', 'pipe', 1 - rin.position[0] + rout.position[0] + 1, { length: 2, size: 'DN100' })],
       connections: [

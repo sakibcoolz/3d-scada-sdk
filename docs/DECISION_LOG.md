@@ -27,6 +27,7 @@ Use one ADR per significant decision. Accepted decisions are binding; proposals 
 | [0020](adr/0020-webxr-walkthrough.md) | Accepted | Opt-in first-person walkthrough (`walkthrough` prop): desktop Walk (mouse look, WASD, equipment blocks) and WebXR Enter VR (true scale on `local-floor`, teleport, snap turn); view only; no new dependency, no network |
 | [0020](adr/0020-webxr-walkthrough.md) (amended) | Accepted | Pick and connect in first person: click selects and C connects at the crosshair (Walk); trigger selects and grip connects (VR); through the view's `onSelect`, so the editor's attach rules apply |
 | [0020](adr/0020-webxr-walkthrough.md) (amended, T-064) | Accepted | Edit the selected part while walking: focus returns to the editor, so its R, Delete, PageUp/PageDown, undo/redo and copy/paste shortcuts work; walk keys are taken first |
+| [0021](adr/0021-scene-v4-industrial-document.md) | Accepted | Scene version 4, `documentType: "industrial.scene"`: optional project, component identity (name, typeVersion, manufacturer, model), labels and namespaced extensions; v1–v3 migrate losslessly; credential-like keys rejected (`SECRET_FIELD`) |
 | [0020](adr/0020-webxr-walkthrough.md) (amended, T-065) | Accepted | Place new parts at the Walk crosshair: P parts menu, click places (editor's drop plan, snapping, undo), X or right-click stops; the view's `walkPlacing` prop, supplied by the editor |
 
 ## New ADR template

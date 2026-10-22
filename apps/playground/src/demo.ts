@@ -16,7 +16,8 @@ const at = (id: string, type: ComponentInstance['type'], position: Vector3Tuple)
 });
 
 export const demoScene: ScadaScene = {
-  schemaVersion: 3,
+  schemaVersion: 4,
+  documentType: 'industrial.scene',
   units: 'm',
   components: [
     at('tank', 'tank', [0, base, 0]),
@@ -64,5 +65,5 @@ export function generatedScene(n: number): { scene: ScadaScene; rows: Record<str
   const connections = components.slice(1).map((c, i) => ({ id: `e${i + 1}`, from: { instanceId: components[i].id, portId: 'out' }, to: { instanceId: c.id, portId: 'in' } }));
   const tagBindings = connections.map((c) => ({ id: `b-${c.id}`, tagId: `FT-${c.id}`, kind: 'flow' as const, connectionId: c.id }));
   const rows = Object.fromEntries(tagBindings.map((b) => [b.tagId, { value: '1', quality: 'GOOD' as const }]));
-  return { scene: { schemaVersion: 3, units: 'm', components, connections, tagBindings }, rows };
+  return { scene: { schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components, connections, tagBindings }, rows };
 }

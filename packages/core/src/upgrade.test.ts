@@ -12,7 +12,7 @@ const part = (id: string, type: string, x: number): ComponentInstance => ({ id, 
 const join = (id: string, a: string, ap: string, b: string, bp: string): SceneConnection => ({ id, from: { instanceId: a, portId: ap }, to: { instanceId: b, portId: bp } });
 // pipe p1 [−0.5, 0.5] — fitting f [0.5, 2.5] (legacy) — pipe p2 [2.5, 3.5], all touching in the old file.
 const oldLine = (connected: boolean): ScadaScene => ({
-  schemaVersion: 3, units: 'm',
+  schemaVersion: 4, documentType: 'industrial.scene', units: 'm',
   components: [part('p1', 'pipe', 0), part('f', 'fitting', 1.5), part('p2', 'pipe', 3)],
   connections: connected ? [join('c1', 'p1', 'out', 'f', 'a'), join('c2', 'f', 'b', 'p2', 'in')] : [],
 });
@@ -59,7 +59,7 @@ describe('upgradeDimensions with mixed generations', () => {
 
   it('re-seats a legacy part next to a current one and carries current joints along', () => {
     // valve v [-1, 1] (legacy) — current fitting f [1, 1.4] — pipe p [1.4, 2.4]; touching, unconnected.
-    const s: ScadaScene = { schemaVersion: 3, units: 'm', components: [part('v', 'valve', 0), part('f', 'fitting', 1.2), part('p', 'pipe', 1.9)], connections: [] };
+    const s: ScadaScene = { schemaVersion: 4, documentType: 'industrial.scene', units: 'm', components: [part('v', 'valve', 0), part('f', 'fitting', 1.2), part('p', 'pipe', 1.9)], connections: [] };
     const r = upgradeDimensions(s, opts);
     const x = Object.fromEntries(r.scene.components.map((c) => [c.id, c.position.x]));
     expect(x.v).toBe(0);

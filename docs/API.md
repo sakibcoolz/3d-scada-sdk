@@ -8,7 +8,7 @@ All geometry is right-handed, Y-up, metres. Scene components use named vectors (
 
 | Area | Runtime exports | Main types |
 |---|---|---|
-| Scene model | `SCENE_SCHEMA_VERSION`, `componentKinds`, `createEmptyScene`, `portsCompatible` | `ScadaScene`, `ComponentInstance`, `ComponentKind`, `ComponentDefinition`, `ConnectionPort`, `PortKind`, `SceneConnection`, `TagBinding`, `Quantity`, `Vector3Like`, `QuaternionLike`, `Vector3Tuple`, `QuaternionTuple` |
+| Scene model | `SCENE_SCHEMA_VERSION` (4), `SCENE_DOCUMENT_TYPE` (`"industrial.scene"`), `componentKinds`, `createEmptyScene`, `portsCompatible` | `ScadaScene`, `SceneProject`, `SceneExtensions`, `JsonValue`, `ComponentInstance`, `ComponentKind`, `ComponentDefinition`, `ConnectionPort`, `PortKind`, `SceneConnection`, `TagBinding`, `Quantity`, `Vector3Like`, `QuaternionLike`, `Vector3Tuple`, `QuaternionTuple` |
 | Units | `canonicalUnits`, `isKnownUnit`, `toCanonical` | |
 | Validation and persistence | `validateScene`, `defaultSceneLimits`, `serializeScene`, `parseScene` | `SceneValidationOptions`, `SceneValidationResult`, `SceneValidationError`, `SceneValidationErrorCode`, `SceneLimits`, `ParseSceneOptions` |
 | Transforms | `portToWorld`, `rotateVector`, `quaternionFromEuler`, `quaternionToEuler`, `identityQuaternion` | `WorldPort`, `ComponentTransform` |
@@ -111,3 +111,12 @@ handle.current?.setTagValues([{ tagId: 'LT-101', value: 62, quality: 'GOOD', sou
 - Editor look (T-042): the editor root has class `scada3d-editor` and ships one scoped stylesheet (every rule starts with `.scada3d-editor`, so host pages are untouched). Colours are CSS custom properties on that root (`--s3-bg`, `--s3-raised`, `--s3-border`, `--s3-text`, `--s3-muted`, `--s3-accent`, `--s3-accent-bg`, `--s3-danger`, `--s3-input`, …); a host can retheme by overriding them. Properties are grouped in collapsible sections (Transform, Settings, Connections, Tag bindings, View, Actions); the scene file (Scene JSON, export, import) is a section in the left panel. Positions are shown to the millimetre; typed values are kept exactly.
 
 Without `flow` and `telemetry` no live data is shown. Live values never change the scene passed to `onChange`.
+
+## Scene version 4 (T-068, ADR-0021)
+- **What v4 adds:**
+  - Files are written as `schemaVersion: 4` with `documentType: "industrial.scene"`.
+  - Optional root `project {id?, name?, revision?, description?}` and `extensions`.
+  - Optional component `name`, `typeVersion`, `manufacturer`, `model`, `labels` (string map) and `extensions`.
+- **Older files:** v1, v2 and v3 files still load; `validateScene`/`parseScene` report `migratedFrom: 1 | 2 | 3`.
+- **Extensions** are keyed by reverse-DNS namespace and hold plain JSON, at most 16 levels deep and 10,000 values per document. They are preserved with sorted keys and never interpreted by core.
+- **New error code `SECRET_FIELD`:** a label or extension key that names a credential (password, secret, API key, private key, `…token`) is rejected. Store a reference to the secret in your host instead.

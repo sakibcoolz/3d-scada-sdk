@@ -4,6 +4,7 @@ import * as core from './index.js';
 // The public runtime surface of @sakibcoolz/core. Changing it is an API change: update docs/API.md
 // and the changelog together with this list.
 const publicApi = [
+  'SCENE_DOCUMENT_TYPE',
   'SCENE_SCHEMA_VERSION',
   'assemblyOf',
   'attachComponents',
