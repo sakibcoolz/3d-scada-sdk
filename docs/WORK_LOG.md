@@ -1805,3 +1805,29 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-081: drives, motors, instruments and panel (Phase 6b, ADR-0025)
+- Owner merged #81 (T-080). Branch `feat/T-081-drives-sensors` from `origin/develop`.
+- Change:
+  - **components `library/control.ts`:**
+    - adds `sdk.vfd`, `sdk.motor`, `sdk.transmitter`, `sdk.switch` and `sdk.panel`;
+    - `parametric` now takes a general builder, and `boxed` keeps the T-080 housing and front terminals;
+    - the motor, field devices and panel place their own parts and ports.
+- Tests:
+  - `library/control.test.ts` now has 80 tests;
+  - number parameters are sampled at their minimum, default and maximum;
+  - a PLC → VFD → motor → pump chain validates and is found by `pathBetween`;
+  - the ADR's refusals (a 230 V motor on a 400 V drive, a transmitter on a 0–10 V input) and other miswiring;
+  - parameters and suggestions.
+- Docs:
+  - ADR-0025 T-081 notes;
+  - API.md; RELEASE.md;
+  - backlog T-080 DONE, T-081 REVIEW; plan Phase 6 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1571 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (130 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.
