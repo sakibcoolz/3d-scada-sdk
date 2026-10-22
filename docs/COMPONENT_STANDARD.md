@@ -21,6 +21,16 @@ Fluid ports default to nominal bore 0.15 m (DN150) and nozzles of outer radius `
 
 Configurable dimensions (T-033, T-045): a definition may declare shape `parameters` stored in `properties`: numeric (`NumberParameterSpec`: label, unit, default (what an absent value means), min, max, step, optional `initial` for new parts and `keepsBottom` to keep the lowest point in place when edited) or a fixed choice (`ChoiceParameterSpec`: label, choices, default; `isChoiceParameter`). Geometry parts are cylinders, spheres, boxes, bends and cones (`radiusStart` at the −axis end). The straight pipe declares `length` (m, default 2, 0.2–20); `definitionFor(type, properties)` returns the per-instance definition (ports, bounds and parts follow the length; cached per value), `validateProperties` reports out-of-range values, and `catalogResolvers` bundles `resolvePorts`/`resolveBounds` (both receive the component's properties), `resolveBindable` and `validateProperties` for core. Not yet: sized tank/pump nozzles, eccentric reducers, drain port, mechanical/signal ports for motor and sensor, per-file component directories below.
 
+## 2D symbols and views (ADR-0026)
+- **Which views:** a definition may set `views: ['process' | 'electrical']`. Without it, built-in kinds are process equipment, and other types join the views of their port kinds (fluid and mechanical for process; power, signal and network for electrical).
+- **Default symbols:**
+  - the 14 built-in kinds and the library have ISA-5.1-style process symbols;
+  - in the electrical view, any type without a symbol gets a generated terminal block with inputs on the left, outputs on the right, network on top and earth at the bottom, labelled by each port's `terminal` (else its ID). Give ports `terminal` labels so the electrical view reads well.
+- **Own symbols:** `symbol2D` (process) and `electricalSymbol` take `{ svg, width, height, ports? }`.
+  - The SVG is sanitized at registration (at most 64 KiB and 500 elements); unsafe content fails registration.
+  - `ports` places named ports on the symbol, in drawing units from its top-left corner.
+  - Symbols are data: no scripts, styles or external references.
+
 ## Component library (ADR-0025)
 - **What it is:** `controlLibrary` (components package) holds generic, vendor-neutral control equipment under the reserved `sdk.` prefix:
   - control and I/O: `sdk.plc.cpu`, `sdk.plc.di/do/ai/ao`, `sdk.dcs.controller`;

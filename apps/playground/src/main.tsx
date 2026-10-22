@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { createEmptyScene, validateScene, type ScadaScene } from '@sakibcoolz/core';
 import { controlLibrary, createComponentRegistry } from '@sakibcoolz/components';
 import { Scada3DEditor, Scada3DViewer, type ScadaHandle } from '@sakibcoolz/react';
-import { ProcessView } from '@sakibcoolz/views-2d';
+import { ElectricalView, ProcessView, type DiagramViewProps } from '@sakibcoolz/views-2d';
 import { demoScene, demoTagRows, generatedScene } from './demo';
 import { useDemoFeed } from './DemoFeed';
 import { useSimulation } from './SimulationPanel';
@@ -33,8 +33,8 @@ const instancing = (['off', 'always'] as const).find((m) => m === params.get('in
 const joints = params.get('joints') !== 'off';
 // `?floor=off` starts without the floor slab (T-061).
 const floorDefault = params.get('floor') !== 'off';
-// `?view=process` opens the 2D process view under the editor (ADR-0026).
-const processDefault = params.get('view') === 'process';
+// `?view=process`, `?view=electrical` or `?view=process,electrical` opens 2D views under the editor (ADR-0026).
+const openViews = (params.get('view') ?? '').split(',');
 
 // `?demo` opens the MVP demo network, validated like any imported scene, with a demo tag feed.
 function initialScene(): ScadaScene | undefined {
@@ -56,10 +56,21 @@ function App() {
   const [mounted, setMounted] = useState(true);
   const [second, setSecond] = useState(false);
   const [floor, setFloor] = useState(floorDefault);
-  const [processOpen, setProcessOpen] = useState(processDefault);
+  const [processOpen, setProcessOpen] = useState(openViews.includes('process'));
+  const [electricalOpen, setElectricalOpen] = useState(openViews.includes('electrical'));
   // The editor does not take outside edits yet (T-086), so the 2D layout is kept here beside it.
   const [views, setViews] = useState(start?.views);
   const [selected, setSelected] = useState<string[]>([]);
+  // Both 2D views share the layout and the selection.
+  const diagramProps: DiagramViewProps = {
+    scene: { ...scene, ...(views ? { views } : {}) },
+    registry,
+    telemetry: demo && !simulate ? telemetry : undefined,
+    selectedIds: selected,
+    onSelectionChange: setSelected,
+    editable: true,
+    onChange: (next) => setViews(next.views),
+  };
   const editor = useRef<ScadaHandle>(null);
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -73,6 +84,7 @@ function App() {
         <label><input type="checkbox" aria-label="Second viewer" checked={second} onChange={(e) => setSecond(e.target.checked)} /> Second viewer</label>
         <label><input type="checkbox" aria-label="Floor" checked={floor} onChange={(e) => setFloor(e.target.checked)} /> Floor</label>
         <label><input type="checkbox" aria-label="Process view" checked={processOpen} onChange={(e) => setProcessOpen(e.target.checked)} /> Process view</label>
+        <label><input type="checkbox" aria-label="Electrical view" checked={electricalOpen} onChange={(e) => setElectricalOpen(e.target.checked)} /> Electrical view</label>
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         {mounted && (
@@ -95,18 +107,11 @@ function App() {
           />
         )}
       </div>
-      {processOpen && (
-        <div style={{ height: '40vh', borderTop: '1px solid #3c5366' }}>
-          <ProcessView
-            scene={{ ...scene, ...(views ? { views } : {}) }}
-            registry={registry}
-            telemetry={demo && !simulate ? telemetry : undefined}
-            selectedIds={selected}
-            onSelectionChange={setSelected}
-            editable
-            onChange={(next) => setViews(next.views)}
-            style={{ height: '100%' }}
-          />
+      {(processOpen || electricalOpen) && (
+        <div style={{ height: '40vh', display: 'flex', borderTop: '1px solid #3c5366' }}>
+          {([[processOpen, ProcessView], [electricalOpen, ElectricalView]] as const).map(([open, View], i) => open && (
+            <View key={i} {...diagramProps} style={{ flex: 1, minWidth: 0, height: '100%', borderLeft: i > 0 ? '1px solid #3c5366' : undefined }} />
+          ))}
         </div>
       )}
       {second && (

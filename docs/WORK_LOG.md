@@ -1915,3 +1915,26 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-085: electrical view and host symbols (Phase 7c, ADR-0026)
+- Owner merged #86 (T-084). Branch `feat/T-085-electrical-view` from `origin/develop`.
+- Change:
+  - **components:** `symbol2D` and `electricalSymbol` on definitions, sanitized at registration (size, port points, `sanitizeSvg` with 64 KiB and 500-element limits) and stored as `symbols`; new dependency on `@sakibcoolz/asset-import`.
+  - **views-2d:**
+    - generated `terminalBlock`, plus electrical motor and instrument symbols;
+    - host symbols drawn as sanitized paths;
+    - `electricalTier` columns;
+    - rows stacked by symbol height in both views;
+    - `<ElectricalView>`; wires carry `data-edge-domain`.
+  - **playground:** `?view=process,electrical` shows both, sharing the layout and the selection.
+  - **consumer:** `node-check` covers the electrical model and refuses a host symbol with a script.
+- Tests: `views-2d/src/electrical.test.ts` (7); e2e `electrical-view.spec.ts` (3); the process-view e2e still passes after the row-stacking change.
+- Docs: ADR-0026 T-085 notes; COMPONENT_STANDARD "2D symbols and views"; API.md; package README; README; RELEASE.md; backlog T-084 DONE, T-085 REVIEW; plan Phase 7 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1601 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (141 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

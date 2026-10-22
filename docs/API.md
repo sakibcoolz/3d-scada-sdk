@@ -154,6 +154,11 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## 2D electrical view and host symbols (T-085, ADR-0026)
+- **`<ElectricalView>`** takes the same props as `<ProcessView>`. It shows wired equipment in columns (supplies, controllers, I/O cards, field devices, loads) with wires in domain colours.
+- **`terminalBlock(title, ports)`** generates an electrical symbol from a type's ports. **`electricalTier(ports)`** gives its column. **`hostSymbol(registered)`** draws a host symbol.
+- **Definitions** may set `symbol2D` and `electricalSymbol` (`{ svg, width, height, ports? }`). They are sanitized at registration and exposed as `definition.symbols.{process,electrical}` (`RegisteredSymbol`). Types `HostSymbol` and `RegisteredSymbol` are exported from components.
+
 ## 2D process view (`@sakibcoolz/views-2d`, T-084, ADR-0026)
 - **`<ProcessView scene registry? selectedIds? onSelectionChange? telemetry? editable? onChange? style? />`:** an SVG process diagram (P&ID style) of the scene.
   - Interaction: select (click, Shift-click, Enter), pan, zoom, Fit.

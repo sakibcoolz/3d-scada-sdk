@@ -14,4 +14,4 @@ export type { PipeSize } from './sizes.js';
 export { isChoiceParameter, liquidProfile } from './geometry.js';
 export { CAPACITY_UNITS, capacityOf, componentPresets, formatCapacity, segmentVolume, vesselProfile, vesselSegments } from './vessel.js';
 export type { CapacityUnit, ComponentPreset, VesselProfile, VesselSegment } from './vessel.js';
-export type { Axis, Bounds, ChoiceParameterSpec, GeometryPart, IndustrialComponentDefinition, NumberParameterSpec, ParameterSpec, PartRole } from './geometry.js';
+export type { Axis, Bounds, ChoiceParameterSpec, GeometryPart, HostSymbol, IndustrialComponentDefinition, NumberParameterSpec, ParameterSpec, PartRole, RegisteredSymbol } from './geometry.js';

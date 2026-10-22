@@ -37,6 +37,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@sakibcoolz/asset-import": "workspace:*",
     "@sakibcoolz/core": "workspace:*"
   },
   "exports": {

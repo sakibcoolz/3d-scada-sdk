@@ -1,4 +1,5 @@
-import type { ComponentDefinition, Vector3Tuple } from '@sakibcoolz/core';
+import type { ComponentDefinition, Vector3Tuple, ViewKind } from '@sakibcoolz/core';
+import type { SanitizedSvg } from '@sakibcoolz/asset-import';
 
 export type Axis = 'x' | 'y' | 'z';
 
@@ -66,6 +67,25 @@ export interface IndustrialComponentDefinition extends ComponentDefinition {
   parts: GeometryPart[];
   /** Shape parameters stored in `properties`; ports, bounds and parts follow them via `definitionFor`. */
   parameters?: Readonly<Record<string, ParameterSpec>>;
+  /** Host 2D symbols per view, sanitized at registration (ADR-0026). Built-in kinds use the views' own. */
+  symbols?: Readonly<Partial<Record<ViewKind, RegisteredSymbol>>>;
+}
+
+/** A host's 2D symbol after sanitizing: clean paths only, sized in drawing units (1 mm). */
+export interface RegisteredSymbol {
+  width: number;
+  height: number;
+  /** Where named ports meet the symbol, from its top-left corner. */
+  ports?: Readonly<Record<string, readonly [number, number]>>;
+  drawing: SanitizedSvg;
+}
+
+/** What a host gives for a 2D symbol: SVG text, the size to draw it at, and optional port points. */
+export interface HostSymbol {
+  svg: string;
+  width: number;
+  height: number;
+  ports?: Readonly<Record<string, readonly [number, number]>>;
 }
 
 /**

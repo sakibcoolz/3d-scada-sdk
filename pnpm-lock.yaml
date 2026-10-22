@@ -77,6 +77,9 @@ importers:
 
   packages/components:
     dependencies:
+      '@sakibcoolz/asset-import':
+        specifier: workspace:*
+        version: link:../asset-import
       '@sakibcoolz/core':
         specifier: workspace:*
         version: link:../core
