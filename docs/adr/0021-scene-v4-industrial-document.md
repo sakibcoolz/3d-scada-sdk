@@ -51,3 +51,4 @@ Later phases add definitions, typed connections, runtime variables, data sources
 - v4 round trip is byte-stable, including sorted labels and extensions.
 - The new fields are validated: types, limits, unknown keys, the `documentType` constant, namespace keys, depth and value-count limits, forbidden keys, and `SECRET_FIELD` in labels and nested extensions.
 - The security fuzz test covers v4 documents.
+- JSON Schema (T-069): `packages/core/schema/industrial-scene.v4.schema.json` plus valid, invalid and validator-only examples. An `ajv` test (test-only dependency, decision D3) proves that the schema and `validateScene` agree on every example, and that the schema is never stricter on 1500 seeded mutations.

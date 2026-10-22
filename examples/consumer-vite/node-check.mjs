@@ -3,6 +3,8 @@ import { parseScene, serializeScene, findOpenJoints } from '@sakibcoolz/core';
 import { catalogResolvers, pipeSizes } from '@sakibcoolz/components';
 import { createSimulation } from '@sakibcoolz/simulation';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const scene = {
   schemaVersion: 3,
@@ -28,4 +30,8 @@ if (!(simulated.levels.t < 80) || simulated.flows.some((f) => f.source !== 'SIMU
 // The SVG sanitizer needs no DOM: it runs in plain Node and refuses scripts.
 if (!sanitizeSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><path d="M0 0L1 1"/></svg>').ok) throw new Error('sanitizer refused a clean SVG');
 if (sanitizeSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><script>x</script></svg>').ok) throw new Error('sanitizer accepted a script');
+// The JSON Schema ships with core and resolves through the package exports (T-069).
+const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
+const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));
+if (schema.properties?.documentType?.const !== 'industrial.scene') throw new Error('scene JSON Schema missing from the package');
 console.log(`node-check ok: SVG sanitizer ok, ${Object.keys(pipeSizes).length} sizes, ${serializeScene(result.scene).length} bytes of canonical JSON, simulated level ${simulated.levels.t.toFixed(1)} % (mass-balance) / ${hydraulic.levels.t.toFixed(1)} % (hydraulic) after 30 s`);

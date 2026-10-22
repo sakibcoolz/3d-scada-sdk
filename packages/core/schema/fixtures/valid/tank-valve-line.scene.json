@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
+  "units": "m",
+  "components": [
+    {
+      "id": "T-101",
+      "type": "tank",
+      "position": {
+        "x": 0,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "level": 60
+      }
+    },
+    {
+      "id": "XV-101",
+      "type": "valve",
+      "position": {
+        "x": 2,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "open": true
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "c1",
+      "from": {
+        "instanceId": "T-101",
+        "portId": "outlet"
+      },
+      "to": {
+        "instanceId": "XV-101",
+        "portId": "in"
+      }
+    }
+  ],
+  "tagBindings": [
+    {
+      "id": "b1",
+      "tagId": "LT-101",
+      "kind": "property",
+      "instanceId": "T-101",
+      "property": "level",
+      "unit": "%"
+    },
+    {
+      "id": "b2",
+      "tagId": "FT-101",
+      "kind": "flow",
+      "connectionId": "c1",
+      "unit": "L/min"
+    }
+  ]
+}

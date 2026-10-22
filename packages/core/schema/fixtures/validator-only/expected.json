@@ -1,0 +1,22 @@
+{
+  "non-unit-rotation.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "components[0].rotation"
+  },
+  "unknown-port.scene.json": {
+    "code": "UNKNOWN_PORT",
+    "path": "connections[0].from.portId"
+  },
+  "credential-label.scene.json": {
+    "code": "SECRET_FIELD",
+    "path": "components[0].labels.db_password"
+  },
+  "credential-in-extension.scene.json": {
+    "code": "SECRET_FIELD",
+    "path": "extensions.com.example.gateway.link.apiKey"
+  },
+  "duplicate-component-id.scene.json": {
+    "code": "DUPLICATE_COMPONENT_ID",
+    "path": "components[1].id"
+  }
+}
