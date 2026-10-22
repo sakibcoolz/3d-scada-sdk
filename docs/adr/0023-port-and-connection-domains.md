@@ -1,6 +1,6 @@
 # ADR-0023: Port and connection domains
 
-Status: Accepted (owner, 2026-10-22); T-073, T-074 and T-075 implemented, T-076 pending. M9 Phases 3–4 of docs/INDUSTRIAL_SDK_PLAN.md (§6), tasks T-073..T-076.
+Status: Accepted (owner, 2026-10-22); implemented in T-073..T-076. M9 Phases 3–4 of docs/INDUSTRIAL_SDK_PLAN.md (§6), tasks T-073..T-076.
 
 ## Context
 Every port today is a 3D flange: `ConnectionPort = {id, kind, position, direction, nominalSize?}` (`scene.ts:19`).
@@ -208,3 +208,16 @@ interface ConnectionPort {
 - **Clipboard:** associations whose both ends are copied are carried along with new IDs. `ComponentClipboard.associations` is optional.
 - **Not drawn, routed or simulated.** The editor keeps them through import, delete, undo and export.
 - **Schema:** root `associations` and an `association` definition, with shared `relationship` and `edgeProperties` definitions. New fixtures: `valid/associations`, `invalid/association-without-relationship`, `validator-only/association-unknown-component` and `validator-only/association-id-reuses-connection`. The fuzz base carries an association.
+
+## Implementation notes (T-076)
+- **Queries:** `neighbours`, `relatedComponents` (breadth first, excluding the start) and `pathBetween` (fewest edges, ties in scene order; returns `GraphStep[]`). They take a `GraphFilter`:
+  - `domains` and `relationships`;
+  - `connections` and `associations`, both default true;
+  - `direction`;
+  - `resolvePorts`, which supplies the domain of a connection without a `domain` field.
+
+  A domain filter skips associations.
+- **Older helpers:** `connectionsOf`, `reachableComponents` and `connectedGroups` take an optional `{domains, resolvePorts}` filter and are unchanged without it.
+- **Assemblies (gap found):** `lockConnectedAsChildren` followed every connection, so a signal cable would have locked a PLC to a drive as one assembly. With the new optional `resolvePorts` it follows only `physicalDomains` (fluid, mechanical, `electrical`). The editor passes its registry; without the option, behaviour is unchanged.
+- **Acceptance:** `graph-queries.test.ts` covers PLC → VFD → Motor → pump, the PLC on Ethernet with an HMI and a VFD, and a 4–20 mA transmitter into a PLC AI. The consumer `node-check.mjs` repeats the chain through the packed packages.
+- **Reference:** docs/CONNECTION_GRAPH.md.

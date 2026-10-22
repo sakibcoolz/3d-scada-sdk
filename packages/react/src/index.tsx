@@ -1121,7 +1121,7 @@ function AssemblyControls({ component, scene, onChange, onNotice }: { component:
     {assemblySize === 1 && <p style={{fontSize:12,margin:'4px 0'}}>Not in an assembly. Moving it moves only this component.</p>}
     <div className="s3-row">
     <button disabled={!hasConnections} title="Make this the parent of everything connected to it; then they all move together"
-      onClick={() => { const r = lockConnectedAsChildren(scene, component.id); if (r.ok) { onChange(r.scene); onNotice([describeLock(r.scene, component.id, registry)]); } }}>Lock connected as children</button>
+      onClick={() => { const r = lockConnectedAsChildren(scene, component.id, registry.resolvers); if (r.ok) { onChange(r.scene); onNotice([describeLock(r.scene, component.id, registry)]); } }}>Lock connected as children</button>
     {component.parentId && <button onClick={() => onChange(unlockFromParent(scene, component.id))}>Unlock from parent</button>}
     {children > 0 && <button onClick={() => onChange(unlockFromParent(scene, component.id))}>Unlock assembly</button>}
     </div>

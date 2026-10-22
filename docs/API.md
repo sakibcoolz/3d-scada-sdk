@@ -154,6 +154,20 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Graph queries (T-076, ADR-0023)
+- **Queries:**
+  - `neighbours(scene, id, filter?)`: one edge away;
+  - `relatedComponents(scene, id, filter?)`: reachable, excluding `id`;
+  - `pathBetween(scene, a, b, filter?)`: the shortest chain of `GraphStep`s.
+- **`GraphFilter`:**
+  - `domains` and `relationships`;
+  - `connections` and `associations` (both default true);
+  - `direction`: `out`, `in` or `both`;
+  - `resolvePorts`, to place connections without a `domain` field.
+- **Older helpers:** `connectionsOf`, `reachableComponents` and `connectedGroups` take an optional `{ domains, resolvePorts }`.
+- **Assemblies:** `lockConnectedAsChildren(scene, id, { resolvePorts })` locks only physically joined parts (`physicalDomains`).
+- **Reference:** docs/CONNECTION_GRAPH.md.
+
 ## Associations (T-075, ADR-0023)
 - **`scene.associations`** is an optional list of `{ id, relationship, from, to, properties? }`, linking component ids with no ports, such as "PLC-01 controls VFD-101". They are directed, never drawn and never routed.
 - **Helpers:**

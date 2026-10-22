@@ -42,6 +42,7 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, graph queries (T-076, ADR-0023):** additive: `neighbours`, `relatedComponents`, `pathBetween`, `physicalDomains`, optional filters on the older helpers, and an optional `resolvePorts` on `lockConnectedAsChildren`. Without the new arguments, results are unchanged.
 - **0.2.0, associations (T-075, ADR-0023):**
   - `ScadaScene` gains optional `associations`. Code that rebuilds a scene field by field must carry it; spread the scene instead.
   - `GraphErrorCode` adds `UNKNOWN_ASSOCIATION`, and `SceneLimits` adds `maxAssociations`.

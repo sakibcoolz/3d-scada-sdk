@@ -74,8 +74,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-072 | M9 (industrial model) | P0 | T-071 | DONE | Phase 2b: folded into T-071 (registry rules, placeholder and consumer check shipped there) |
 | T-073 | M9 (industrial model) | P0 | T-071 | DONE | Phase 3a (ADR-0023): port domains `power`/`network`, signal/power/network metadata, `maxConnections`, per-domain compatibility rule table, registry rules |
 | T-074 | M9 (industrial model) | P0 | T-073 | DONE | Phase 3b (ADR-0023): connection `domain`/`relationship`/`properties`; schema, fixtures, spec; routing only for physically mating ports, simulation fluid-only; viewer draws non-fluid connections as lines |
-| T-075 | M9 (industrial model) | P0 | T-074 | REVIEW | Phase 4a (ADR-0023): root `associations` (port-less logical links), validation, `addAssociation`/`removeAssociation`, schema and spec |
-| T-076 | M9 (industrial model) | P0 | T-075 | TODO | Phase 4b (ADR-0023): `neighbours`, `relatedComponents`, `pathBetween` with domain/relationship filters; PLC→VFD→Motor, network and 4–20 mA acceptance scenes; consumer example |
+| T-075 | M9 (industrial model) | P0 | T-074 | DONE | Phase 4a (ADR-0023): root `associations` (port-less logical links), validation, `addAssociation`/`removeAssociation`, schema and spec |
+| T-076 | M9 (industrial model) | P0 | T-075 | REVIEW | Phase 4b (ADR-0023): `neighbours`, `relatedComponents`, `pathBetween` with domain/relationship filters; PLC→VFD→Motor, network and 4–20 mA acceptance scenes; consumer example |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.
