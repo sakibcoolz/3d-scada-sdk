@@ -1,4 +1,4 @@
-import { isBuiltInKind, type ComponentInstance, type ComponentKind, type ComponentType, type Quantity } from '@sakibcoolz/core';
+import { isBuiltInKind, type ComponentInstance, type ComponentKind, type ComponentType, type Quantity , type VariableTemplate } from '@sakibcoolz/core';
 import { componentCatalog, conicalTankDefinition, horizontalTankDefinition, poolDefinition, sphericalTankDefinition, couplerDefinition, pumpDefinition, elbowDefinition, pipeDefinition, reducerDefinition, tankDefinition, teeDefinition, valveDefinition } from './catalog.js';
 import { isChoiceParameter, type IndustrialComponentDefinition, type ParameterSpec } from './geometry.js';
 import { pipeSizes, type PipeSize } from './sizes.js';
@@ -106,6 +106,8 @@ export const catalogResolvers = {
   resolvePorts: (type: ComponentType, properties?: Properties) => (isBuiltInKind(type) ? definitionFor(type, properties).ports : undefined),
   resolveBounds: (type: ComponentType, properties?: Properties) => (isBuiltInKind(type) ? definitionFor(type, properties).bounds : undefined),
   resolveBindable: (type: ComponentType): Readonly<Record<string, Quantity>> | undefined => (isBuiltInKind(type) ? componentCatalog[type].bindable : undefined),
+  /** Variable templates for `suggestVariables` (ADR-0024). */
+  resolveVariables: (type: ComponentType, _properties?: Properties): readonly VariableTemplate[] | undefined => (isBuiltInKind(type) ? componentCatalog[type].variables : undefined),
   validateProperties,
   /** Routed runs bend like ASME long-radius elbows: 1.5 × NPS for the run's size (ADR-0015). */
   bendRadiusFor: (nominalSize: number | undefined) => {

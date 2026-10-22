@@ -1,6 +1,6 @@
 # ADR-0024: Runtime variables and data sources (tag engine)
 
-Status: Accepted (owner, 2026-10-22: read-only access and a separate `reviewTags` explicitly approved); T-077 and T-078 implemented, T-079 pending. M9 Phase 5 of docs/INDUSTRIAL_SDK_PLAN.md (§5.3, §5.4, §8.2), tasks T-077..T-079.
+Status: Accepted (owner, 2026-10-22: read-only access and a separate `reviewTags` explicitly approved); implemented in T-077..T-079. M9 Phase 5 of docs/INDUSTRIAL_SDK_PLAN.md (§5.3, §5.4, §8.2), tasks T-077..T-079.
 
 ## Context
 Today a tag is an opaque string.
@@ -180,3 +180,17 @@ ADR-0023 gave the model typed ports and explicit links (PLC → VFD → Motor). 
   - the playground demo feed offers it.
 - **`projectAcquisition(scene)`:** `{ sourceRevision?, dataSources, variables }`. Only variables with a source are included, in scene order, as deep copies. There are no component links, names, geometry or views.
 - **Consumer:** `node-check.mjs` projects a Modbus tag through the packed packages and checks that an endpoint with credentials is refused.
+
+## Implementation notes (T-079)
+- **Templates:**
+  - `VariableTemplate {name, dataType, unit?, property?}` is in core; `ComponentDefinition.variables` is optional.
+  - `createComponentRegistry` checks templates: name pattern, unique names, data type, unit length, and `property` must be bindable. It copies and freezes them.
+  - `resolvers.resolveVariables` serves them. Built-in kinds have none yet; the Phase 6 libraries add them.
+- **`suggestVariables(scene, { resolveVariables, resolveBindable? })`:**
+  - proposes `<componentId>.<name>` read-only tags with no source, and `bind:<tagId>` property bindings for templates that drive a bindable, unbound property;
+  - skips existing tags, bound properties and taken binding IDs, so suggesting twice proposes nothing new;
+  - changes nothing.
+- **`applyTagSuggestions(scene, picked, options)`** adds only the picked proposals and validates the result. It returns `{ ok: false, errors }` rather than an invalid document; this is the confirmation step's safe path.
+- **`reviewTags(scene, { resolveBindable? })`** returns `TagFinding`s (`code`, `path`, `message`) in a fixed order: `UNBOUND_COMPONENT`, `UNUSED_VARIABLE`, `UNDESCRIBED_TAG` (only when the scene defines variables) and `OVERLAPPING_REGISTERS`.
+  - Spans overlap when they share source, unit ID and area, unless both are different bits of one register.
+- **Graph-edge suggestions** (for example a flow tag from a flow meter's connection) are not built. Suggestions use definitions only, which the ADR allows.

@@ -1753,3 +1753,31 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0 (node-check ok).
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-079: tag suggestions and review (Phase 5c, ADR-0024 complete)
+- Owner merged #79. T-079 was started as announced. Branch `feat/T-079-tag-review` from `origin/develop`.
+- Change:
+  - **core:**
+    - `VariableTemplate` and optional `ComponentDefinition.variables`;
+    - new `tags.ts`:
+      - `suggestVariables` (proposals only; idempotent; skips existing tags and bound properties);
+      - `applyTagSuggestions` (adds only the picked proposals and validates the result);
+      - `reviewTags` (`UNBOUND_COMPONENT`, `UNUSED_VARIABLE`, `UNDESCRIBED_TAG`, `OVERLAPPING_REGISTERS`, with bits of one register allowed to share it).
+  - **components:** template registration rules (name, uniqueness, data type, unit, bindable property), copied and frozen; `resolveVariables` on `catalogResolvers` and registry resolvers.
+  - **consumer `node-check.mjs`:** suggests a VFD speed tag from its definition, checks the scene is unchanged, applies the suggestion, and reviews the result.
+- Tests:
+  - new `tags.test.ts` (core, 9): proposals, no side effects, apply all or a pick, a refused invalid pick, existing tags and bindings, an empty review, finding order, opaque tags, every overlap case;
+  - `registry.test.ts`: 2 new tests (templates resolved and copied; each template error);
+  - the core API list was updated.
+- Docs:
+  - ADR-0024 marked implemented, with T-079 notes; DECISION_LOG;
+  - API.md; RELEASE.md; spec §6.3;
+  - backlog T-078 DONE, T-079 REVIEW; plan Phase 5 row; roadmap Phase 5 ticked.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1491 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (130 tests).
+  - `pnpm verify:consumer` 0 (node-check ok).
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

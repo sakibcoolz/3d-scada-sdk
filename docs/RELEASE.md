@@ -42,6 +42,9 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, tag suggestions and review (T-079, ADR-0024):** additive.
+  - `ComponentDefinition.variables`, `catalogResolvers.resolveVariables` and registry `resolvers.resolveVariables`.
+  - New exports `suggestVariables`, `applyTagSuggestions` and `reviewTags`.
 - **0.2.0, bindings, quality and acquisition (T-078, ADR-0024):**
   - `Quality` gains `DISCONNECTED`, and `TelemetryUnknownReason` and `FlowUnknownReason` gain `DISCONNECTED`. Code with an exhaustive switch or a `Record` over them must add it.
   - New error code `TYPE_MISMATCH`.

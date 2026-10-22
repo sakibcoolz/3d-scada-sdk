@@ -123,6 +123,26 @@ describe('createComponentRegistry', () => {
     expect(vfd.resolvers.resolvePorts('com.example.vfd', {})?.map((p) => p.id)).toEqual(['L1-L3', 'run', 'speed', 'eth', 'PE']);
   });
 
+  it('registers variable templates and resolves them for suggestVariables (ADR-0024)', () => {
+    const input = { ...press(), variables: [{ name: 'RUNNING', dataType: 'bool' as const, property: 'running' }, { name: 'CYCLES', dataType: 'uint32' as const }] };
+    const own = createComponentRegistry(input);
+    expect(own.resolvers.resolveVariables('com.example.press')).toEqual(input.variables);
+    expect(own.resolvers.resolveVariables('com.other.thing')).toBeUndefined();
+    expect(catalogResolvers.resolveVariables('tank')).toBeUndefined();
+    input.variables[0].name = 'CHANGED';
+    expect(own.resolvers.resolveVariables('com.example.press')?.[0].name).toBe('RUNNING');
+  });
+
+  it('refuses bad variable templates', () => {
+    const withVariables = (variables: unknown) => () => createComponentRegistry({ ...press(), variables } as ComponentTypeDefinition);
+    expect(withVariables({})).toThrow('needs variables as an array');
+    expect(withVariables([{ name: 'a b', dataType: 'bool' }])).toThrow('variable "a b" needs a name of letters, digits');
+    expect(withVariables([{ name: 'A', dataType: 'bool' }, { name: 'A', dataType: 'bool' }])).toThrow('has two variables "A"');
+    expect(withVariables([{ name: 'A', dataType: 'double' }])).toThrow('variable "A" has an unknown data type');
+    expect(withVariables([{ name: 'A', dataType: 'bool', unit: 'x'.repeat(33) }])).toThrow('needs a unit of at most 32 characters');
+    expect(withVariables([{ name: 'A', dataType: 'bool', property: 'speed' }])).toThrow('variable "A" drives "speed", which is not bindable');
+  });
+
   it('refuses port details that do not fit the port', () => {
     const withPort = (extra: object) => () => createComponentRegistry({ ...press(), build: undefined, ports: [{ id: 'p', kind: 'signal', position: [0, 0, 0], direction: [1, 0, 0], ...extra } as ComponentTypeDefinition['ports'][number]] });
     expect(withPort({ kind: 'logical' })).toThrow('port "p" has an unknown kind');

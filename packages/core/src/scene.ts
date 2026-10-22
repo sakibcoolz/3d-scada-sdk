@@ -69,6 +69,18 @@ export interface ComponentDefinition {
   defaultSize: Vector3Tuple;
   /** Properties a host tag may drive, with the physical quantity of each. */
   bindable?: Readonly<Record<string, Quantity>>;
+  /** Variables an instance usually exposes, for `suggestVariables` (ADR-0024). */
+  variables?: readonly VariableTemplate[];
+}
+/**
+ * A variable a component type usually exposes (ADR-0024), e.g. a drive's `ACTUAL_SPEED`. Instances
+ * get the suggested tag id `<componentId>.<name>`; `property` names a bindable property it drives.
+ */
+export interface VariableTemplate {
+  name: string;
+  dataType: DataType;
+  unit?: string;
+  property?: string;
 }
 export interface ComponentInstance {
   id: string;

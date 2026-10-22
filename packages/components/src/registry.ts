@@ -1,4 +1,4 @@
-import { isBuiltInKind, isNamespacedType, portKinds, powerKinds, signalTypes, type ComponentInstance, type ConnectionPort, type ComponentType, type Quantity, type Vector3Tuple } from '@sakibcoolz/core';
+import { dataTypes, isBuiltInKind, isNamespacedType, portKinds, powerKinds, signalTypes, type ComponentInstance, type ConnectionPort, type ComponentType, type Quantity, type Vector3Tuple } from '@sakibcoolz/core';
 import { componentCatalog } from './catalog.js';
 import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
 import { catalogResolvers, checkParameters, definitionFor as builtInDefinitionFor, sizeParameterFor as builtInSizeParameterFor, validateProperties as builtInValidateProperties } from './parameters.js';
@@ -129,6 +129,21 @@ function definitionProblems(d: ComponentTypeDefinition): string[] {
       if (port.nominalSize !== undefined && !(finite(port.nominalSize) && port.nominalSize > 0)) problems.push(`${name} port "${port.id}" needs a positive nominal size`);
     }
   }
+  if (d.variables !== undefined) {
+    if (!Array.isArray(d.variables)) problems.push(`${name} needs variables as an array`);
+    else {
+      const seen = new Set<string>();
+      for (const t of d.variables) {
+        const label = `${name} variable "${String(t?.name)}"`;
+        if (typeof t?.name !== 'string' || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$/.test(t.name)) { problems.push(`${label} needs a name of letters, digits, "_", "." or "-"`); continue; }
+        if (seen.has(t.name)) problems.push(`${name} has two variables "${t.name}"`);
+        seen.add(t.name);
+        if (!(dataTypes as readonly string[]).includes(t.dataType)) problems.push(`${label} has an unknown data type`);
+        if (t.unit !== undefined && !(typeof t.unit === 'string' && t.unit.length <= 32)) problems.push(`${label} needs a unit of at most 32 characters`);
+        if (t.property !== undefined && !(d.bindable && Object.hasOwn(d.bindable, t.property))) problems.push(`${label} drives "${t.property}", which is not bindable`);
+      }
+    }
+  }
   for (const [param, spec] of Object.entries(d.parameters ?? {})) {
     const ok = isChoiceParameter(spec) ? spec.choices.includes(spec.default) : finite(spec.default) && spec.default >= spec.min && spec.default <= spec.max;
     if (!ok) problems.push(`${name} parameter "${param}" has a default outside its range or choices`);
@@ -153,7 +168,8 @@ export function createComponentRegistry(...definitions: ComponentTypeDefinition[
   const custom = new Map<string, { base: IndustrialComponentDefinition; build?: ComponentTypeDefinition['build'] }>();
   for (const d of definitions) {
     const { build, ...rest } = d;
-    const base = Object.freeze({ ...rest, defaultSize: rest.defaultSize ?? sizeOf(rest.bounds) }) as IndustrialComponentDefinition;
+    const variables = rest.variables && Object.freeze(rest.variables.map((t) => Object.freeze({ ...t })));
+    const base = Object.freeze({ ...rest, ...(variables ? { variables } : {}), defaultSize: rest.defaultSize ?? sizeOf(rest.bounds) }) as IndustrialComponentDefinition;
     custom.set(d.type, { base, build });
   }
   const cache = new Map<string, IndustrialComponentDefinition>();
@@ -186,6 +202,7 @@ export function createComponentRegistry(...definitions: ComponentTypeDefinition[
     resolvePorts: (type, properties) => (has(type) ? definitionFor(type, properties).ports : undefined),
     resolveBounds: (type, properties) => (has(type) ? definitionFor(type, properties).bounds : undefined),
     resolveBindable: (type): Readonly<Record<string, Quantity>> | undefined => (isBuiltInKind(type) ? componentCatalog[type].bindable : custom.get(type)?.base.bindable),
+    resolveVariables: (type, properties) => (has(type) ? definitionFor(type, properties).variables : undefined),
     validateProperties: validate,
   };
   return {

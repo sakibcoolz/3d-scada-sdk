@@ -5,6 +5,7 @@
 export { SCENE_DOCUMENT_TYPE, SCENE_SCHEMA_VERSION, componentKinds, createEmptyScene, isBuiltInKind, isNamespacedType, isRelationship, relationshipKinds, dataTypes, modbusAreas, protocols, checkPorts, matesPhysically, portCapacity, portKinds, portsCompatible, powerKinds, signalTypes } from './scene.js';
 export type {
   ComponentDefinition,
+  VariableTemplate,
   ComponentInstance,
   ComponentKind,
   ComponentType,
@@ -53,6 +54,8 @@ export type { ComponentTransform, WorldPort } from './transforms.js';
 export { findSnapCandidates, snapComponent } from './snapping.js';
 export type { SnapCandidate, SnapOptions, SnapResult, SnapStatus } from './snapping.js';
 export { projectAcquisition } from './acquisition.js';
+export { applyTagSuggestions, reviewTags, suggestVariables } from './tags.js';
+export type { ApplyResult, SuggestOptions, TagFinding, TagFindingCode, TagSuggestions } from './tags.js';
 export type { AcquisitionPlan, AcquisitionVariable } from './acquisition.js';
 export { addAssociation, removeAssociation, connect, connectedGroups, connectionsOf, disconnect, neighbours, pathBetween, physicalDomains, reachableComponents, relatedComponents, removeComponent } from './graph.js';
 export type { ConnectionFilter, GraphError, GraphErrorCode, GraphFilter, GraphOptions, GraphResult, GraphStep } from './graph.js';
