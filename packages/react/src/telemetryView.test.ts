@@ -13,7 +13,7 @@ const ok = (property: string, value: number | boolean, uncertain = false): Prope
   sourceTimestamp: '2026-10-15T12:00:00.000Z',
   uncertain,
 });
-const unknown = (property: string, reason: 'NO_READING' | 'STALE' | 'BAD_QUALITY' | 'INVALID_UNIT'): PropertyState => ({
+const unknown = (property: string, reason: 'NO_READING' | 'STALE' | 'BAD_QUALITY' | 'DISCONNECTED' | 'INVALID_UNIT'): PropertyState => ({
   bindingId: `b-${property}`,
   instanceId: 'tank',
   property,
@@ -35,6 +35,7 @@ describe('describeProperty', () => {
   it('says why a value is unknown', () => {
     expect(describeProperty(unknown('level', 'STALE'), 'percent')).toBe('level: unknown (stale)');
     expect(describeProperty(unknown('temperature', 'INVALID_UNIT'), 'temperature')).toBe('temperature: unknown (invalid unit)');
+    expect(describeProperty(unknown('level', 'DISCONNECTED'), 'percent')).toBe('level: unknown (disconnected)');
   });
 });
 

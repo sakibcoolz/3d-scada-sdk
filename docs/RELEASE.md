@@ -42,6 +42,10 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, bindings, quality and acquisition (T-078, ADR-0024):**
+  - `Quality` gains `DISCONNECTED`, and `TelemetryUnknownReason` and `FlowUnknownReason` gain `DISCONNECTED`. Code with an exhaustive switch or a `Record` over them must add it.
+  - New error code `TYPE_MISMATCH`.
+  - New export `projectAcquisition`.
 - **0.2.0, data sources and runtime variables (T-077, ADR-0024):**
   - `ScadaScene` gains optional `dataSources` and `runtimeVariables`. Code that rebuilds a scene field by field must carry them.
   - `SceneValidationErrorCode` gains four codes, and `SceneLimits` gains `maxDataSources` and `maxVariables`.

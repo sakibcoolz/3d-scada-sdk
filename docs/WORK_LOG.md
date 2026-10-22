@@ -1724,3 +1724,32 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-078: bindings meet variables, DISCONNECTED, projectAcquisition (Phase 5b, ADR-0024)
+- Owner merged #78. T-078 was started as announced. Branch `feat/T-078-bindings-quality` from `origin/develop`.
+- Change:
+  - **core:**
+    - binding ↔ runtime variable checks: `TYPE_MISMATCH` for a data type that cannot drive the property, and `INVALID_UNIT` for a tag unit the quantity does not accept;
+    - `resolveTelemetry` falls back to the variable's unit;
+    - `Quality` gains `DISCONNECTED`, assessed like `BAD` with its own reason in telemetry and flow;
+    - new `projectAcquisition` (acquisition.ts).
+  - **react:** "disconnected" labels; flows drawn in the bad-quality colour.
+  - **playground:** the demo feed offers DISCONNECTED.
+  - **consumer `node-check.mjs`:** projects a Modbus tag through the packed packages and refuses an endpoint with credentials.
+- Tests:
+  - new `tag-types.test.ts` (core, 16): the type matrix for all numeric types, bool and string; unit rules; no `resolveBindable`; opaque tags; DISCONNECTED property and flow; the variable unit fallback; projection content, determinism, isolation and the empty case;
+  - react label tests;
+  - an e2e step in `telemetry.spec.ts`: a disconnected level hides the liquid and says "disconnected";
+  - security fuzz codes.
+- Docs:
+  - ADR-0024 T-078 notes;
+  - spec §6.3 and §13; API.md; RELEASE.md; ARCHITECTURE Quality;
+  - backlog T-077 DONE, T-078 REVIEW; plan Phase 5 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1480 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (130 tests).
+  - `pnpm verify:consumer` 0 (node-check ok).
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

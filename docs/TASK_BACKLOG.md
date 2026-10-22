@@ -76,8 +76,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-074 | M9 (industrial model) | P0 | T-073 | DONE | Phase 3b (ADR-0023): connection `domain`/`relationship`/`properties`; schema, fixtures, spec; routing only for physically mating ports, simulation fluid-only; viewer draws non-fluid connections as lines |
 | T-075 | M9 (industrial model) | P0 | T-074 | DONE | Phase 4a (ADR-0023): root `associations` (port-less logical links), validation, `addAssociation`/`removeAssociation`, schema and spec |
 | T-076 | M9 (industrial model) | P0 | T-075 | DONE | Phase 4b (ADR-0023): `neighbours`, `relatedComponents`, `pathBetween` with domain/relationship filters; PLC→VFD→Motor, network and 4–20 mA acceptance scenes; consumer example |
-| T-077 | M9 (industrial model) | P0 | T-076 | REVIEW | Phase 5a (ADR-0024): root `dataSources` and `runtimeVariables`, protocol-typed addresses (OPC UA, Modbus), Modbus range/type rules, `endpointRef` credential check, canonical order, schema, fixtures, spec |
-| T-078 | M9 (industrial model) | P0 | T-077 | TODO | Phase 5b (ADR-0024): binding ↔ variable data-type and unit checks, `DISCONNECTED` quality through telemetry/flow/viewer, `projectAcquisition`, consumer example |
+| T-077 | M9 (industrial model) | P0 | T-076 | DONE | Phase 5a (ADR-0024): root `dataSources` and `runtimeVariables`, protocol-typed addresses (OPC UA, Modbus), Modbus range/type rules, `endpointRef` credential check, canonical order, schema, fixtures, spec |
+| T-078 | M9 (industrial model) | P0 | T-077 | REVIEW | Phase 5b (ADR-0024): binding ↔ variable data-type and unit checks, `DISCONNECTED` quality through telemetry/flow/viewer, `projectAcquisition`, consumer example |
 | T-079 | M9 (industrial model) | P1 | T-078 | TODO | Phase 5c (ADR-0024): variable templates on definitions, `suggestVariables` (proposals only), `reviewTags` findings |
 
 ## Release-path change (owner-approved 2026-10-15)

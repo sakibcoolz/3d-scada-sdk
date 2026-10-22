@@ -135,7 +135,13 @@ Rules:
 - **`scaling`:** `{ kind: "linear", rawMin, rawMax, min, max }`, with `rawMin ≠ rawMax`. It is descriptive only: observations arrive in engineering units.
 - **Removing a component** keeps its variables and sources and drops their link to it.
 
-**PLANNED (T-078):** binding ↔ variable type and unit checks, `DISCONNECTED` quality and `projectAcquisition`. Existing bindings stay valid.
+### 6.3 Bindings and variables (ADR-0024)
+- A binding whose `tagId` names a runtime variable must fit it:
+  - `bool` drives booleans, and numeric types drive percent, temperature and flow;
+  - `string` drives nothing;
+  - otherwise it is `TYPE_MISMATCH`.
+- When the binding gives no unit, the variable's unit must be accepted for the quantity (`INVALID_UNIT`), and it is used to convert observations.
+- A binding to a tag with no variable stays valid: an opaque host tag.
 
 ## 7. Underlay
 `{ svg, position: { x, z }, width, rotation, opacity }` (ADR-0012):
@@ -215,9 +221,10 @@ Hosts may change the limits through `validateScene`'s `limits` option. The JSON 
   - `UNKNOWN_INSTANCE`, `UNKNOWN_PORT`;
   - `SELF_CONNECTION`, `INCOMPATIBLE_PORTS`, `PORT_OCCUPIED`, `DUPLICATE_EDGE`.
 - **Bindings:**
-  - `UNKNOWN_CONNECTION`, `UNBINDABLE_PROPERTY`, `INVALID_UNIT`;
+  - `UNKNOWN_CONNECTION`, `UNBINDABLE_PROPERTY`, `INVALID_UNIT`, `TYPE_MISMATCH`;
   - `DUPLICATE_BINDING_ID`, `DUPLICATE_BINDING_TARGET`.
 - **Underlay:** `INVALID_UNDERLAY`.
+- **Acquisition:** `DUPLICATE_DATA_SOURCE_ID`, `DUPLICATE_VARIABLE_ID`, `UNKNOWN_DATA_SOURCE`, `INVALID_ADDRESS`.
 
 Every error has `{ code, path, message }`. The path uses the input's own field names, for example `connections[2].to.instanceId`. All errors are reported, in input order, and the input is never repaired.
 

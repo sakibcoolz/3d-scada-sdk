@@ -1,5 +1,5 @@
 // Plain Node, no bundler: the core and catalog must load as ES modules and validate a scene.
-import { parseScene, serializeScene, findOpenJoints, pathBetween, relatedComponents } from '@sakibcoolz/core';
+import { parseScene, serializeScene, findOpenJoints, pathBetween, projectAcquisition, relatedComponents } from '@sakibcoolz/core';
 import { catalogResolvers, createComponentRegistry, pipeSizes } from '@sakibcoolz/components';
 import { createSimulation } from '@sakibcoolz/simulation';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
@@ -66,6 +66,18 @@ if (relatedComponents(controlled.scene, 'PLC-01', { relationships: ['controls', 
 if (pathBetween(controlled.scene, 'M-101', 'PLC-01', { domains: ['power', 'signal'], resolvePorts: control.resolvers.resolvePorts })?.length !== 2) throw new Error('motor to PLC path not found');
 const twoOutputs = { ...line, connections: [{ ...line.connections[0], to: { instanceId: 'PLC-01', portId: 'do0' }, from: { instanceId: 'VFD-101', portId: 'uvw' } }] };
 if (parseScene(JSON.stringify(twoOutputs), control.resolvers).ok) throw new Error('a power output wired to a signal output must be refused');
+// Typed, read-only tags and the gateway projection (ADR-0024): what to acquire, never how to connect.
+const acquired = parseScene(JSON.stringify({
+  ...line,
+  project: { revision: '3' },
+  dataSources: [{ id: 'ds-plc', protocol: 'modbus-tcp', deviceId: 'PLC-01', endpointRef: 'host:gateway-1/plc-01' }],
+  runtimeVariables: [{ id: 'M-101.SPEED', componentId: 'M-101', dataType: 'float32', unit: 'rpm', access: 'read', source: { dataSourceId: 'ds-plc', address: { area: 'holding', address: 100, unitId: 1 } } }],
+}), control.resolvers);
+if (!acquired.ok) throw new Error(`acquisition scene rejected: ${acquired.errors[0].message}`);
+const plan = projectAcquisition(acquired.scene);
+if (plan.sourceRevision !== '3' || plan.variables.length !== 1 || plan.variables[0].address.address !== 100) throw new Error('unexpected acquisition plan');
+const withPassword = { ...JSON.parse(serializeScene(acquired.scene)), dataSources: [{ id: 'ds-plc', protocol: 'modbus-tcp', endpointRef: 'modbus://admin:secret@10.0.0.5' }] };
+if (parseScene(JSON.stringify(withPassword), control.resolvers).ok) throw new Error('an endpoint with credentials must be refused');
 // The JSON Schema ships with core and resolves through the package exports (T-069).
 const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
 const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));

@@ -27,7 +27,7 @@ const colours = {
 export function flowAppearance(state: FlowState): FlowAppearance {
   const simulated = state.source === 'SIMULATED';
   if (state.direction === 'unknown') {
-    const color = state.reason === 'STALE' ? colours.stale : state.reason === 'BAD_QUALITY' ? colours.bad : colours.unknown;
+    const color = state.reason === 'STALE' ? colours.stale : state.reason === 'BAD_QUALITY' || state.reason === 'DISCONNECTED' ? colours.bad : colours.unknown;
     return { motion: 'none', color, opacity: 0.9, dashed: true, simulated };
   }
   const opacity = state.uncertain ? 0.45 : 1;
@@ -84,6 +84,7 @@ export function markerDistances(length: number, spacing: number, travelled: numb
 const unknownLabels: [FlowUnknownReason, string][] = [
   ['STALE', 'stale'],
   ['BAD_QUALITY', 'bad quality'],
+  ['DISCONNECTED', 'disconnected'],
   ['NO_READING', 'no reading'],
   ['INVALID_TIMESTAMP', 'invalid timestamp'],
   ['INVALID_VALUE', 'invalid value'],

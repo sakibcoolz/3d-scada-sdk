@@ -11,7 +11,7 @@ export interface TagRow {
   quality: Quality;
 }
 
-const qualities: Quality[] = ['GOOD', 'UNCERTAIN', 'BAD', 'STALE'];
+const qualities: Quality[] = ['GOOD', 'UNCERTAIN', 'BAD', 'STALE', 'DISCONNECTED'];
 
 /** "true"/"false" become booleans, anything else a number (NaN is sent as-is and shows as invalid). */
 function parseValue(text: string): Observation['value'] {
