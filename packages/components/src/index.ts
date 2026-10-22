@@ -2,6 +2,7 @@
 export { componentCatalog, nominalBore, pipeOuterRadius } from './catalog.js';
 export { catalogResolvers, definitionFor, sizeParameterFor, validateProperties } from './parameters.js';
 export { builtInRegistry, createComponentRegistry, unknownTypeDefinition } from './registry.js';
+export { controlLibrary } from './library/control.js';
 export type { ComponentRegistry, ComponentTypeDefinition } from './registry.js';
 export { DEFAULT_SIZE, isPipeSize, outerRadiusFor, pipeSizes, sizeOfPort } from './sizes.js';
 export { asme } from './asme.js';

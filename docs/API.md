@@ -154,6 +154,19 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Control equipment library (T-080, ADR-0025)
+- **Opting in:** `controlLibrary` is an array of generic `sdk.*` definitions. Use `createComponentRegistry(...controlLibrary, ...yourTypes)`; without it nothing changes.
+- **T-080 types:**
+  - `sdk.plc.cpu`;
+  - `sdk.plc.di` and `sdk.plc.do` (`channels` 8/16);
+  - `sdk.plc.ai` (4/8) and `sdk.plc.ao` (2/4), each with `signal` 4-20 mA or 0-10 V;
+  - `sdk.dcs.controller`;
+  - `sdk.network.switch` (`ports` 5/8/16);
+  - `sdk.psu`.
+- **What they carry:** typed ports and variable templates, so `suggestVariables` proposes one tag per channel.
+- **The `sdk.` prefix is reserved** for the library's own definitions.
+- **Not product data:** the ratings drive compatibility checks only.
+
 ## Tag suggestions and review (T-079, ADR-0024)
 - **Templates:** component definitions may list `variables: [{ name, dataType, unit?, property? }]`. `registry.resolvers.resolveVariables` serves them.
 - **`suggestVariables(scene, registry.resolvers)`** returns proposed `{ variables, bindings }`. It changes nothing.
