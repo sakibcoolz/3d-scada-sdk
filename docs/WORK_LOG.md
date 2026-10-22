@@ -1510,3 +1510,26 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0 (schema resolved from the packed package).
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-22 — T-070: industrial scene specification and stale-doc fixes (Phase 1c)
+- Owner: "Yes" (open T-069 PR #71 and continue). Branch `docs/T-070-scene-spec`, built on the T-069 branch. Its PR opens after #71 is merged.
+- New `docs/INDUSTRIAL_SCENE_SPEC.md`, the field-by-field specification of scene version 4. It covers:
+  - identification, coordinates and the root fields;
+  - components, connections, bindings, the underlay and extensions;
+  - credentials and safety, canonical serialization, migration v1–v4 and limits;
+  - all error codes and the JSON Schema boundary;
+  - a worked example, and portability.
+  - Later-phase content is marked PLANNED.
+  - The example was checked with `parseScene` against the real component catalog.
+- Stale docs from the T-067 audit, fixed:
+  - SCENE_AND_CONNECTIONS: `version === 1`, version 3 model, example and serializer text → version 4, with a link to the spec;
+  - roadmap.md: the WebSocket/MQTT adapter line (contradicted no-network) → host-supplied `DataProvider`; checkboxes now match delivered, tested features; M9 phases added;
+  - PROJECT_SUMMARY: "Development status at documentation baseline" replaced with current status;
+  - MVP status line updated;
+  - PRD persona 5 marked NOT IMPLEMENTED, pointing to M9 Phase 2;
+  - ADR-0005/0010/0012 get a dated note that `@scada3d/*` names are historical; the history itself is not rewritten.
+- INDUSTRIAL_SDK_PLAN:
+  - ADR-0021 now covers v4 only, so later ADRs take the next free numbers per phase;
+  - Phase 1 marked implemented (T-068, T-069).
+- New docs added to the PROJECT_SUMMARY map and AGENT_FILE_MAP.
+- Checks: documentation only. The spec example validates (`parseScene` with `catalogResolvers`, ok). Build and tests NOT RUN (no code change).

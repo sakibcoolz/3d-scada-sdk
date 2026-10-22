@@ -69,7 +69,7 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-067 | M9 (industrial model) | P0 | — | DONE | Industrial SDK audit, gap analysis and phased plan (docs/INDUSTRIAL_SDK_PLAN.md), with owner decisions D1–D7 approved 2026-10-22 |
 | T-068 | M9 (industrial model) | P0 | T-067 | REVIEW | Phase 1a: Scene v4 in core (ADR-0021): `documentType`, `project`, component `name`/`labels`/`manufacturer`/`model`/`typeVersion`, `extensions`; lossless v3→v4 migration; deterministic v4 serialization; secret-key rejection |
 | T-069 | M9 (industrial model) | P0 | T-068 | REVIEW | Phase 1b: JSON Schema (draft 2020-12) for v4 with valid/invalid fixtures; `ajv` dev dependency proves schema and validator agree |
-| T-070 | M9 (industrial model) | P1 | T-068 | TODO | Phase 1c: INDUSTRIAL_SCENE_SPEC.md and fixes to stale docs found in the audit |
+| T-070 | M9 (industrial model) | P1 | T-068 | REVIEW | Phase 1c: INDUSTRIAL_SCENE_SPEC.md and fixes to stale docs found in the audit |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.

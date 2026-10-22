@@ -24,6 +24,7 @@ flowchart TD
 
 ## Task-specific minimum path
 - **Any session:** AGENTS → rules → summary → MVP → backlog → affected acceptance/ADR → source → tests → work log.
+- **Scene file format or M9 industrial model:** additionally INDUSTRIAL_SCENE_SPEC, INDUSTRIAL_SDK_PLAN and ADR-0021.
 - **Port/snapping/routing:** additionally SCENE_AND_CONNECTIONS, COMPONENT_STANDARD, architecture, graph-related tasks T-003,T-004,T-007–T-009.
 - **Editor/undo/import:** schema + architecture + T-005,T-010–T-012.
 - **Animations:** graph/flow inputs + T-013–T-015; no invented process measurements.

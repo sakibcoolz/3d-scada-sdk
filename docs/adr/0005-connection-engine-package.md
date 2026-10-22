@@ -2,6 +2,8 @@
 
 Status: Rejected for the MVP (owner, 2026-10-15). Snapping, graph and routing stay in `@scada3d/core`; revisit only if a consumer needs core without them.
 
+> Note (2026-10-22, T-070): the packages were published as `@sakibcoolz/*` from 0.1.1 (T-059, ADR-0019 amendment). The `@scada3d/*` names in this record are historical.
+
 ## Context
 ARCHITECTURE.md §3 assigns compatibility, snapping and graph traversal to a `connection-engine` package. To avoid an unapproved boundary change, T-007 (`snapping.ts`), T-008 (`graph.ts`) and T-009 (`routing.ts`) were added to `@scada3d/core`. ARCHITECTURE.md assigns routing to a separate `pipe-routing` package.
 

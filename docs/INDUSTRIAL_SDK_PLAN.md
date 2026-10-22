@@ -370,7 +370,7 @@ The owner's phases 0–11 are reconciled with the backlog. New task IDs continue
 | Phase | Scope (reuses) | Key acceptance criteria | Tests |
 |---|---|---|---|
 | **0 Audit** (T-067) | this document | owner approves the decisions in §11 | n/a |
-| **1 Scene v4** (T-068..T-070) | extend `validateScene` / `serializeScene`; ADR-0021 | v3→v4 lossless; v4 round trip is byte-stable; JSON Schema plus fixtures agree with the validator; secrets rejected; validation runs in plain Node | migration, round trip, fixtures (valid/invalid), schema-vs-validator, security fuzz extended to v4 |
+| **1 Scene v4** (T-068..T-070) | extend `validateScene` / `serializeScene`; ADR-0021 (IMPLEMENTED: T-068, T-069) | v3→v4 lossless; v4 round trip is byte-stable; JSON Schema plus fixtures agree with the validator; secrets rejected; validation runs in plain Node | migration, round trip, fixtures (valid/invalid), schema-vs-validator, security fuzz extended to v4 |
 | **2 Registry** (T-071..T-072) | wrap `catalogResolvers`; registry in core; `componentKinds` kept as built-in aliases | a test package registers `acme.press` without SDK edits; old hosts unchanged; unknown type → error or placeholder | registry unit tests, consumer example with a custom type, API tests updated |
 | **3 Ports** (T-073..T-074) | extend `ConnectionPort` → `PortDefinition`; domain rule table | DI/DO/AI/AO/power/network compatibility rules; logical endpoints; `maxConnections` | compatibility matrix tests, v3 port behaviour unchanged |
 | **4 Graph** (T-075..T-076) | `graph.ts`, `validation.ts` | connection domain/relationship/properties; association edges without ports; traversal queries; duplicate/conflict checks | graph tests: PLC→VFD→Motor, PLC→network, sensor→AI |
@@ -427,5 +427,5 @@ The owner's phases 0–11 are reconciled with the backlog. New task IDs continue
 | RUNTIME_INTEGRATION.md | **new**: runtime mode, telemetry contract, projection, command boundary. |
 | Z_FACTORY_INTEGRATION.md | **not created (D6)**: host integration is documented generically in RUNTIME_INTEGRATION.md, with no host named. |
 | IMPLEMENTATION_PHASES.md | **not created**: this plan becomes the M9 section of DEVELOPMENT_PLAN.md plus backlog rows, to avoid a third planning document. |
-| ADRs | ADR-0021 Scene v4 and open registry; ADR-0022 port and connection domains; ADR-0023 runtime variables and data sources; ADR-0024 multi-view; ADR-0025 runtime mode; ADR-0026 command-request boundary (only if D5 is approved). |
+| ADRs | ADR-0021 Scene v4 (accepted, T-068). Later ADRs take the next free numbers as each phase starts: open registry (Phase 2), port and connection domains (Phases 3–4), runtime variables and data sources (Phase 5), multi-view (Phase 7), runtime mode (Phase 9), command-request boundary (Phase 10, D5). |
 | Stale docs found in the audit | fix in Phase 1: SCENE_AND_CONNECTIONS still says `version === 1`; ADR-0005/0010/0012 titles say `@scada3d`; roadmap.md lists a WebSocket/MQTT adapter (contradicts no-network); PROJECT_SUMMARY and MVP status text predates the implementation; `serialization.ts:60` comment |
