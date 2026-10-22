@@ -47,7 +47,7 @@ Unknown fields are rejected (`UNKNOWN_FIELD`), never dropped.
 |---|---|---|---|
 | `id` | yes | string, 1–128 | stable key, unique in the document, never renumbered |
 | `name` | no | string, 1–1024 | display name |
-| `type` | yes | component kind | one of the built-in kinds today: `tank, conicalTank, horizontalTank, sphericalTank, pool, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor`. **PLANNED (Phase 2, new ADR):** namespaced type IDs from an open registry. |
+| `type` | yes | component type | a built-in kind (`tank, conicalTank, horizontalTank, sphericalTank, pool, pipe, elbow, tee, valve, reducer, coupler, pump, sensor, motor`) or a namespaced host type such as `com.example.press` (ADR-0022). Host types are accepted only when the host registers them (`resolveType`); bare unknown names are always rejected. |
 | `typeVersion` | no | string | version of the definition the instance was authored against |
 | `manufacturer`, `model` | no | string | equipment identity |
 | `parentId` | no | id | assembly parent (ADR-0008); no cycles |

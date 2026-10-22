@@ -2,11 +2,12 @@
 // `api.test.ts` fails when the runtime surface changes.
 
 // Scene model and units
-export { SCENE_DOCUMENT_TYPE, SCENE_SCHEMA_VERSION, componentKinds, createEmptyScene, portsCompatible } from './scene.js';
+export { SCENE_DOCUMENT_TYPE, SCENE_SCHEMA_VERSION, componentKinds, createEmptyScene, isBuiltInKind, isNamespacedType, portsCompatible } from './scene.js';
 export type {
   ComponentDefinition,
   ComponentInstance,
   ComponentKind,
+  ComponentType,
   ConnectionPort,
   JsonValue,
   PortKind,

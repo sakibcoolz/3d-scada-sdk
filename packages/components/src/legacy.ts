@@ -1,4 +1,4 @@
-import type { ComponentInstance, ComponentKind, ConnectionPort } from '@sakibcoolz/core';
+import { isBuiltInKind, type ComponentInstance, type ComponentType, type ConnectionPort } from '@sakibcoolz/core';
 import { definitionFor } from './parameters.js';
 import { pipeSizes, type PipeSize } from './sizes.js';
 
@@ -8,7 +8,9 @@ import { pipeSizes, type PipeSize } from './sizes.js';
 const port = (id: string, position: [number, number, number], direction: [number, number, number], size: PipeSize): ConnectionPort => ({ id, kind: 'fluid', position, direction, nominalSize: pipeSizes[size].bore });
 const sizeOf = (p: ComponentInstance['properties'], name = 'size'): PipeSize => (typeof p[name] === 'string' && Object.hasOwn(pipeSizes, p[name] as string) ? (p[name] as PipeSize) : 'DN150');
 
-function legacyPorts(type: ComponentKind, properties: ComponentInstance['properties'] = {}): readonly ConnectionPort[] | undefined {
+function legacyPorts(type: ComponentType, properties: ComponentInstance['properties'] = {}): readonly ConnectionPort[] | undefined {
+  // Only built-in kinds changed size; registered types have no older generation.
+  if (!isBuiltInKind(type)) return undefined;
   switch (type) {
     case 'elbow': {
       const s = sizeOf(properties);

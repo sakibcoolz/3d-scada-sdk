@@ -7,6 +7,7 @@ import {
   validateScene,
   type ComponentInstance,
   type ComponentKind,
+  type ComponentType,
   type ConnectionPort,
   type ScadaScene,
   type SnapOptions,
@@ -23,7 +24,7 @@ const fluid = (id: string, position: Vector3Tuple, direction: Vector3Tuple, nomi
   nominalSize,
 });
 
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = {
+const ports: Partial<Record<ComponentType, ConnectionPort[]>> = {
   tank: [fluid('inlet', [-1.2, 0.8, 0], [-1, 0, 0]), fluid('outlet', [1.2, -0.9, 0], [1, 0, 0])],
   pipe: [fluid('in', [-1, 0, 0], [-1, 0, 0]), fluid('out', [1, 0, 0], [1, 0, 0])],
   valve: [fluid('in', [-0.6, 0, 0], [-1, 0, 0], 0.2), fluid('out', [0.6, 0, 0], [1, 0, 0], 0.2)],
@@ -237,7 +238,7 @@ describe('snapComponent', () => {
   });
 
   it('turns a port facing the same way as a vertical target half way round', () => {
-    const riser: Partial<Record<ComponentKind, ConnectionPort[]>> = {
+    const riser: Partial<Record<ComponentType, ConnectionPort[]>> = {
       tee: [fluid('branch', [0, 1, 0], [0, 1, 0])],
       pipe: [fluid('in', [0, -1, 0], [0, 1, 0])],
     };

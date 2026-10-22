@@ -1,11 +1,11 @@
-import { portsCompatible, type ComponentInstance, type ComponentKind, type ConnectionPort, type ScadaScene, type SceneConnection } from './scene.js';
+import { portsCompatible, type ComponentInstance, type ComponentType, type ConnectionPort, type ScadaScene, type SceneConnection } from './scene.js';
 import { portToWorld, type WorldPort } from './transforms.js';
 import { validateScene, type SceneValidationOptions } from './validation.js';
 
 type Endpoint = SceneConnection['from'];
 
 export interface TouchingOptions {
-  resolvePorts: (type: ComponentKind, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
+  resolvePorts: (type: ComponentType, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
   /** Largest distance between two port centres that still counts as the same point, metres. Default 0.001. */
   tolerance?: number;
   /** Largest deviation from exactly opposite facing directions, radians. Default 1°. */

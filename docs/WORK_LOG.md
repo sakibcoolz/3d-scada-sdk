@@ -1533,3 +1533,40 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - Phase 1 marked implemented (T-068, T-069).
 - New docs added to the PROJECT_SUMMARY map and AGENT_FILE_MAP.
 - Checks: documentation only. The spec example validates (`parseScene` with `catalogResolvers`, ok). Build and tests NOT RUN (no code change).
+
+## 2026-10-22 — T-071: open component registry (Phase 2, ADR-0022)
+- Owner approved ADR-0022 ("Approve adr 0022"). Branch `docs/T-071-registry-adr`, from `develop` after #72. T-068 to T-070 marked DONE (merged).
+- The ADR, core, registry and react work ship together: once core accepts any type name, the catalog lookups in components and react must handle unknown names, so they could not be split.
+- Changes by package:
+  - **core:**
+    - `ComponentType` (built-in kind or namespaced string), `isBuiltInKind`, `isNamespacedType`;
+    - `validateScene` option `resolveType`; bare non-built-in names always `UNKNOWN_COMPONENT_KIND`, with a namespacing hint;
+    - every resolver signature takes `ComponentType`.
+  - **components:**
+    - `createComponentRegistry(...definitions)`: built-ins plus host types, validated, copied and frozen;
+    - `builtInRegistry`; `unknownTypeDefinition` (placeholder); `checkParameters`;
+    - `catalogResolvers` gains `resolveType` and returns undefined for unknown types;
+    - legacy ports and joint styles accept any type.
+  - **simulation:** host types are passive (no vessel, placeholder without ports).
+  - **react:**
+    - `registry` prop on viewer and editor, through a `RegistryContext` that reaches the canvas;
+    - every catalog lookup moved to the registry: palette, Walk menu, properties, drop, attach, notices, import, telemetry, floor, walk obstacles, joints.
+  - **JSON Schema:** `type` accepts the namespaced pattern; new validator-only example for an unregistered host type.
+  - **Playground:** `?custom` registers an example `com.example.filter`.
+  - **Consumer node-check:** registers a host type through the packed packages.
+- Tests:
+  - new `component-types.test.ts` (core, 19) and `registry.test.ts` (components, 9: built-in equivalence, parametric build, placeholder, copy, every registration error, a scene with a host type that validates, round-trips, connects, routes, collides, and refuses a wrong size);
+  - new `e2e/custom-types.spec.ts` (2): palette, the type's own parts rendered (registry reaches the canvas), Shift-click attach, byte-identical export/import, Walk parts menu; an editor without the registration refuses the file;
+  - the import-export e2e message expectation was updated on purpose (namespacing hint).
+- Docs:
+  - ADR-0022 Accepted with implementation notes; DECISION_LOG row;
+  - API.md "Component registry"; RELEASE.md migration note (type widening);
+  - spec §4 type row; PRD persona 5 now IMPLEMENTED; plan Phase 2 and roadmap marked.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1351 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (128 tests after the message fix; the first run had 1 failure, the expected message change).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

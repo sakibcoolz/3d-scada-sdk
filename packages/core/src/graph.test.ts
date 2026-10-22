@@ -9,6 +9,7 @@ import {
   validateScene,
   type ComponentInstance,
   type ComponentKind,
+  type ComponentType,
   type ConnectionPort,
   type GraphOptions,
   type ScadaScene,
@@ -23,7 +24,7 @@ const fluid = (id: string, nominalSize = 0.15): ConnectionPort => ({
   nominalSize,
 });
 
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = {
+const ports: Partial<Record<ComponentType, ConnectionPort[]>> = {
   tank: [fluid('inlet'), fluid('outlet')],
   valve: [fluid('in'), fluid('out')],
   pipe: [fluid('in', 0.2), fluid('out', 0.2)],

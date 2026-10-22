@@ -59,8 +59,11 @@
       }
     },
     "componentKind": {
-      "description": "Built-in component kinds. An open, registry-based list is planned (Phase 2, ADR-0022).",
-      "enum": ["tank", "conicalTank", "horizontalTank", "sphericalTank", "pool", "pipe", "elbow", "tee", "valve", "reducer", "coupler", "pump", "sensor", "motor"]
+      "description": "A built-in kind, or a namespaced host type such as com.example.press (ADR-0022). Whether a host type is registered is checked by validateScene (resolveType).",
+      "anyOf": [
+        { "enum": ["tank", "conicalTank", "horizontalTank", "sphericalTank", "pool", "pipe", "elbow", "tee", "valve", "reducer", "coupler", "pump", "sensor", "motor"] },
+        { "type": "string", "maxLength": 128, "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$" }
+      ]
     },
     "component": {
       "type": "object",

@@ -1,6 +1,6 @@
 // Plain Node, no bundler: the core and catalog must load as ES modules and validate a scene.
 import { parseScene, serializeScene, findOpenJoints } from '@sakibcoolz/core';
-import { catalogResolvers, pipeSizes } from '@sakibcoolz/components';
+import { catalogResolvers, createComponentRegistry, pipeSizes } from '@sakibcoolz/components';
 import { createSimulation } from '@sakibcoolz/simulation';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
 import { readFileSync } from 'node:fs';
@@ -30,6 +30,17 @@ if (!(simulated.levels.t < 80) || simulated.flows.some((f) => f.source !== 'SIMU
 // The SVG sanitizer needs no DOM: it runs in plain Node and refuses scripts.
 if (!sanitizeSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><path d="M0 0L1 1"/></svg>').ok) throw new Error('sanitizer refused a clean SVG');
 if (sanitizeSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><script>x</script></svg>').ok) throw new Error('sanitizer accepted a script');
+// A host registers its own component type without changing the SDK (ADR-0022).
+const registry = createComponentRegistry({
+  type: 'com.example.skid',
+  label: 'Example skid',
+  ports: [{ id: 'in', kind: 'fluid', position: [-0.5, 0, 0], direction: [-1, 0, 0], nominalSize: pipeSizes.DN150.bore }],
+  bounds: { min: [-0.5, -0.3, -0.3], max: [0.5, 0.3, 0.3] },
+  parts: [{ shape: 'box', role: 'shell', center: [0, 0, 0], size: [1, 0.6, 0.6] }],
+});
+const skid = { ...scene, components: [{ ...scene.components[0], id: 'skid', type: 'com.example.skid', position: { x: -0.5, y: 0.084, z: 0 }, properties: {} }, scene.components[1]], connections: [] };
+if (!parseScene(JSON.stringify(skid), registry.resolvers).ok) throw new Error('a registered host type must validate');
+if (parseScene(JSON.stringify(skid), catalogResolvers).ok) throw new Error('an unregistered host type must be refused');
 // The JSON Schema ships with core and resolves through the package exports (T-069).
 const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
 const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));

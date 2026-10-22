@@ -1,10 +1,10 @@
 import { seatOnConnection } from './joints.js';
-import type { ComponentInstance, ComponentKind, ConnectionPort, ScadaScene, SceneConnection } from './scene.js';
+import type { ComponentInstance, ComponentType, ConnectionPort, ScadaScene, SceneConnection } from './scene.js';
 import { findTouchingPorts } from './touching.js';
 import { portToWorld } from './transforms.js';
 
 type Endpoint = SceneConnection['from'];
-type Resolver = (type: ComponentKind, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
+type Resolver = (type: ComponentType, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
 
 export interface UpgradeOptions {
   /** Ports with the current dimensions. */

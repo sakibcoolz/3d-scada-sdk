@@ -25,8 +25,21 @@ export interface ConnectionPort {
 }
 export const componentKinds = ['tank', 'conicalTank', 'horizontalTank', 'sphericalTank', 'pool', 'pipe', 'elbow', 'tee', 'valve', 'reducer', 'coupler', 'pump', 'sensor', 'motor'] as const;
 export type ComponentKind = (typeof componentKinds)[number];
+/**
+ * A component's type (ADR-0022): a built-in kind, or a namespaced type such as `com.acme.press-200`
+ * that a host registers. Bare names (no dot) are reserved for the built-ins.
+ */
+export type ComponentType = ComponentKind | (string & {});
+/** True for one of the SDK's built-in kinds. */
+export function isBuiltInKind(type: unknown): type is ComponentKind {
+  return (componentKinds as readonly unknown[]).includes(type);
+}
+/** True for a namespaced type id: at least two dot-separated segments of letters, digits and inner hyphens. */
+export function isNamespacedType(type: unknown): type is string {
+  return typeof type === 'string' && type.length <= 128 && /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(type);
+}
 export interface ComponentDefinition {
-  type: ComponentKind;
+  type: ComponentType;
   label: string;
   ports: ConnectionPort[];
   defaultSize: Vector3Tuple;
@@ -35,7 +48,7 @@ export interface ComponentDefinition {
 }
 export interface ComponentInstance {
   id: string;
-  type: ComponentKind;
+  type: ComponentType;
   /**
    * Optional assembly parent (ADR-0008). Positions stay in world space; the link only makes
    * editing rigid: moving any member of an assembly moves all of it.

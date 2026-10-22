@@ -1,13 +1,13 @@
-import { assemblyOf, type ComponentKind, type OpenJoint, type ScadaScene, type SceneConnection } from '@sakibcoolz/core';
-import { componentCatalog } from '@sakibcoolz/components';
+import { assemblyOf, type ComponentType, type OpenJoint, type ScadaScene, type SceneConnection } from '@sakibcoolz/core';
+import { builtInRegistry, type ComponentRegistry } from '@sakibcoolz/components';
 
 /** Display names in scene order: "Ball Valve 1", "Ball Valve 2", … */
-export function componentNames(scene: ScadaScene): Map<string, string> {
-  const seen = new Map<ComponentKind, number>();
+export function componentNames(scene: ScadaScene, registry: ComponentRegistry = builtInRegistry): Map<string, string> {
+  const seen = new Map<ComponentType, number>();
   return new Map(scene.components.map((c) => {
     const n = (seen.get(c.type) ?? 0) + 1;
     seen.set(c.type, n);
-    return [c.id, `${componentCatalog[c.type].label} ${n}`];
+    return [c.id, `${registry.definitionFor(c.type).label} ${n}`];
   }));
 }
 
@@ -24,10 +24,10 @@ const MAX_LINES = 5;
  * One line per connection in `after` that was not in `before`: which ports met and, when an
  * assembly is involved, whether the parts now move together. At most five lines, then a count.
  */
-export function describeNewConnections(before: ScadaScene, after: ScadaScene): string[] {
+export function describeNewConnections(before: ScadaScene, after: ScadaScene, registry: ComponentRegistry = builtInRegistry): string[] {
   const existing = new Set(before.connections.map((c) => c.id));
   const added = after.connections.filter((c) => !existing.has(c.id));
-  const names = componentNames(after);
+  const names = componentNames(after, registry);
   const lines = added.map((c) => {
     const from = c.from.instanceId, to = c.to.instanceId;
     const line = `${names.get(from)} "${c.from.portId}" connected to ${names.get(to)} "${c.to.portId}".`;
@@ -43,8 +43,8 @@ export function describeNewConnections(before: ScadaScene, after: ScadaScene): s
 }
 
 /** What "Lock connected as children" did to `parentId`. */
-export function describeLock(after: ScadaScene, parentId: string): string {
-  const names = componentNames(after);
+export function describeLock(after: ScadaScene, parentId: string, registry: ComponentRegistry = builtInRegistry): string {
+  const names = componentNames(after, registry);
   const children = after.components.filter((c) => c.parentId === parentId).length;
   return `${names.get(parentId)} is now the parent of ${children} component${children === 1 ? '' : 's'}; moving any of them moves the whole assembly.`;
 }
@@ -70,16 +70,16 @@ export function describeOpenJoints(open: readonly OpenJoint[], names: Map<string
 }
 
 /** What "Seat on …" did. */
-export function describeSeat(scene: ScadaScene, connectionId: string, instanceId: string, moved: number): string {
-  const names = componentNames(scene);
+export function describeSeat(scene: ScadaScene, connectionId: string, instanceId: string, moved: number, registry: ComponentRegistry = builtInRegistry): string {
+  const names = componentNames(scene, registry);
   const c = scene.connections.find((x) => x.id === connectionId)!;
   const [own, partner] = c.from.instanceId === instanceId ? [c.from, c.to] : [c.to, c.from];
   return `Seated ${names.get(own.instanceId)} "${own.portId}" on ${names.get(partner.instanceId)} "${partner.portId}" (moved ${formatDistance(moved)}).`;
 }
 
 /** What Shift+click attach did: the moved part's port, the fixed part's port, and how far it moved. */
-export function describeAttach(scene: ScadaScene, connection: SceneConnection, moved: number): string {
-  const names = componentNames(scene);
+export function describeAttach(scene: ScadaScene, connection: SceneConnection, moved: number, registry: ComponentRegistry = builtInRegistry): string {
+  const names = componentNames(scene, registry);
   const { from, to } = connection;
   return `Attached ${names.get(from.instanceId)} "${from.portId}" to ${names.get(to.instanceId)} "${to.portId}" (moved ${formatDistance(moved)}).`;
 }

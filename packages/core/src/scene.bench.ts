@@ -9,7 +9,7 @@ import {
   serializeScene,
   snapComponent,
   validateScene,
-  type ComponentKind,
+  type ComponentType,
   type ConnectionPort,
   type FlowReading,
   type Observation,
@@ -19,8 +19,8 @@ import {
 // Named benchmark scenes. "chain-N": N valves in a zig-zag line, each connected to the next, so
 // every route has two bends; every connection has a flow tag and every valve an open tag.
 const fluid = (id: string, x: number, dir: 1 | -1): ConnectionPort => ({ id, kind: 'fluid', position: [x, 0, 0], direction: [dir, 0, 0], nominalSize: 0.15 });
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = { valve: [fluid('in', -0.6, -1), fluid('out', 0.6, 1)] };
-const options = { resolvePorts: (t: ComponentKind) => ports[t], resolveBindable: () => ({ open: 'boolean' as const }) };
+const ports: Partial<Record<ComponentType, ConnectionPort[]>> = { valve: [fluid('in', -0.6, -1), fluid('out', 0.6, 1)] };
+const options = { resolvePorts: (t: ComponentType) => ports[t], resolveBindable: () => ({ open: 'boolean' as const }) };
 const NOW = Date.parse('2026-10-15T12:00:00Z');
 
 function chain(n: number): ScadaScene {

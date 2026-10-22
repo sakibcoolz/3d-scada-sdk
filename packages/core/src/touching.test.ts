@@ -7,18 +7,19 @@ import {
   validateScene,
   type ComponentInstance,
   type ComponentKind,
+  type ComponentType,
   type ConnectionPort,
   type ScadaScene,
   type Vector3Tuple,
 } from './index.js';
 
 const fluid = (id: string, x: number, dir: 1 | -1, nominalSize = 0.15): ConnectionPort => ({ id, kind: 'fluid', position: [x, 0, 0], direction: [dir, 0, 0], nominalSize });
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = {
+const ports: Partial<Record<ComponentType, ConnectionPort[]>> = {
   pipe: [fluid('in', -1, -1), fluid('out', 1, 1)],
   valve: [fluid('in', -0.6, -1), fluid('out', 0.6, 1)],
   pump: [fluid('suction', -0.6, -1, 0.2), fluid('discharge', 0.6, 1, 0.2)],
 };
-const options = { resolvePorts: (t: ComponentKind) => ports[t] };
+const options = { resolvePorts: (t: ComponentType) => ports[t] };
 
 const at = (id: string, type: ComponentKind, p: Vector3Tuple, yawDeg = 0): ComponentInstance => ({
   id,

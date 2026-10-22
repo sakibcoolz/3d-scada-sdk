@@ -4,14 +4,14 @@ import {
   quaternionFromEuler,
   serializeScene,
   validateScene,
-  type ComponentKind,
+  type ComponentType,
   type ConnectionPort,
   type SceneValidationErrorCode,
   type SceneValidationOptions,
 } from './index.js';
 
 const fluid = (id: string): ConnectionPort => ({ id, kind: 'fluid', position: [0, 0, 0], direction: [1, 0, 0], nominalSize: 0.15 });
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = { tank: [fluid('inlet'), fluid('outlet')], valve: [fluid('in'), fluid('out')] };
+const ports: Partial<Record<ComponentType, ConnectionPort[]>> = { tank: [fluid('inlet'), fluid('outlet')], valve: [fluid('in'), fluid('out')] };
 const options: SceneValidationOptions = { resolvePorts: (t) => ports[t] };
 
 const component = (overrides: Record<string, unknown> = {}) => ({

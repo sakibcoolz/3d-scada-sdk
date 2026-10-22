@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { componentKinds, quaternionFromEuler, rotateVector, snapComponent, validateScene, type ComponentInstance, type ComponentKind, type ScadaScene } from '@sakibcoolz/core';
+import { componentKinds, isBuiltInKind, quaternionFromEuler, rotateVector, snapComponent, validateScene, type ComponentInstance, type ComponentKind, type ComponentType, type ScadaScene } from '@sakibcoolz/core';
 import { componentCatalog, definitionFor, outerRadiusFor, pipeOuterRadius, sizeOfPort, type GeometryPart } from './index.js';
 
-const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
+const resolvePorts = (type: ComponentType) => (isBuiltInKind(type) ? componentCatalog[type].ports : undefined);
 
 const component = (id: string, type: ComponentKind) => ({
   id,

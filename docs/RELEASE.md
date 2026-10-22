@@ -42,6 +42,10 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, open component registry (T-071, ADR-0022):**
+  - `ComponentInstance.type` is now `ComponentType`, which is `ComponentKind` or a namespaced string. TypeScript code that switches exhaustively on `ComponentKind`, or indexes `componentCatalog[c.type]`, must handle other types. Use `isBuiltInKind(type)` or a registry's `definitionFor`.
+  - Resolver callbacks you write yourself take `ComponentType`.
+  - Nothing changes at runtime for hosts that use only built-in kinds.
 - **0.2.0, scene version 4 (T-068, ADR-0021):**
   - Saved files are now `schemaVersion: 4` with `documentType: "industrial.scene"`. Older SDKs (0.1.x) cannot open them.
   - v1, v2 and v3 files still load, and report `migratedFrom`. The editor's import message says "(migrated from version 3)" for them.

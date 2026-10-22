@@ -1,11 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createEmptyScene, validateScene, type ScadaScene } from '@sakibcoolz/core';
-import { componentCatalog } from '@sakibcoolz/components';
+import { catalogResolvers } from '@sakibcoolz/components';
 import { Scada3DEditor, Scada3DViewer, type ScadaHandle } from '@sakibcoolz/react';
 import { demoScene, demoTagRows, generatedScene } from './demo';
 import { useDemoFeed } from './DemoFeed';
 import { useSimulation } from './SimulationPanel';
+import { exampleRegistry } from './customTypes';
 
 const params = new URLSearchParams(location.search);
 // `?generate=N` loads the named benchmark scene "chain-N" with a live flow feed (see docs/PERFORMANCE.md).
@@ -13,6 +14,8 @@ const generated = params.has('generate') ? generatedScene(Math.max(2, Math.min(5
 // `?simulate` runs the demo plant through the simulator instead of the demo tag feed (ADR-0010);
 // `?simulate=hydraulic` starts with the hydraulic model (ADR-0011).
 const simulate = params.has('simulate');
+// `?custom` adds an example host component type through the registry (ADR-0022).
+const registry = params.has('custom') ? exampleRegistry : undefined;
 const simulateModel = params.get('simulate') === 'hydraulic' ? 'hydraulic' : 'mass-balance';
 const demo = params.has('demo') || generated !== undefined || simulate;
 // `?collisions=off` shows the host switch for the default-on collision highlight.
@@ -29,7 +32,7 @@ const floorDefault = params.get('floor') !== 'off';
 // `?demo` opens the MVP demo network, validated like any imported scene, with a demo tag feed.
 function initialScene(): ScadaScene | undefined {
   if (!demo) return undefined;
-  const result = validateScene(generated?.scene ?? demoScene, { resolvePorts: (type) => componentCatalog[type].ports, resolveBindable: (type) => componentCatalog[type].bindable });
+  const result = validateScene(generated?.scene ?? demoScene, catalogResolvers);
   if (!result.ok) {
     console.error('Demo scene is invalid', result.errors);
     return undefined;
@@ -62,6 +65,7 @@ function App() {
       <div style={{ flex: 1, minHeight: 0 }}>
         {mounted && (
           <Scada3DEditor
+            registry={registry}
             ref={(handle) => {
               editor.current = handle;
               (window as unknown as { __scadaEditor: ScadaHandle | null }).__scadaEditor = handle;
@@ -81,7 +85,7 @@ function App() {
       </div>
       {second && (
         <div style={{ height: 220, borderTop: '1px solid #3c5366' }}>
-          <Scada3DViewer scene={scene} telemetry={demo ? telemetry : undefined} viewMode="glass" floor={floor} />
+          <Scada3DViewer scene={scene} telemetry={demo ? telemetry : undefined} viewMode="glass" floor={floor} registry={registry} />
         </div>
       )}
     </div>

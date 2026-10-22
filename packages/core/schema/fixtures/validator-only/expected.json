@@ -18,5 +18,9 @@
   "duplicate-component-id.scene.json": {
     "code": "DUPLICATE_COMPONENT_ID",
     "path": "components[1].id"
+  },
+  "unregistered-host-type.scene.json": {
+    "code": "UNKNOWN_COMPONENT_KIND",
+    "path": "components[0].type"
   }
 }

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { PerspectiveCamera } from 'three';
 import { validateScene, type ComponentKind, type ScadaScene, type Vector3Like, type Vector3Tuple } from '@sakibcoolz/core';
-import { asme, componentCatalog } from '@sakibcoolz/components';
+import { asme, catalogResolvers, componentCatalog } from '@sakibcoolz/components';
 import { applyDrop, describeDrop, dropPosition, planDrop, screenToPlane } from './drop.js';
 
-const resolvePorts = (type: ComponentKind) => componentCatalog[type].ports;
+const resolvePorts = catalogResolvers.resolvePorts;
 /** Half the DN150 valve's B16.10 face-to-face, and its height above the ground when it rests there. */
 const VALVE_HALF = asme.DN150.valveFaceToFace / 2;
 const VALVE_Y = -componentCatalog.valve.bounds.min[1];

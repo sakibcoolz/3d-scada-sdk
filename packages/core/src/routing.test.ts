@@ -5,7 +5,7 @@ import {
   routeScene,
   sampleRouteCenterline,
   type ComponentInstance,
-  type ComponentKind,
+  type ComponentType,
   type ConnectionPort,
   type PipeRoute,
   type RoutingOptions,
@@ -23,7 +23,7 @@ const teePorts: ConnectionPort[] = [
   { id: 'right', kind: 'fluid', position: [1, 0, 0], direction: [1, 0, 0], nominalSize: 0.15 },
   { id: 'branch', kind: 'fluid', position: [0, 1, 0], direction: [0, 1, 0], nominalSize: 0.15 },
 ];
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = { sensor: [nozzlePort], tee: teePorts };
+const ports: Partial<Record<ComponentType, ConnectionPort[]>> = { sensor: [nozzlePort], tee: teePorts };
 const options: RoutingOptions = { resolvePorts: (type) => ports[type], bendRadius: R };
 
 /** Rotations that turn local +X into each world axis. */

@@ -1,4 +1,4 @@
-import type { ComponentKind } from '@sakibcoolz/core';
+import type { ComponentKind, ComponentType } from '@sakibcoolz/core';
 import { asme } from './asme.js';
 import type { GeometryPart } from './geometry.js';
 import { outerRadiusFor, type PipeSize } from './sizes.js';
@@ -38,15 +38,16 @@ export const asmeFlange: Record<PipeSize, AsmeFlange> = {
   DN200: flange(342.9, 28.6, 269.9, 298.5, 8, 19.1, 246.1, 101.6),
 };
 
-const FLANGED: ReadonlySet<ComponentKind> = new Set<ComponentKind>(['tank', 'conicalTank', 'horizontalTank', 'sphericalTank', 'pool', 'valve', 'pump']);
+const FLANGED: ReadonlySet<ComponentType> = new Set<ComponentKind>(['tank', 'conicalTank', 'horizontalTank', 'sphericalTank', 'pool', 'valve', 'pump']);
 
 /** How two parts are joined: flanged if either is a valve, pump or tank; welded otherwise. */
-export function jointStyle(a: ComponentKind, b: ComponentKind): 'flanged' | 'welded' {
+export function jointStyle(a: ComponentType, b: ComponentType): 'flanged' | 'welded' {
   return FLANGED.has(a) || FLANGED.has(b) ? 'flanged' : 'welded';
 }
 
 /** Whether a free port of this kind ends in a flange (a blind or open flange is drawn). */
-export const hasFlangedEnds = (kind: ComponentKind) => FLANGED.has(kind);
+/** Host types (ADR-0022) are welded unless a later definition field says otherwise. */
+export const hasFlangedEnds = (kind: ComponentType) => FLANGED.has(kind);
 
 /** One weld-neck flange on the −X side of the joint plane (raised face at x = 0). */
 function side(size: PipeSize, s: -1 | 1): GeometryPart[] {

@@ -1,6 +1,6 @@
 import type { FlowReading, Quality, ValueSource } from './flow.js';
 import { assessObservation, isNewer, type FreshnessOptions } from './observation.js';
-import type { ComponentKind, Quantity, ScadaScene } from './scene.js';
+import type { ComponentType, Quantity, ScadaScene } from './scene.js';
 import { isKnownUnit, toCanonical } from './units.js';
 
 /** One value for a host tag. Read-only: the SDK never writes tags (ADR-0003). */
@@ -44,7 +44,7 @@ export interface TelemetryOptions extends FreshnessOptions {
   /** Which observations to use; measured and simulated are never mixed. Default MEASURED. */
   source?: ValueSource;
   /** Quantities of bindable properties. Without it, numbers and booleans pass through unconverted. */
-  resolveBindable?: (type: ComponentKind) => Readonly<Record<string, Quantity>> | undefined;
+  resolveBindable?: (type: ComponentType) => Readonly<Record<string, Quantity>> | undefined;
 }
 
 export interface TelemetryResolution {

@@ -1,5 +1,8 @@
 import type { ComponentInstance, ScadaScene } from '@sakibcoolz/core';
-import { definitionFor } from '@sakibcoolz/components';
+import { builtInRegistry } from '@sakibcoolz/components';
+
+// Host types (ADR-0022) get a port-less placeholder here, so the models treat them as passive.
+const definitionFor = builtInRegistry.definitionFor;
 import { type Endpoint, type Feed, type Simulation, type SimulationNote, type SimulationOptions, type SimulationState } from './shared.js';
 import { createHydraulicSimulation } from './hydraulic.js';
 import { vesselOf, type Vessel } from './vessels.js';

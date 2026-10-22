@@ -4,7 +4,7 @@ import {
   displayScene,
   resolveFlow,
   resolveTelemetry,
-  type ComponentKind,
+  type ComponentType,
   type Observation,
   type Quantity,
   type ScadaScene,
@@ -14,7 +14,7 @@ import {
 const NOW = Date.parse('2026-10-15T12:00:00.000Z');
 const at = (msAgo: number) => new Date(NOW - msAgo).toISOString();
 
-const bindable: Partial<Record<ComponentKind, Record<string, Quantity>>> = {
+const bindable: Partial<Record<ComponentType, Record<string, Quantity>>> = {
   tank: { level: 'percent', temperature: 'temperature' },
   valve: { open: 'boolean' },
 };

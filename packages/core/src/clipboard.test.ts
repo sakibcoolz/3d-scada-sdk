@@ -7,18 +7,19 @@ import {
   validateScene,
   type ComponentInstance,
   type ComponentKind,
+  type ComponentType,
   type ConnectionPort,
   type ScadaScene,
   type Vector3Tuple,
 } from './index.js';
 
 const fluid = (id: string, x: number, dir: 1 | -1): ConnectionPort => ({ id, kind: 'fluid', position: [x, 0, 0], direction: [dir, 0, 0], nominalSize: 0.15 });
-const ports: Partial<Record<ComponentKind, ConnectionPort[]>> = { pipe: [fluid('in', -1, -1), fluid('out', 1, 1)], valve: [fluid('in', -0.6, -1), fluid('out', 0.6, 1)] };
-const bounds: Partial<Record<ComponentKind, { min: Vector3Tuple; max: Vector3Tuple }>> = {
+const ports: Partial<Record<ComponentType, ConnectionPort[]>> = { pipe: [fluid('in', -1, -1), fluid('out', 1, 1)], valve: [fluid('in', -0.6, -1), fluid('out', 0.6, 1)] };
+const bounds: Partial<Record<ComponentType, { min: Vector3Tuple; max: Vector3Tuple }>> = {
   pipe: { min: [-1, -0.084, -0.084], max: [1, 0.084, 0.084] },
   valve: { min: [-0.6, -0.2, -0.2], max: [0.6, 0.495, 0.2] },
 };
-const options = { resolvePorts: (t: ComponentKind) => ports[t], resolveBounds: (t: ComponentKind) => bounds[t] };
+const options = { resolvePorts: (t: ComponentType) => ports[t], resolveBounds: (t: ComponentType) => bounds[t] };
 
 const at = (id: string, type: ComponentKind, x: number, extra: Partial<ComponentInstance> = {}): ComponentInstance => ({
   id,

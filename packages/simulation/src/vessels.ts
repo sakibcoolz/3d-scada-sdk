@@ -1,4 +1,4 @@
-import type { ComponentInstance, ComponentKind } from '@sakibcoolz/core';
+import { isBuiltInKind, type ComponentInstance, type ComponentType } from '@sakibcoolz/core';
 import { definitionFor, vesselProfile, type IndustrialComponentDefinition } from '@sakibcoolz/components';
 
 /**
@@ -27,7 +27,9 @@ export interface Vessel {
 const cache = new WeakMap<IndustrialComponentDefinition, Vessel | null>();
 
 /** The vessel shape of a component, or undefined if it holds no liquid. Dimensions come from `properties`. */
-export function vesselOf(type: ComponentKind, properties: ComponentInstance['properties'] = {}): Vessel | undefined {
+export function vesselOf(type: ComponentType, properties: ComponentInstance['properties'] = {}): Vessel | undefined {
+  // Registered host types (ADR-0022) are passive here: they neither hold nor move liquid.
+  if (!isBuiltInKind(type)) return undefined;
   const def = definitionFor(type, properties);
   if (cache.has(def)) return cache.get(def) ?? undefined;
   const profile = def.bindable?.level === undefined ? undefined : vesselProfile(def.parts);

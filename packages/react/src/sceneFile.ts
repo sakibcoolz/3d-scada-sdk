@@ -1,5 +1,5 @@
 import { parseScene, upgradeDimensions, type ScadaScene, type SceneValidationError } from '@sakibcoolz/core';
-import { catalogResolvers, legacyCatalogResolvers } from '@sakibcoolz/components';
+import { builtInRegistry, legacyCatalogResolvers, type ComponentRegistry } from '@sakibcoolz/components';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
 
 /** Largest scene file the editor will read (bytes for files, characters for pasted text). */
@@ -25,11 +25,11 @@ export function underlayProblem(svg: string): string | undefined {
 }
 
 /** Parses, validates and (for version 1) migrates scene text against the built-in catalog. */
-export function importSceneText(text: string): SceneImport {
-  const result = parseScene(text, { ...catalogResolvers, validateUnderlay: underlayProblem, maxLength: MAX_SCENE_FILE_BYTES });
+export function importSceneText(text: string, registry: ComponentRegistry = builtInRegistry): SceneImport {
+  const result = parseScene(text, { ...registry.resolvers, validateUnderlay: underlayProblem, maxLength: MAX_SCENE_FILE_BYTES });
   if (!result.ok) return { ok: false, errors: formatSceneErrors(result.errors) };
   // Files from before ASME fittings (ADR-0014): re-seat joints that met under the old sizes.
-  const upgraded = upgradeDimensions(result.scene, { ...catalogResolvers, ...legacyCatalogResolvers });
+  const upgraded = upgradeDimensions(result.scene, { ...registry.resolvers, ...legacyCatalogResolvers });
   const { components, connections } = upgraded.scene;
   const migrated = result.migratedFrom ? ` (migrated from version ${result.migratedFrom})` : '';
   const reseated = upgraded.reseated ? ` Updated ${count(upgraded.reseated, 'part')} to ASME dimensions.` : '';

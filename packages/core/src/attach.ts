@@ -1,10 +1,10 @@
 import { connect } from './graph.js';
 import { seatOnConnection } from './joints.js';
-import { portsCompatible, type ComponentInstance, type ComponentKind, type ConnectionPort, type ScadaScene, type SceneConnection } from './scene.js';
+import { portsCompatible, type ComponentInstance, type ComponentType, type ConnectionPort, type ScadaScene, type SceneConnection } from './scene.js';
 import { portToWorld } from './transforms.js';
 
 export interface AttachOptions {
-  resolvePorts: (type: ComponentKind, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
+  resolvePorts: (type: ComponentType, properties?: ComponentInstance['properties']) => readonly ConnectionPort[] | undefined;
   createId: () => string;
 }
 
