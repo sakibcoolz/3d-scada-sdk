@@ -23,7 +23,7 @@ import { effectiveViewMode, heatColor, HEAT_RANGE_C, liquidFill, shellLook, view
 import { FLOW_MARKER_SPACING, FLOW_MARKER_SPEED, flowAppearance, pathLengths, pointAtInto, summarizeFlow } from './flowVisual.js';
 import { FLOOR_THICKNESS, floorSlab } from './floor.js';
 import { enterVr, useVrSupport, useXrPresenting, XrWalk } from './xrWalk.js';
-import { DesktopWalk, type WalkerState } from './walkMode.js';
+import { DesktopWalk, type WalkerState, type WalkPlaceInput } from './walkMode.js';
 
 // Public API of @sakibcoolz/react: the two components, their prop/handle types and scene import helpers.
 // Editor internals (drop planning, history, visual helpers) stay private. See docs/API.md.
@@ -283,19 +283,53 @@ function useSharedGeometries(definition: ReturnType<typeof definitionFor>): Buff
   return geometries;
 }
 
+/**
+ * What a view needs to let a walker place new parts at the crosshair (T-065). The host (the
+ * editor) owns placement: it plans the drop at the reported floor point, shows it as `preview`, and
+ * applies it on `onPlace`.
+ */
+export interface WalkPlacing {
+  /** The parts menu, in order. */
+  parts: readonly { key: string; label: string }[];
+  /** Label of the part being held, if any. */
+  holding?: string;
+  /** A part was chosen from the menu, or placing stopped (undefined). */
+  onHold: (key: string | undefined) => void;
+  /** The floor point under the crosshair while holding, or undefined. */
+  onAimFloor: (point: Vector3Tuple | undefined) => void;
+  /** Place the held part at the last reported point. */
+  onPlace: () => void;
+}
+
+/** The parts menu opened with P while walking. */
+function WalkPartsMenu({ parts, holding, onChoose, onClose }: { parts: WalkPlacing['parts']; holding?: string; onChoose: (key: string) => void; onClose: () => void }) {
+  return <div role="dialog" aria-label="Place a part" style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:'min(560px, calc(100% - 32px))',maxHeight:'70%',overflow:'auto',padding:12,borderRadius:6,background:'#0b1725f2',border:'1px solid #7fd6ff',color:'#e6f7ff',fontSize:13,boxShadow:'0 8px 30px #0008'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+      <b>Place a part</b>
+      <span style={{opacity:0.75,fontSize:12}}>Pick one, then click to place it at the crosshair · Esc or P closes</span>
+    </div>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(150px, 1fr))',gap:6}}>
+      {parts.map(p=><button key={p.key} type="button" aria-pressed={holding===p.label} onClick={()=>onChoose(p.key)} style={{...walkButtonStyle(true),fontWeight:500,textAlign:'left'}}>{p.label}</button>)}
+    </div>
+    <div style={{marginTop:8,textAlign:'right'}}><button type="button" onClick={onClose} style={{...walkButtonStyle(true),fontWeight:500}}>Close</button></div>
+  </div>;
+}
+
 const walkButtonStyle = (ready: boolean): React.CSSProperties => ({padding:'6px 14px',borderRadius:4,border:'1px solid #7fd6ff',background:ready?'#0f3a52':'transparent',color:ready?'#e6f7ff':'#7d93a6',fontSize:13,fontWeight:600,cursor:ready?'pointer':'not-allowed'});
 
 /** Crosshair, position and keys while walking on the desktop. */
-function WalkHud({ walker, onExit, picking }: { walker?: WalkerState; onExit: () => void; /** Names under the crosshair and selected, when the view can pick. */ picking?: { aim?: string; selected?: string } }) {
+function WalkHud({ walker, onExit, picking, holding, canPlace }: { walker?: WalkerState; onExit: () => void; /** Names under the crosshair and selected, when the view can pick. */ picking?: { aim?: string; selected?: string }; /** Label of the part being placed. */ holding?: string; canPlace?: boolean }) {
   return <>
-    <div aria-hidden style={{position:'absolute',top:'50%',left:'50%',width:6,height:6,margin:-3,borderRadius:3,background:picking?.aim?'#3ccf7e':'#e6f7ffcc',boxShadow:'0 0 0 1px #0b1725',pointerEvents:'none'}}/>
-    {picking&&<div role="status" aria-label="Aim" aria-live="polite" style={{position:'absolute',top:'calc(50% + 14px)',left:'50%',transform:'translateX(-50%)',padding:'3px 8px',borderRadius:4,background:'#0b1725cc',color:'#e6f7ff',fontSize:12,whiteSpace:'nowrap',pointerEvents:'none',textAlign:'center'}}>
+    <div aria-hidden style={{position:'absolute',top:'50%',left:'50%',width:6,height:6,margin:-3,borderRadius:3,background:holding?'#ffd166':picking?.aim?'#3ccf7e':'#e6f7ffcc',boxShadow:'0 0 0 1px #0b1725',pointerEvents:'none'}}/>
+    {holding?<div role="status" aria-label="Aim" aria-live="polite" style={{position:'absolute',top:'calc(50% + 14px)',left:'50%',transform:'translateX(-50%)',padding:'3px 8px',borderRadius:4,background:'#0b1725cc',color:'#ffe9b0',fontSize:12,whiteSpace:'nowrap',pointerEvents:'none',textAlign:'center'}}>
+      Placing <b>{holding}</b> · aim at the floor, click places · X or right-click stops · P changes the part
+    </div>:picking&&<div role="status" aria-label="Aim" aria-live="polite" style={{position:'absolute',top:'calc(50% + 14px)',left:'50%',transform:'translateX(-50%)',padding:'3px 8px',borderRadius:4,background:'#0b1725cc',color:'#e6f7ff',fontSize:12,whiteSpace:'nowrap',pointerEvents:'none',textAlign:'center'}}>
       {picking.aim?<><b>{picking.aim}</b> · click selects{picking.selected&&picking.selected!==picking.aim?<> · C connects to {picking.selected}</>:''}</>:picking.selected?`Selected: ${picking.selected} · aim at a part, C connects`:'Aim at a part and click to select it'}
       {picking.selected&&<div style={{opacity:0.8,marginTop:2}}>{picking.selected}: R turns · Delete removes · PageUp/PageDown raise and lower · Ctrl+Z undoes</div>}
     </div>}
     <div role="status" aria-label="Walk status" aria-live="polite" style={{position:'absolute',bottom:10,left:'50%',transform:'translateX(-50%)',display:'flex',gap:12,alignItems:'center',padding:'6px 12px',borderRadius:4,background:'#0b1725e6',border:'1px solid #7fd6ff',color:'#e6f7ff',fontSize:12,whiteSpace:'nowrap'}}>
       <span>{walker?`Walking · x ${walker.x.toFixed(1)} m, z ${walker.z.toFixed(1)} m · eye ${walker.eye.toFixed(1)} m · heading ${walker.heading}°`:'Walking'}</span>
-      <span style={{opacity:0.75}}>WASD or arrows move · Space up · Alt down · mouse looks · Shift faster · Esc leaves</span>
+      <span style={{opacity:0.75}}>WASD or arrows move · Space up · Alt down · mouse looks · Shift faster{canPlace?' · P places a part':''} · Esc leaves</span>
       <button type="button" onClick={onExit} style={{...walkButtonStyle(true),padding:'2px 8px',fontSize:12}}>Leave walk</button>
     </div>
   </>;
@@ -649,7 +683,7 @@ export type TransformHandler = (id: string, position: Vector3Like, rotation: Qua
 const ROTATION_SNAP = Math.PI / 2;
 const TRANSLATION_SNAP = 0.05;
 
-export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',joints=true,floor=false,walkthrough=false,ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;/** Clicked component; `additive` is true when Shift was held (the editor attaches). */onSelect?:SelectHandler;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Draw flanges, bolts and weld beads at joints (ADR-0015). Default true. */joints?:boolean;/** Draw a concrete floor slab under the equipment. Display only. Default false. */floor?:boolean;/** Offer a first-person walkthrough: Walk on the desktop (mouse look, WASD) and Enter VR on a WebXR headset. View only. Default false. */walkthrough?:boolean;ref?:React.Ref<ScadaHandle>}) {
+export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,selectedId,preview,onCamera,transformMode,onTransform,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',joints=true,floor=false,walkthrough=false,walkPlacing,ref}: {scene:ScadaScene;viewMode?:ViewMode;viewOverrides?:Readonly<Record<string,ViewMode>>;/** Clicked component; `additive` is true when Shift was held (the editor attaches). */onSelect?:SelectHandler;selectedId?:string;preview?:DropPlan;onCamera?:(camera:Camera)=>void;transformMode?:TransformMode;onTransform?:TransformHandler;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Draw flanges, bolts and weld beads at joints (ADR-0015). Default true. */joints?:boolean;/** Draw a concrete floor slab under the equipment. Display only. Default false. */floor?:boolean;/** Offer a first-person walkthrough: Walk on the desktop (mouse look, WASD) and Enter VR on a WebXR headset. View only. Default false. */walkthrough?:boolean;/** Placing new parts at the Walk crosshair (T-065); the editor supplies it. */walkPlacing?:WalkPlacing;ref?:React.Ref<ScadaHandle>}) {
   const telemetry = useTelemetryFeed(telemetryInput, ref);
   const collision = useMemo(() => (collisions ? findCollisions(scene, { resolveBounds }) : undefined), [scene, collisions]);
   const previewCollides = useMemo(() => !!(collisions && preview && collidingWith({ ...scene, components: [...scene.components, preview.component] }, preview.component.id).length), [scene, preview, collisions]);
@@ -718,8 +752,33 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
   const [walker, setWalker] = useState<WalkerState>();
   const [walking, setWalking] = useState(false);
   const [aim, setAim] = useState<string>();
+  const [partsMenu, setPartsMenu] = useState(false);
+  const partsMenuOpen = useRef(false);
+  const placing = useRef(walkPlacing);
+  placing.current = walkPlacing;
+  const setMenu = (open: boolean, relock: boolean) => {
+    partsMenuOpen.current = open;
+    setPartsMenu(open);
+    if (open) { if (document.pointerLockElement) document.exitPointerLock(); return; }
+    if (relock && gl) { try { void Promise.resolve(gl.domElement.requestPointerLock()).catch(() => undefined); } catch { /* drag to look instead */ } }
+  };
   useEffect(() => { if (!walkthrough || presenting) setWalking(false); }, [walkthrough, presenting]);
-  useEffect(() => { if (!walking) { setWalker(undefined); setAim(undefined); } }, [walking]);
+  useEffect(() => {
+    if (walking) return;
+    setWalker(undefined);
+    setAim(undefined);
+    partsMenuOpen.current = false;
+    setPartsMenu(false);
+    if (placing.current?.holding) placing.current.onHold(undefined);
+  }, [walking]);
+  const walkPlace: WalkPlaceInput | undefined = walkPlacing && {
+    menuOpen: partsMenuOpen,
+    placing: !!walkPlacing.holding,
+    onToggleMenu: () => setMenu(!partsMenuOpen.current, true),
+    onStop: () => walkPlacing.onHold(undefined),
+    onPlace: walkPlacing.onPlace,
+    onAimFloor: walkPlacing.onAimFloor,
+  };
   const firstPerson = presenting || walking;
   return <div role="region" aria-label="3D scene view" aria-describedby={descriptionId} style={{position:'relative',width:'100%',height:'100%'}}>
   <p id={descriptionId} style={visuallyHidden}>{count(scene.components.length, 'component')}, {count(scene.connections.length, 'connection')}.</p>
@@ -728,7 +787,7 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     {presenting&&<color attach="background" args={['#101d2d']}/>}
     {(floor||firstPerson)&&<Floor scene={scene}/>}
     {walkthrough&&<XrWalk scene={scene} onPick={onSelect?(id,connect)=>onSelect(id,{additive:connect}):undefined}/>}
-    {walking&&<DesktopWalk scene={scene} onExit={()=>setWalking(false)} onMove={setWalker} onPick={onSelect?(id,connect)=>onSelect(id,{additive:connect}):undefined} onAim={onSelect?setAim:undefined}/>}
+    {walking&&<DesktopWalk scene={scene} onExit={()=>setWalking(false)} onMove={setWalker} onPick={onSelect?(id,connect)=>onSelect(id,{additive:connect}):undefined} onAim={onSelect?setAim:undefined} place={walkPlace}/>}
     <Grid infiniteGrid fadeDistance={35} sectionColor="#50718b" cellColor="#263e52"/>
     {scene.underlay&&<Underlay underlay={scene.underlay}/>}
     {instanced.length>0&&<InstancedEquipment components={instanced} unknown={unknownByComponent} onSelect={onSelect}/>}
@@ -749,7 +808,8 @@ export function Scada3DViewer({scene,viewMode='normal',viewOverrides,onSelect,se
     <button type="button" aria-label="Walk" onClick={()=>setWalking(true)} style={walkButtonStyle(true)}>🚶 Walk</button>
     <VrButton gl={gl} presenting={presenting}/>
   </div>}
-  {walking&&<WalkHud walker={walker} onExit={()=>setWalking(false)} picking={onSelect?{aim:aim&&names.get(aim),selected:selectedId&&names.get(selectedId)}:undefined}/>}
+  {walking&&<WalkHud walker={walker} onExit={()=>setWalking(false)} picking={onSelect?{aim:aim&&names.get(aim),selected:selectedId&&names.get(selectedId)}:undefined} holding={walkPlacing?.holding} canPlace={!!walkPlacing}/>}
+  {walking&&walkPlacing&&partsMenu&&<WalkPartsMenu parts={walkPlacing.parts} holding={walkPlacing.holding} onChoose={key=>{walkPlacing.onHold(key);setMenu(false,true);}} onClose={()=>setMenu(false,true)}/>}
   {simulation?<div aria-label="Simulation badge" style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED{simulation.model?` · ${simulation.model.name} v${simulation.model.version}`:''}</div>
     :(flow?.source??telemetry?.source)==='SIMULATED'&&<div style={{position:'absolute',top:10,right:12,padding:'4px 10px',borderRadius:4,background:'#b58cff',color:'#10051f',fontWeight:700,fontSize:12,letterSpacing:1,pointerEvents:'none'}}>SIMULATED FLOW</div>}
   {((collision&&collision.pairs.length>0)||open.length>0)&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',display:'flex',flexDirection:'column',gap:4,alignItems:'center',pointerEvents:'none'}}>
@@ -1175,6 +1235,35 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     return hit ? planDrop(scene,kind,hit,{createId:()=>id,properties:{...defaultProperties(kind),...dragPreset.current}}) : undefined;
   }
   function endDrag(){dragKind.current=undefined;dragPreset.current=undefined;setPreview(undefined);}
+  // Placing at the Walk crosshair (T-065): the same drop plan as dragging from the palette.
+  const walkParts=useMemo(()=>[
+    ...(Object.keys(componentCatalog) as ComponentKind[]).map(k=>({key:`kind:${k}`,label:componentCatalog[k].label,type:k,preset:{} as ComponentInstance['properties']})),
+    ...componentPresets.map(p=>({key:`preset:${p.id}`,label:p.label,type:p.type,preset:p.properties})),
+  ],[]);
+  const [walkHold,setWalkHold]=useState<(typeof walkParts)[number]>();
+  const walkPoint=useRef<Vector3Tuple|undefined>(undefined);
+  const walkPlan=(at:Vector3Tuple,id:string)=>walkHold&&planDrop(scene,walkHold.type,at,{createId:()=>id,properties:{...defaultProperties(walkHold.type),...walkHold.preset}});
+  useEffect(()=>{if(isLocked&&walkHold){setWalkHold(undefined);setPreview(undefined);}},[isLocked,walkHold]);
+  const walkPlacing:WalkPlacing|undefined=isLocked?undefined:{
+    parts:walkParts,
+    holding:walkHold?.label,
+    onHold:key=>{walkPoint.current=undefined;setPreview(undefined);setWalkHold(walkParts.find(p=>p.key===key));},
+    onAimFloor:point=>{walkPoint.current=point;setPreview(point?walkPlan(point,'drop-preview'):undefined);},
+    onPlace:()=>{
+      const at=walkPoint.current;
+      if(!walkHold) return;
+      if(!at){setNotice([`Aim at the floor to place ${walkHold.label}.`]);return;}
+      const plan=walkPlan(at,newId())!;
+      // Component and its snapped connection land as one undo step, as with a palette drop.
+      const result=applyDrop(scene,plan,newId);
+      if(!result.ok){setNotice([`Cannot place ${walkHold.label}: ${result.error.message}`]);return;}
+      update(result.scene);setSelected(plan.component.id);
+      const lines=describeNewConnections(scene,result.scene);
+      setNotice(lines.length?lines:[`Placed ${componentNames(result.scene).get(plan.component.id)}.`]);
+      // Refresh the ghost against the new scene, so it shows where the next one would go.
+      setPreview(planDrop(result.scene,walkHold.type,at,{createId:()=>'drop-preview',properties:{...defaultProperties(walkHold.type),...walkHold.preset}}));
+    },
+  };
   function drop(e:React.DragEvent<HTMLElement>) {
     e.preventDefault();
     if(isLocked){endDrag();return;}
@@ -1322,7 +1411,7 @@ export function Scada3DEditor({initialScene,onChange,flow,telemetry:telemetryInp
     <main onDragOver={e=>{if(!dragKind.current||isLocked)return;e.preventDefault();setPreview(planAt(e,'drop-preview'));}}
       onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setPreview(undefined);}}
       onDrop={drop} style={{minWidth:0,position:'relative'}}>
-      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={select} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} simulation={simulation} collisions={collisions} openJoints={openJoints} instancing={instancing} joints={joints} floor={floor} walkthrough={walkthrough}/>
+      <Scada3DViewer scene={scene} viewMode={viewMode} viewOverrides={viewOverrides} selectedId={selected} onSelect={select} preview={preview} onCamera={c=>{camera.current=c;}} transformMode={transformMode} onTransform={isLocked?undefined:transform} flow={flow} telemetry={telemetry} simulation={simulation} collisions={collisions} openJoints={openJoints} instancing={instancing} joints={joints} floor={floor} walkthrough={walkthrough} walkPlacing={walkPlacing}/>
       {isLocked&&<div style={{position:'absolute',bottom:10,right:110,padding:'4px 10px',borderRadius:4,background:'#0b1725e6',border:'1px solid #ffd166',color:'#ffd166',fontSize:12,pointerEvents:'none'}}>🔒 Editing locked</div>}
       {notice.length>0&&<ConnectionNotice lines={notice} onDismiss={()=>setNotice([])}/>}
       <div role="status" aria-live="polite" style={{position:'absolute',top:10,left:12,padding:preview?'6px 10px':0,borderRadius:4,background:'#0b1725cc',fontSize:13,pointerEvents:'none'}}>{preview?describeDrop(preview,scene)+previewOverlap:''}</div>

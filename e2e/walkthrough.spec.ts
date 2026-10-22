@@ -139,3 +139,49 @@ test('while walking, the selected part can be turned, raised, removed and restor
   // Still walking throughout.
   await expect(page.getByRole('status', { name: 'Walk status' })).toBeVisible();
 });
+
+test('while walking, P opens the parts menu and a click places the held part on the floor at the crosshair', async ({ page }) => {
+  // Synthetic mouse moves do not turn a pointer-locked view, so this test walks in drag-to-look mode.
+  await page.addInitScript(() => {
+    Element.prototype.requestPointerLock = function () { return Promise.reject(new Error('no pointer lock in this test')); } as typeof Element.prototype.requestPointerLock;
+  });
+  await page.goto('/');
+  await waitForCanvas(page);
+  const valves = async () => (await sceneJson(page)).components.filter((c: { type: string }) => c.type === 'valve').length;
+
+  await page.getByRole('button', { name: 'Walk', exact: true }).click();
+  await expect(page.getByRole('status', { name: 'Walk status' })).toContainText('P places a part');
+  await page.keyboard.press('KeyP');
+  const menu = page.getByRole('dialog', { name: 'Place a part' });
+  await expect(menu).toBeVisible();
+  await menu.getByRole('button', { name: 'Ball Valve', exact: true }).click();
+  await expect(menu).toBeHidden();
+  const aim = page.getByRole('status', { name: 'Aim' });
+  await expect(aim).toContainText('Placing Ball Valve');
+
+  // Look down at the floor (drag to look, or pointer-lock movement), then click to place.
+  const box = (await page.locator('canvas').first().boundingBox())!;
+  const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy - 75);
+  await page.mouse.down();
+  await page.mouse.move(cx, cy + 75, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  await page.mouse.click(cx, cy);
+  await expect.poll(valves).toBe(1);
+  await expect(page.getByRole('status', { name: 'Connection message' })).toContainText('Ball Valve 1');
+
+  // Still holding: a second click places another.
+  await page.mouse.click(cx, cy);
+  await expect.poll(valves).toBe(2);
+
+  await page.keyboard.press('KeyX');
+  await expect(aim).not.toContainText('Placing');
+  await page.mouse.click(cx, cy);
+  await page.waitForTimeout(300);
+  expect(await valves()).toBe(2);
+
+  await page.keyboard.press('ControlOrMeta+KeyZ');
+  await expect.poll(valves).toBe(1);
+  await expect(page.getByRole('status', { name: 'Walk status' })).toBeVisible();
+});
