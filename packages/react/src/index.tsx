@@ -12,6 +12,7 @@ import { cutBelow } from './liquidCut.js';
 import { EDITOR_CSS, formatMetres } from './editorStyles.js';
 import { spatialChunks } from './instancing.js';
 import { jointPlacements, type JointPlacement } from './jointLayer.js';
+import { wireColors, wireSegments } from './wires.js';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
 import { componentNames, describeAttach, describeLock, describeNewConnections, describeOpenJoints, describeSeat } from './connectionNotice.js';
 
@@ -434,6 +435,13 @@ function chunkByPosition(matrices: number[][]): number[][][] {
  * Joint hardware (ADR-0015): bolted ASME flange pairs, single flanges on free flanged ports and
  * butt-weld beads, one instanced mesh per part of each joint type and size. Display only.
  */
+/** Power, signal and network connections as thin straight lines, coloured by domain (ADR-0023). Display only. */
+function WireLayer({ scene }: { scene: ScadaScene }) {
+  const registry = useRegistry();
+  const segments = useMemo(() => wireSegments(scene, registry), [scene, registry]);
+  return <>{segments.map((w) => <Line key={`wire:${w.connectionId}`} points={[w.from, w.to]} color={wireColors[w.domain]} lineWidth={2} userData={{ wireConnectionId: w.connectionId, domain: w.domain }}/>)}</>;
+}
+
 function JointHardware({ scene, routes }: { scene: ScadaScene; routes: readonly PipeRoute[] }) {
   const registry = useRegistry();
   const groups = useMemo(() => {
@@ -694,7 +702,7 @@ function ViewerBody({scene,viewMode='normal',viewOverrides,onSelect,selectedId,p
   const collision = useMemo(() => (collisions ? findCollisions(scene, { resolveBounds: registry.resolvers.resolveBounds }) : undefined), [scene, collisions, registry]);
   const previewCollides = useMemo(() => !!(collisions && preview && collidingWith({ ...scene, components: [...scene.components, preview.component] }, preview.component.id, registry).length), [scene, preview, collisions, registry]);
   const names = useMemo(() => componentNames(scene, registry), [scene, registry]);
-  const routes = useMemo(() => routeScene(scene, registry.resolvers), [scene]);
+  const routes = useMemo(() => routeScene(scene, registry.resolvers), [scene, registry]);
   const routeMaterial = useRouteMaterial(viewMode);
   // Pipe radius per connection, indexed once per scene (a search per route would be quadratic).
   const radiusOf = useMemo(() => {
@@ -802,6 +810,7 @@ function ViewerBody({scene,viewMode='normal',viewOverrides,onSelect,selectedId,p
       onMouseDown={()=>{gesture.current++;}}
       onObjectChange={()=>{const {position:p,quaternion:q}=selectedObject;onTransform(selectedId,{x:p.x,y:p.y,z:p.z},{x:q.x,y:q.y,z:q.z,w:q.w},`transform:${selectedId}:${gesture.current}`);}}/>}
     {routes.map(route=><RoutePipe key={route.connectionId} route={route} material={routeMaterial} radius={radiusOf(route.connectionId)}/>)}
+    <WireLayer scene={shown}/>
     <PortMarkers scene={shown}/>
     {joints&&<JointHardware scene={shown} routes={routes}/>}
     {open.map(o=><OpenJointMarkers key={`open:${o.connectionId}`} scene={scene} open={o}/>)}

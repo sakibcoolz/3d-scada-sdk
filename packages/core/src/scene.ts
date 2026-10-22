@@ -107,10 +107,22 @@ export interface SceneProject {
   revision?: string;
   description?: string;
 }
+/** Built-in relationship kinds (ADR-0023); hosts add namespaced ones such as `com.example.supervises`. */
+export const relationshipKinds = ['controls', 'drives', 'measures', 'feeds', 'communicates', 'wired', 'associated'] as const;
+export type Relationship = (typeof relationshipKinds)[number] | (string & {});
+/** True for a built-in relationship or a namespaced host relationship. */
+export function isRelationship(value: unknown): value is Relationship {
+  return (relationshipKinds as readonly unknown[]).includes(value) || isNamespacedType(value);
+}
 export interface SceneConnection {
   id: string;
+  /** The ports' domain (ADR-0023); when present it must match them. Derived from the ports when absent. */
+  domain?: PortKind;
+  relationship?: Relationship;
   from: { instanceId: string; portId: string };
   to: { instanceId: string; portId: string };
+  /** Edge data such as cable type, cross-section or length; same value rules as component properties. */
+  properties?: Record<string, number | boolean | string>;
 }
 /** Physical quantity of a bindable value; fixes its canonical unit (see `canonicalUnits`). */
 export type Quantity = 'percent' | 'temperature' | 'boolean' | 'flow';

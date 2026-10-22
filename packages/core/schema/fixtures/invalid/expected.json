@@ -42,5 +42,9 @@
   "extension-prototype-key.scene.json": {
     "code": "INVALID_FIELD",
     "path": "extensions.com.example.x.__proto__"
+  },
+  "unknown-relationship.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "connections[0].relationship"
   }
 }

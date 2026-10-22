@@ -72,8 +72,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-070 | M9 (industrial model) | P1 | T-068 | DONE | Phase 1c: INDUSTRIAL_SCENE_SPEC.md and fixes to stale docs found in the audit |
 | T-071 | M9 (industrial model) | P0 | T-070 | DONE | Phase 2: open component registry (ADR-0022): namespaced host types, core `resolveType`, `createComponentRegistry`/`builtInRegistry`, viewer/editor `registry` prop, placeholder for unknown types, schema and consumer check |
 | T-072 | M9 (industrial model) | P0 | T-071 | DONE | Phase 2b: folded into T-071 (registry rules, placeholder and consumer check shipped there) |
-| T-073 | M9 (industrial model) | P0 | T-071 | REVIEW | Phase 3a (ADR-0023): port domains `power`/`network`, signal/power/network metadata, `maxConnections`, per-domain compatibility rule table, registry rules |
-| T-074 | M9 (industrial model) | P0 | T-073 | TODO | Phase 3b (ADR-0023): connection `domain`/`relationship`/`properties`; schema, fixtures, spec; routing and simulation fluid-only; viewer draws non-fluid connections as lines |
+| T-073 | M9 (industrial model) | P0 | T-071 | DONE | Phase 3a (ADR-0023): port domains `power`/`network`, signal/power/network metadata, `maxConnections`, per-domain compatibility rule table, registry rules |
+| T-074 | M9 (industrial model) | P0 | T-073 | REVIEW | Phase 3b (ADR-0023): connection `domain`/`relationship`/`properties`; schema, fixtures, spec; routing only for physically mating ports, simulation fluid-only; viewer draws non-fluid connections as lines |
 | T-075 | M9 (industrial model) | P0 | T-074 | TODO | Phase 4a (ADR-0023): root `associations` (port-less logical links), validation, `addAssociation`/`removeAssociation`, schema and spec |
 | T-076 | M9 (industrial model) | P0 | T-075 | TODO | Phase 4b (ADR-0023): `neighbours`, `relatedComponents`, `pathBetween` with domain/relationship filters; PLC→VFD→Motor, network and 4–20 mA acceptance scenes; consumer example |
 

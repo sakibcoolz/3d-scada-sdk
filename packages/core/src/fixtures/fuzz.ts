@@ -60,7 +60,7 @@ export const baseV4 = () => ({
     { id: 'tank', name: 'T-101', type: 'tank', typeVersion: '1', manufacturer: 'ACME', model: 'X', position: { x: 0, y: 1.535, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { level: 45 }, labels: { area: 'A', asset: '1' }, extensions: { 'com.example.a': { list: [1, 'two', { three: true }], deep: { a: { b: null } } } } },
     { id: 'valve', type: 'valve', position: { x: 1.8, y: 0.635, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 }, scale: { x: 1, y: 1, z: 1 }, properties: { open: true } },
   ],
-  connections: [{ id: 'e1', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'valve', portId: 'in' } }],
+  connections: [{ id: 'e1', domain: 'fluid', relationship: 'feeds', from: { instanceId: 'tank', portId: 'outlet' }, to: { instanceId: 'valve', portId: 'in' }, properties: { lengthM: 2, cable: 'n/a' } }],
   tagBindings: [{ id: 'b1', tagId: 'LT-101', kind: 'property', instanceId: 'tank', property: 'level', unit: '%' }],
   extensions: { 'org.example.b': { n: 1, s: 'x', arr: [[], {}] } },
 });

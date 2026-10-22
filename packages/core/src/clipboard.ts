@@ -32,7 +32,7 @@ export function copyComponents(scene: ScadaScene, ids: readonly string[]): Compo
     });
   const connections = scene.connections
     .filter((c) => set.has(c.from.instanceId) && set.has(c.to.instanceId))
-    .map((c) => ({ id: c.id, from: { ...c.from }, to: { ...c.to } }));
+    .map((c) => ({ ...c, from: { ...c.from }, to: { ...c.to }, ...(c.properties ? { properties: { ...c.properties } } : {}) }));
   return { components, connections };
 }
 
@@ -80,6 +80,8 @@ export function pasteComponents(
     return copy;
   });
   const connections = clipboard.connections.map((c) => ({
+    ...c,
+    ...(c.properties ? { properties: { ...c.properties } } : {}),
     id: options.createId(),
     from: { instanceId: ids.get(c.from.instanceId)!, portId: c.from.portId },
     to: { instanceId: ids.get(c.to.instanceId)!, portId: c.to.portId },

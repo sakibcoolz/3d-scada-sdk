@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
+  "units": "m",
+  "components": [
+    {
+      "id": "T1",
+      "type": "tank",
+      "position": {
+        "x": 0,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "V1",
+      "type": "valve",
+      "position": {
+        "x": 2,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "id": "c",
+      "domain": "signal",
+      "from": {
+        "instanceId": "T1",
+        "portId": "outlet"
+      },
+      "to": {
+        "instanceId": "V1",
+        "portId": "in"
+      }
+    }
+  ]
+}
