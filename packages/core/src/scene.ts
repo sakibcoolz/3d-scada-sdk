@@ -124,6 +124,18 @@ export interface SceneConnection {
   /** Edge data such as cable type, cross-section or length; same value rules as component properties. */
   properties?: Record<string, number | boolean | string>;
 }
+/**
+ * A logical fact between two components, such as "PLC-01 controls VFD-101" (ADR-0023): directed,
+ * with no ports and no geometry. Never drawn as wiring, never routed or simulated.
+ */
+export interface SceneAssociation {
+  id: string;
+  relationship: Relationship;
+  /** Component ids. */
+  from: string;
+  to: string;
+  properties?: Record<string, number | boolean | string>;
+}
 /** Physical quantity of a bindable value; fixes its canonical unit (see `canonicalUnits`). */
 export type Quantity = 'percent' | 'temperature' | 'boolean' | 'flow';
 
@@ -163,6 +175,8 @@ export interface ScadaScene {
   project?: SceneProject;
   components: ComponentInstance[];
   connections: SceneConnection[];
+  /** Optional port-less logical links (ADR-0023); absent when there are none. */
+  associations?: SceneAssociation[];
   /** Optional; absent when the scene has no bindings. */
   tagBindings?: TagBinding[];
   /** Optional reference drawing (ADR-0012); absent when there is none. */

@@ -21,6 +21,7 @@ import {
   type Vector3Like,
   type ScadaScene,
   type TagBinding,
+  type SceneAssociation,
   type SceneConnection,
   type Vector3Tuple,
 } from './scene.js';
@@ -71,6 +72,8 @@ export type SceneValidationResult =
 export interface SceneLimits {
   maxComponents: number;
   maxConnections: number;
+  /** Port-less associations (ADR-0023), counted separately from connections. */
+  maxAssociations: number;
   maxBindings: number;
   maxIdLength: number;
   maxProperties: number;
@@ -82,6 +85,7 @@ export interface SceneLimits {
 export const defaultSceneLimits: Readonly<SceneLimits> = {
   maxComponents: 10_000,
   maxConnections: 20_000,
+  maxAssociations: 20_000,
   maxBindings: 20_000,
   maxIdLength: 128,
   maxProperties: 64,
@@ -127,7 +131,7 @@ const sceneKeys: Record<SchemaVersion, string[]> = {
   1: ['version', 'components', 'connections'],
   2: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings'],
   3: ['schemaVersion', 'units', 'components', 'connections', 'tagBindings', 'underlay'],
-  4: ['schemaVersion', 'documentType', 'units', 'project', 'components', 'connections', 'tagBindings', 'underlay', 'extensions'],
+  4: ['schemaVersion', 'documentType', 'units', 'project', 'components', 'connections', 'associations', 'tagBindings', 'underlay', 'extensions'],
 };
 const projectKeys = ['id', 'name', 'revision', 'description'];
 const underlayKeys = ['svg', 'position', 'width', 'rotation', 'opacity'];
@@ -158,6 +162,7 @@ const connectionKeys: Record<SchemaVersion, string[]> = {
   3: ['id', 'from', 'to'],
   4: ['id', 'domain', 'relationship', 'from', 'to', 'properties'],
 };
+const associationKeys = ['id', 'relationship', 'from', 'to', 'properties'];
 const bindingKeys = {
   property: ['id', 'tagId', 'kind', 'instanceId', 'property', 'unit'],
   flow: ['id', 'tagId', 'kind', 'connectionId', 'unit'],
@@ -546,6 +551,33 @@ function readEndpoint(value: unknown, path: string, limits: SceneLimits, errors:
   return { instanceId, portId };
 }
 
+/** Edge data on a connection or association (ADR-0023): property value rules, and no credential-like names. */
+function readEdgeProperties(value: unknown, path: string, limits: SceneLimits, errors: Errors): SceneConnection['properties'] {
+  const properties = readProperties(value, path, limits, errors);
+  for (const key of Object.keys(properties ?? {})) {
+    if (isSecretKey(key)) errors.push({ code: 'SECRET_FIELD', path: `${path}.${key}`, message: `"${key}" looks like a credential; store a reference in the host instead.` });
+  }
+  return properties;
+}
+
+function readAssociation(value: unknown, path: string, limits: SceneLimits, errors: Errors): SceneAssociation | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected an association object.' });
+    return undefined;
+  }
+  const before = errors.length;
+  checkKeys(value, associationKeys, path, errors);
+  const id = readId(value.id, `${path}.id`, limits, errors);
+  if (!isRelationship(value.relationship)) {
+    errors.push({ code: 'INVALID_FIELD', path: `${path}.relationship`, message: `Expected a relationship: one of ${relationshipKinds.join(', ')}, or a namespaced name such as "com.example.supervises".` });
+  }
+  const from = readId(value.from, `${path}.from`, limits, errors);
+  const to = readId(value.to, `${path}.to`, limits, errors);
+  const properties = value.properties !== undefined ? readEdgeProperties(value.properties, `${path}.properties`, limits, errors) : undefined;
+  if (errors.length > before || !id || !from || !to) return undefined;
+  return { id, relationship: value.relationship as SceneAssociation['relationship'], from, to, ...(properties ? { properties } : {}) };
+}
+
 function readConnection(value: unknown, path: string, version: SchemaVersion, limits: SceneLimits, errors: Errors): SceneConnection | undefined {
   if (!isObject(value)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a connection object.' });
@@ -568,10 +600,7 @@ function readConnection(value: unknown, path: string, version: SchemaVersion, li
       else errors.push({ code: 'INVALID_FIELD', path: `${path}.relationship`, message: `Unknown relationship ${describe(value.relationship)}; expected one of ${relationshipKinds.join(', ')}, or a namespaced name such as "com.example.supervises".` });
     }
     if (value.properties !== undefined) {
-      const properties = readProperties(value.properties, `${path}.properties`, limits, errors);
-      for (const key of Object.keys(properties ?? {})) {
-        if (isSecretKey(key)) errors.push({ code: 'SECRET_FIELD', path: `${path}.properties.${key}`, message: `"${key}" looks like a credential; store a reference in the host instead.` });
-      }
+      const properties = readEdgeProperties(value.properties, `${path}.properties`, limits, errors);
       if (properties) extra.properties = properties;
     }
   }
@@ -775,6 +804,36 @@ function checkReferences(scene: ScadaScene, options: SceneValidationOptions, err
     occupied.set(fromKey, (occupied.get(fromKey) ?? 0) + 1);
     occupied.set(toKey, (occupied.get(toKey) ?? 0) + 1);
   });
+
+  // Associations (ADR-0023): ids share the connections' namespace; directed, so only an identical
+  // (from, to, relationship) repeats.
+  const facts = new Set<string>();
+  scene.associations?.forEach((a, i) => {
+    const path = `associations[${i}]`;
+    if (connectionIds.has(a.id)) {
+      errors.push({ code: 'DUPLICATE_CONNECTION_ID', path: `${path}.id`, message: `Duplicate connection or association id "${a.id}".` });
+      return;
+    }
+    connectionIds.add(a.id);
+    let known = true;
+    for (const side of ['from', 'to'] as const) {
+      if (!componentsById.has(a[side])) {
+        errors.push({ code: 'UNKNOWN_INSTANCE', path: `${path}.${side}`, message: `No component "${a[side]}".` });
+        known = false;
+      }
+    }
+    if (!known) return;
+    if (a.from === a.to) {
+      errors.push({ code: 'SELF_CONNECTION', path, message: 'A component cannot be associated with itself.' });
+      return;
+    }
+    const fact = JSON.stringify([a.from, a.to, a.relationship]);
+    if (facts.has(fact)) {
+      errors.push({ code: 'DUPLICATE_EDGE', path, message: `"${a.from}" already ${a.relationship} "${a.to}".` });
+      return;
+    }
+    facts.add(fact);
+  });
 }
 
 /** Reads the optional reference drawing (ADR-0012); sanitizing is the host's `validateUnderlay`. */
@@ -853,6 +912,10 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
   const connections = readList(input.connections, 'connections', limits.maxConnections, errors, (item, path) =>
     readConnection(item, path, version, limits, errors),
   );
+  const associations =
+    version === 4 && input.associations !== undefined
+      ? readList(input.associations, 'associations', limits.maxAssociations, errors, (item, path) => readAssociation(item, path, limits, errors))
+      : undefined;
   const tagBindings =
     version !== 1 && input.tagBindings !== undefined
       ? readList(input.tagBindings, 'tagBindings', limits.maxBindings, errors, (item, path) => readBinding(item, path, limits, errors))
@@ -868,6 +931,7 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
     ...(project ? { project } : {}),
     components,
     connections,
+    ...(associations ? { associations } : {}),
     ...(tagBindings ? { tagBindings } : {}),
     ...(underlay ? { underlay } : {}),
     ...(extensions ? { extensions } : {}),

@@ -154,6 +154,15 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Associations (T-075, ADR-0023)
+- **`scene.associations`** is an optional list of `{ id, relationship, from, to, properties? }`, linking component ids with no ports, such as "PLC-01 controls VFD-101". They are directed, never drawn and never routed.
+- **Helpers:**
+  - `addAssociation(scene, association, options)` validates like `connect`;
+  - `removeAssociation(scene, id)`;
+  - `removeComponent` also removes the component's associations;
+  - copy and paste carry associations between copied parts.
+- **Validation codes:** `UNKNOWN_INSTANCE`, `SELF_CONNECTION`, `DUPLICATE_EDGE`, `DUPLICATE_CONNECTION_ID` (IDs are shared with connections), `INVALID_FIELD` and `SECRET_FIELD`. The limit is `maxAssociations`.
+
 ## Connection fields (T-074, ADR-0023)
 - **`SceneConnection`** gains optional fields:
   - `domain`: must match the ports;

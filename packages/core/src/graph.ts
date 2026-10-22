@@ -1,7 +1,7 @@
-import type { ScadaScene, SceneConnection } from './scene.js';
+import type { ScadaScene, SceneAssociation, SceneConnection } from './scene.js';
 import { validateScene, type SceneValidationErrorCode, type SceneValidationOptions } from './validation.js';
 
-export type GraphErrorCode = SceneValidationErrorCode | 'UNKNOWN_CONNECTION';
+export type GraphErrorCode = SceneValidationErrorCode | 'UNKNOWN_CONNECTION' | 'UNKNOWN_ASSOCIATION';
 
 export interface GraphError {
   code: GraphErrorCode;
@@ -33,7 +33,34 @@ export function disconnect(scene: ScadaScene, connectionId: string): GraphResult
   return { ok: true, scene: withoutDanglingBindings(next) };
 }
 
-/** Removes a component with every edge that touches it, so no edge is left dangling; its children are freed. */
+/**
+ * Adds one association (ADR-0023), such as "PLC-01 controls VFD-101". Validated like `connect`:
+ * both components exist and differ, the id is unused, and the same fact is not recorded twice.
+ */
+export function addAssociation(scene: ScadaScene, association: SceneAssociation, options: GraphOptions): GraphResult {
+  const existing = scene.associations ?? [];
+  const index = existing.length;
+  const result = validateScene({ ...scene, associations: [...existing, association] }, options);
+  if (result.ok) return result;
+  const error = result.errors.find((e) => e.path.startsWith(`associations[${index}]`)) ?? result.errors[0];
+  return { ok: false, error: { code: error.code, message: error.message } };
+}
+
+/** Removes one association. The list is dropped when it becomes empty, so the file is unchanged by an add and remove. */
+export function removeAssociation(scene: ScadaScene, associationId: string): GraphResult {
+  if (!scene.associations?.some((a) => a.id === associationId)) {
+    return { ok: false, error: { code: 'UNKNOWN_ASSOCIATION', message: `No association "${associationId}".` } };
+  }
+  return { ok: true, scene: withAssociations(scene, scene.associations.filter((a) => a.id !== associationId)) };
+}
+
+/** The scene with `associations`, leaving the field out when the list is empty. */
+function withAssociations(scene: ScadaScene, associations: SceneAssociation[]): ScadaScene {
+  const { associations: _, ...rest } = scene;
+  return associations.length > 0 ? { ...rest, associations } : rest;
+}
+
+/** Removes a component with every connection and association that touches it, so no edge is left dangling; its children are freed. */
 export function removeComponent(scene: ScadaScene, instanceId: string): GraphResult {
   if (!scene.components.some((c) => c.id === instanceId)) {
     return { ok: false, error: { code: 'UNKNOWN_INSTANCE', message: `No component "${instanceId}".` } };
@@ -49,7 +76,8 @@ export function removeComponent(scene: ScadaScene, instanceId: string): GraphRes
       }),
     connections: scene.connections.filter((c) => c.from.instanceId !== instanceId && c.to.instanceId !== instanceId),
   };
-  return { ok: true, scene: withoutDanglingBindings(next) };
+  const kept = scene.associations && withAssociations(next, scene.associations.filter((a) => a.from !== instanceId && a.to !== instanceId));
+  return { ok: true, scene: withoutDanglingBindings(kept ?? next) };
 }
 
 /** Drops tag bindings whose component or connection no longer exists. Absent bindings stay absent. */

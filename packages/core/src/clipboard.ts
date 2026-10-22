@@ -1,11 +1,13 @@
 import { rotateVector } from './quaternion.js';
-import type { ComponentInstance, ComponentType, ScadaScene, SceneConnection, Vector3Like, Vector3Tuple } from './scene.js';
+import type { ComponentInstance, ComponentType, ScadaScene, SceneAssociation, SceneConnection, Vector3Like, Vector3Tuple } from './scene.js';
 import { quaternionToTuple } from './vectors.js';
 
-/** A snapshot of copied components and the connections between them. */
+/** A snapshot of copied components and the connections and associations between them. */
 export interface ComponentClipboard {
   components: ComponentInstance[];
   connections: SceneConnection[];
+  /** Associations whose both ends are copied (ADR-0023); absent in clipboards made before them. */
+  associations?: SceneAssociation[];
 }
 
 const cloneComponent = (c: ComponentInstance): ComponentInstance => ({
@@ -17,7 +19,7 @@ const cloneComponent = (c: ComponentInstance): ComponentInstance => ({
 });
 
 /**
- * Copies components `ids` (in scene order) with the connections whose both ends are copied. A
+ * Copies components `ids` (in scene order) with the connections and associations whose both ends are copied. A
  * parent link is kept only if the parent is copied too. Tag bindings are not copied: a copy must
  * not show another part's live value. The result does not share objects with the scene.
  */
@@ -33,7 +35,10 @@ export function copyComponents(scene: ScadaScene, ids: readonly string[]): Compo
   const connections = scene.connections
     .filter((c) => set.has(c.from.instanceId) && set.has(c.to.instanceId))
     .map((c) => ({ ...c, from: { ...c.from }, to: { ...c.to }, ...(c.properties ? { properties: { ...c.properties } } : {}) }));
-  return { components, connections };
+  const associations = (scene.associations ?? [])
+    .filter((a) => set.has(a.from) && set.has(a.to))
+    .map((a) => ({ ...a, ...(a.properties ? { properties: { ...a.properties } } : {}) }));
+  return { components, connections, ...(associations.length > 0 ? { associations } : {}) };
 }
 
 /** World X extent of the copied parts' boxes, used to paste beside the original without overlap. */
@@ -86,8 +91,21 @@ export function pasteComponents(
     from: { instanceId: ids.get(c.from.instanceId)!, portId: c.from.portId },
     to: { instanceId: ids.get(c.to.instanceId)!, portId: c.to.portId },
   }));
+  const associations = (clipboard.associations ?? []).map((a) => ({
+    ...a,
+    ...(a.properties ? { properties: { ...a.properties } } : {}),
+    id: options.createId(),
+    from: ids.get(a.from)!,
+    to: ids.get(a.to)!,
+  }));
+  const allAssociations = [...(scene.associations ?? []), ...associations];
   return {
-    scene: { ...scene, components: [...scene.components, ...components], connections: [...scene.connections, ...connections] },
+    scene: {
+      ...scene,
+      components: [...scene.components, ...components],
+      connections: [...scene.connections, ...connections],
+      ...(allAssociations.length > 0 ? { associations: allAssociations } : {}),
+    },
     pastedIds: components.map((c) => c.id),
   };
 }

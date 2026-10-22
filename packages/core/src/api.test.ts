@@ -6,6 +6,7 @@ import * as core from './index.js';
 const publicApi = [
   'SCENE_DOCUMENT_TYPE',
   'SCENE_SCHEMA_VERSION',
+  'addAssociation',
   'assemblyOf',
   'attachComponents',
   'canonicalUnits',
@@ -46,6 +47,7 @@ const publicApi = [
   'quaternionToEuler',
   'reachableComponents',
   'relationshipKinds',
+  'removeAssociation',
   'removeComponent',
   'resolveFlow',
   'resolveTelemetry',

@@ -13,6 +13,12 @@
     "project": { "$ref": "#/$defs/project" },
     "components": { "type": "array", "maxItems": 10000, "items": { "$ref": "#/$defs/component" } },
     "connections": { "type": "array", "maxItems": 20000, "items": { "$ref": "#/$defs/connection" } },
+    "associations": {
+      "description": "Port-less logical links between components, such as a PLC that controls a drive (ADR-0023). Never drawn as wiring.",
+      "type": "array",
+      "maxItems": 20000,
+      "items": { "$ref": "#/$defs/association" }
+    },
     "tagBindings": { "type": "array", "maxItems": 20000, "items": { "$ref": "#/$defs/tagBinding" } },
     "underlay": { "$ref": "#/$defs/underlay" },
     "extensions": { "$ref": "#/$defs/extensions" }
@@ -102,6 +108,19 @@
       "required": ["instanceId", "portId"],
       "properties": { "instanceId": { "$ref": "#/$defs/id" }, "portId": { "$ref": "#/$defs/id" } }
     },
+    "relationship": {
+      "description": "A built-in relationship, or a namespaced host relationship such as com.example.supervises (ADR-0023).",
+      "anyOf": [
+        { "enum": ["controls", "drives", "measures", "feeds", "communicates", "wired", "associated"] },
+        { "type": "string", "maxLength": 128, "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$" }
+      ]
+    },
+    "edgeProperties": {
+      "description": "Edge data such as cable type, cross-section or length (ADR-0023). Credential-like names are rejected by validateScene.",
+      "type": "object",
+      "maxProperties": 64,
+      "additionalProperties": { "anyOf": [{ "type": "string", "maxLength": 1024 }, { "type": "number" }, { "type": "boolean" }] }
+    },
     "connection": {
       "type": "object",
       "additionalProperties": false,
@@ -112,21 +131,22 @@
           "description": "The ports' domain (ADR-0023); validateScene checks that it matches them. Derived from the ports when absent.",
           "enum": ["fluid", "mechanical", "power", "signal", "network", "electrical"]
         },
-        "relationship": {
-          "description": "A built-in relationship, or a namespaced host relationship such as com.example.supervises (ADR-0023).",
-          "anyOf": [
-            { "enum": ["controls", "drives", "measures", "feeds", "communicates", "wired", "associated"] },
-            { "type": "string", "maxLength": 128, "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$" }
-          ]
-        },
+        "relationship": { "$ref": "#/$defs/relationship" },
         "from": { "$ref": "#/$defs/endpoint" },
         "to": { "$ref": "#/$defs/endpoint" },
-        "properties": {
-          "description": "Edge data such as cable type, cross-section or length (ADR-0023). Credential-like names are rejected by validateScene.",
-          "type": "object",
-          "maxProperties": 64,
-          "additionalProperties": { "anyOf": [{ "type": "string", "maxLength": 1024 }, { "type": "number" }, { "type": "boolean" }] }
-        }
+        "properties": { "$ref": "#/$defs/edgeProperties" }
+      }
+    },
+    "association": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "relationship", "from", "to"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "relationship": { "$ref": "#/$defs/relationship" },
+        "from": { "$ref": "#/$defs/id" },
+        "to": { "$ref": "#/$defs/id" },
+        "properties": { "$ref": "#/$defs/edgeProperties" }
       }
     },
     "tagBinding": {
