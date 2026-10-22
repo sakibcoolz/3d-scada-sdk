@@ -1965,3 +1965,24 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - Only the e2e file changed after the consumer checks ran.
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-087: port inspector and relationship explorer (Phase 8a, ADR-0027)
+- Owner merged #88 (T-086) and approved ADR-0027 ("approve"). Branch `docs/T-087-editor-adr` from `origin/develop`.
+- Change:
+  - **react:** new `ports.ts` (`describePorts`, `describeRating`, `portFlow`), `relations.ts` (`describeRelations` with groups and the upstream control chain) and `inspector.tsx`;
+  - the editor's Properties panel gains read-only "Ports" and "Related" sections whose links select components.
+- Tests: `inspector.test.ts` (6); e2e `inspector.spec.ts` (2).
+- Visual check: a screenshot of the panel with the pump selected.
+- Docs:
+  - ADR-0027 Accepted with T-087 notes; DECISION_LOG;
+  - API.md; plan Phase 8 row and the relationship explorer status;
+  - backlog T-086 DONE, T-087 REVIEW, T-088..T-089 TODO.
+- The first e2e run exited 1: `editor-look.spec.ts` lists the Properties section titles, so it now includes "Ports" and "Related".
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1607 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 on the re-run (150 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

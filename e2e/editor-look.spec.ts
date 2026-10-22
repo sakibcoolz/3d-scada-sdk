@@ -70,7 +70,7 @@ test('properties are grouped in sections that fold away', async ({ page }) => {
   await demo(page);
   await page.getByRole('button', { name: /^Ball Valve 1/ }).click();
   const panel = page.locator('aside').nth(1);
-  await expect(panel.locator('summary')).toHaveText(['Transform', 'Settings', 'Connections', 'Tag bindings', 'View', 'Actions']);
+  await expect(panel.locator('summary')).toHaveText(['Transform', 'Settings', 'Connections', 'Ports', 'Related', 'Tag bindings', 'View', 'Actions']);
   await panel.locator('summary', { hasText: 'Transform' }).click();
   await expect(page.getByLabel('X', { exact: true })).toBeHidden();
   await panel.locator('summary', { hasText: 'Transform' }).click();
