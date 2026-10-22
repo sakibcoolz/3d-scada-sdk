@@ -2,7 +2,7 @@ import React, { useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo,
 import { CanvasTexture, Color, DoubleSide, LatheGeometry, Vector2, Matrix4, MeshStandardMaterial, Plane, Quaternion, SphereGeometry, SRGBColorSpace, Vector3, type BufferGeometry, type Camera, type WebGLRenderer, type InstancedMesh, type Material, type Mesh, type Object3D } from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Edges, OrbitControls, Grid, GizmoHelper, GizmoViewport, Line, TransformControls } from '@react-three/drei';
-import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, attachComponents, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentType, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type Vector3Tuple } from '@sakibcoolz/core';
+import { assemblyOf, clipboardWidth, connectProvider, copyComponents, pasteComponents, validateScene, type ComponentClipboard, connectionsOf, lockConnectedAsChildren, moveAssembly, unlockFromParent, connectTouchingPorts, attachComponents, portsCompatible, findOpenJoints, seatOnConnection, type OpenJoint, createEmptyScene, findCollisions, findTouchingPorts, createObservationStore, displayScene, type DataProvider, portToWorld, removeComponent, resolveFlow, resolveTelemetry, type Observation, type PropertyState, type TagBinding, routeScene, sampleRouteCenterline, serializeScene, type FlowReading, type FlowState, type ValueSource, type ComponentInstance, type ComponentType, type ConnectionPort, type PipeRoute, type SceneUnderlay, type QuaternionLike, type QuaternionTuple, type Vector3Like, type ScadaScene, type SceneViews, type Vector3Tuple } from '@sakibcoolz/core';
 import { builtInRegistry, componentPresets, flangePairParts, flangeParts, isChoiceParameter, liquidProfile, weldParts, outerRadiusFor, pipeOuterRadius, sizeOfPort, type ChoiceParameterSpec, type ComponentRegistry, type GeometryPart, type IndustrialComponentDefinition, type NumberParameterSpec } from '@sakibcoolz/components';
 import { RegistryContext, useRegistry } from './registryContext.js';
 import { createEquipmentGeometries, createJointPartGeometry, createRouteGeometry, disposeGeometries } from './geometry.js';
@@ -637,17 +637,22 @@ export interface TelemetryInput {
 export interface ScadaHandle {
   /** Pushes observations, e.g. from a host callback; newest per tag wins and older ones are ignored. */
   setTagValues(observations: readonly Observation[]): void;
+  /**
+   * Editor only: replaces the scene's 2D layouts (ADR-0026) as one undo step, e.g. after a symbol
+   * was dragged in a 2D view. Returns false when editing is locked or on a viewer.
+   */
+  setViews?(views: SceneViews | undefined): boolean;
 }
 
 /**
  * Combines directly passed observations, a provider subscription and values pushed through the
  * handle into one telemetry input. Telemetry is active when the prop is given or values were pushed.
  */
-function useTelemetryFeed(telemetry: TelemetryInput | undefined, ref: React.Ref<ScadaHandle> | undefined): TelemetryInput | undefined {
+function useTelemetryFeed(telemetry: TelemetryInput | undefined, ref: React.Ref<ScadaHandle> | undefined, extra?: Omit<ScadaHandle, 'setTagValues'>): TelemetryInput | undefined {
   const [store] = useState(() => createObservationStore());
   const provider = telemetry?.provider;
   useEffect(() => (provider ? connectProvider(store, provider) : undefined), [store, provider]);
-  useImperativeHandle(ref, () => ({ setTagValues: (observations) => void store.set(observations) }), [store]);
+  useImperativeHandle(ref, () => ({ setTagValues: (observations) => void store.set(observations), ...extra }), [store, extra]);
   const fed = useSyncExternalStore(store.subscribe, store.get, store.get);
   return useMemo(() => {
     if (!telemetry && fed.length === 0) return undefined;
@@ -1170,12 +1175,17 @@ function isTextEntry(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 
-function EditorBody({initialScene,onChange,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',joints=true,floor=false,walkthrough=false,locked,defaultLocked=false,onLockedChange,registry=builtInRegistry,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Draw flanges, bolts and weld beads at joints (ADR-0015). Default true. */joints?:boolean;/** Draw a concrete floor slab under the equipment. Display only. Default false. */floor?:boolean;/** Offer a first-person walkthrough: Walk on the desktop (mouse look, WASD) and Enter VR on a WebXR headset. View only. Default false. */walkthrough?:boolean;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;/** Component types to draw and edit (ADR-0022): `createComponentRegistry(...)` adds host types. Built-in kinds by default. */registry?:ComponentRegistry;ref?:React.Ref<ScadaHandle>}) {
+function EditorBody({initialScene,onChange,selectedIds,onSelectionChange,flow,telemetry:telemetryInput,simulation,collisions=true,openJoints=true,instancing='auto',joints=true,floor=false,walkthrough=false,locked,defaultLocked=false,onLockedChange,registry=builtInRegistry,ref}:{initialScene?:ScadaScene;onChange?:(scene:ScadaScene)=>void;flow?:FlowInput;telemetry?:TelemetryInput;/** Simulated levels and flows; replaces telemetry and `flow` for those values while set. */simulation?:SimulationInput;/** Highlight overlapping solid components in red. Default true. */collisions?:boolean;/** Mark and list connections whose ports do not meet, in amber. Default true. */openJoints?:boolean;/** Draw plain equipment instanced: 'auto' (default) from 100 components, 'off' or 'always'. */instancing?:InstancingMode;/** Draw flanges, bolts and weld beads at joints (ADR-0015). Default true. */joints?:boolean;/** Draw a concrete floor slab under the equipment. Display only. Default false. */floor?:boolean;/** Offer a first-person walkthrough: Walk on the desktop (mouse look, WASD) and Enter VR on a WebXR headset. View only. Default false. */walkthrough?:boolean;/** Controlled lock: when set, the host decides; the toggle calls onLockedChange. */locked?:boolean;/** Initial lock state when `locked` is not controlled. Default false. */defaultLocked?:boolean;onLockedChange?:(locked:boolean)=>void;/** Component types to draw and edit (ADR-0022): `createComponentRegistry(...)` adds host types. Built-in kinds by default. */registry?:ComponentRegistry;/** Controlled selection shared with other views (ADR-0026): the editor shows the last id. */selectedIds?:readonly string[];/** Called with `[id]` or `[]` when the editor's selection changes. */onSelectionChange?:(ids:string[])=>void;ref?:React.Ref<ScadaHandle>}) {
+  // 2D layouts from other views join the history as one step, so undo and the edit lock apply (ADR-0026).
+  const viewsRef=useRef<(views:SceneViews|undefined)=>boolean>(()=>false);
+  const handleExtra=useMemo(()=>({setViews:(views:SceneViews|undefined)=>viewsRef.current(views)}),[]);
   // The editor owns the feed; the viewer below only receives the merged observations.
-  const telemetry=useTelemetryFeed(telemetryInput,ref);
+  const telemetry=useTelemetryFeed(telemetryInput,ref,handleExtra);
   const [history,setHistory]=useState<History>(()=>createHistory(initialScene??createEmptyScene()));
   const scene=history.present;
-  const [selected,setSelected]=useState<string>();
+  const [ownSelected,setOwnSelected]=useState<string>();
+  const selected=selectedIds?selectedIds.at(-1):ownSelected;
+  function setSelected(id:string|undefined){if(!selectedIds)setOwnSelected(id);if(id!==selected)onSelectionChange?.(id?[id]:[]);}
   const [viewMode,setViewMode]=useState<ViewMode>('normal');
   /** Per-component view modes: editor display state only, never saved into the scene. */
   const [viewOverrides,setViewOverrides]=useState<Record<string,ViewMode>>({});
@@ -1186,6 +1196,12 @@ function EditorBody({initialScene,onChange,flow,telemetry:telemetryInput,simulat
   const isLocked=locked??ownLocked;
   function setLocked(next:boolean){if(locked===undefined)setOwnLocked(next);onLockedChange?.(next);}
   function update(next:ScadaScene, mergeKey?:string){if(isLocked)return;setHistory(h=>commit(h,next,mergeKey));onChange?.(next);}
+  viewsRef.current=(views)=>{
+    if(isLocked) return false;
+    const {views:_,...rest}=scene;
+    update(views&&Object.keys(views).length>0?{...rest,views}:rest);
+    return true;
+  };
   function travel(step:(h:History)=>History){
     if(isLocked) return;
     const next=step(history);
@@ -1489,3 +1505,7 @@ export function Scada3DViewer(props: Parameters<typeof ViewerBody>[0]) {
 export function Scada3DEditor(props: Parameters<typeof EditorBody>[0]) {
   return <RegistryContext.Provider value={props.registry ?? builtInRegistry}><EditorBody {...props}/></RegistryContext.Provider>;
 }
+
+// One document, several views (ADR-0026).
+export { ScadaWorkspace } from './workspace.js';
+export type { ScadaWorkspaceProps, WorkspaceLayout } from './workspace.js';

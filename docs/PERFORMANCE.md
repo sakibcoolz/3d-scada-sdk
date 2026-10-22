@@ -112,3 +112,15 @@ On a real GPU the instanced, chunked hardware costs nothing measurable. On CPU r
 ## Findings and follow-ups
 - **Fixed in this part:** drei `TransformControls` built a new gizmo (17 geometries plus materials) on every selection and never disposed it, leaking GPU memory with each selection change. The viewer now disposes the gizmo on unmount; the leak test covers it.
 - Each component instance builds its own geometry, and equipment is not instanced, so geometry and draw calls grow one-for-one with components. Candidate optimisations, to be measured before adoption: share geometry per catalog type, instance equipment meshes, lower segment counts or LOD for distant parts, and avoid per-frame tuple allocation in flow markers. Tracked as T-029 (post-MVP). Part A (above) shares geometry and instances markers; equipment instancing followed in T-046 (part B, above). LOD remains unbuilt: the M2 measurements do not need it.
+
+## 2D process view (T-086, ADR-0026, 2026-10-23)
+Time from clicking "Process" in the workspace (`?generate=N&layout=3d`) until every symbol is in the DOM. Chromium with SwiftShader; the chain-N scenes are N valves with N−1 connections.
+
+| Build | 1,000 components | 5,000 components |
+|---|---|---|
+| Production build (`e2e/workspace.spec.ts`, alone, 3 runs) | 86–89 ms | not run |
+| Production build, during the full parallel e2e run | 255 ms | not run |
+| Dev server (unminified React) | 194 ms | 727 ms |
+
+- **Budget:** 500 ms for 1,000 components, asserted by `e2e/workspace.spec.ts`.
+- **At 5,000:** usable, with no virtualisation. Pan and zoom re-render every symbol; that is not measured yet.

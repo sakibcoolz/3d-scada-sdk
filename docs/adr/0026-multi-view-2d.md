@@ -1,6 +1,6 @@
 # ADR-0026: Process and electrical 2D views over one model
 
-Status: Accepted (owner, 2026-10-23: `views` in v4 without a version bump, `@sakibcoolz/react` depends on `views-2d`, and the phase scope); T-083..T-085 implemented, T-086 pending. M9 Phase 7 of docs/INDUSTRIAL_SDK_PLAN.md (§7, decision D4 approved), tasks T-083..T-086.
+Status: Accepted (owner, 2026-10-23: `views` in v4 without a version bump, `@sakibcoolz/react` depends on `views-2d`, and the phase scope); T-083..T-086 implemented. M9 Phase 7 of docs/INDUSTRIAL_SDK_PLAN.md (§7, decision D4 approved), tasks T-083..T-086.
 
 ## Context
 The scene already holds:
@@ -216,3 +216,33 @@ Membership is decided by ports, not by names.
   - `views-2d/src/electrical.test.ts` (7): membership and lines, tier order, no overlap, terminal sides and labels, wire endpoints at terminals, host symbol drawing and markup, and refused symbols (script, `onload`, size, unknown port, point outside, missing SVG);
   - e2e `electrical-view.spec.ts` (3): wires per domain, terminal labels, selection shared across views, and placing in one view leaving the other unchanged;
   - consumer `node-check`: the electrical model and sanitizing at registration in Node.
+
+## Implementation notes (T-086)
+- **Controlled selection in the editor:** `selectedIds` and `onSelectionChange(ids)`.
+  - The editor's single selection shows the last ID. Selecting in 3D reports `[id]`, and clearing reports `[]`. It reports only when the selection changes.
+  - Without the props, behaviour is unchanged.
+  - Shift-click in 3D still means attach, so multi-selection stays a 2D feature.
+- **Outside layout edits:** `ScadaHandle.setViews?(views)` exists on the editor only.
+  - It commits `views` through the editor's history as one step, so a 2D drag undoes and redoes, saves in the editor's JSON, and is refused while locked (returning false).
+  - The editor stays the single owner of the scene.
+- **`<ScadaWorkspace>`** (`@sakibcoolz/react`, new dependency on `@sakibcoolz/views-2d`):
+  - takes the editor's props plus `layout`/`defaultLayout`/`onLayoutChange` (`3d | process | electrical | split`, default split), `defaultDiagram`, `selectedIds`/`onSelectionChange` and `editorRef`;
+  - a layout toolbar; in split, a Process/Electrical diagram toggle beside 3D;
+  - the editor stays mounted (hidden) in the 2D-only layouts, so the history survives layout switches;
+  - the diagrams follow the editor's `onChange`, and are `editable` only while the editor is unlocked;
+  - one selection for all views, never saved;
+  - telemetry: the same `telemetry` input reaches the editor and the diagrams. Values pushed with `setTagValues` reach the editor only.
+- **One live-value format:** `@sakibcoolz/react`'s `describeProperty` now uses views-2d's `describeLiveValue`.
+- **Playground:** `?layout=3d|process|electrical|split` opens the workspace, and `?view=process|electrical` is split with that diagram. The T-084/T-085 side panels, which kept the layout outside the editor, are removed.
+- **Performance:** about 88 ms for 1,000 components (production build), and 194 ms and 727 ms for 1,000 and 5,000 on the dev server. See docs/PERFORMANCE.md.
+- **Tests:**
+  - e2e `workspace.spec.ts` (7):
+    - selection both ways and cleared with Escape;
+    - a 2D drag saved in the scene JSON, undo and redo, export and import with the layout;
+    - deleting in 3D removes the symbol and its saved place;
+    - the lock applies to the diagrams;
+    - switching layouts keeps the history;
+    - untrusted names drawn as text;
+    - the 1,000-component budget.
+  - The process and electrical view specs now run in the workspace.
+  - The react API list was updated.

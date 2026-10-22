@@ -41,6 +41,7 @@
     "@sakibcoolz/asset-import": "workspace:*",
     "@sakibcoolz/components": "workspace:*",
     "@sakibcoolz/core": "workspace:*",
+    "@sakibcoolz/views-2d": "workspace:*",
     "@react-three/drei": "^10.0.6",
     "@react-three/fiber": "^9.1.2",
     "@types/three": "^0.175.0",

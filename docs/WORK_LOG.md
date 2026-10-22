@@ -1938,3 +1938,30 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-086: shared selection and the workspace (Phase 7d, ADR-0026)
+- Owner merged #87 (T-085). Branch `feat/T-086-workspace` from `origin/develop`.
+- Change:
+  - **react:**
+    - the editor gains controlled `selectedIds`/`onSelectionChange` and `ScadaHandle.setViews` (2D layouts committed as one undo step; refused while locked);
+    - new `<ScadaWorkspace>` (layouts 3d, process, electrical and split, with the editor kept mounted);
+    - depends on views-2d; `describeProperty` uses `describeLiveValue`.
+  - **playground:** `?layout=` and `?view=` open the workspace; the T-084/T-085 side panels are removed.
+- Tests:
+  - e2e `workspace.spec.ts` (7);
+  - the process and electrical view specs moved into the workspace;
+  - react API list updated.
+- Performance (docs/PERFORMANCE.md): the process view with 1,000 components takes 86–89 ms (production build, alone, 3 runs) and 255 ms during the full parallel e2e run; the budget is 500 ms. On the dev server, 1,000 take 194 ms and 5,000 take 727 ms.
+- Docs: ADR-0026 implemented with T-086 notes; API.md; README; views-2d README; RELEASE.md; PERFORMANCE.md; roadmap Phase 7 ticked; backlog T-085 DONE, T-086 REVIEW; plan Phase 7 row.
+- Found in the first full run:
+  - the test tsconfig does not iterate a `NodeList`, so the test uses `Array.from` (typecheck had exited 2);
+  - the shared `waitForCanvas` timed out on the 1,000-part 3D scene under parallel load, so the budget test now waits for the layout toolbar only (e2e had exited 1, and the measurement never ran).
+- Verification (exit codes, final run):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1601 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (148 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - Only the e2e file changed after the consumer checks ran.
+  - GitHub Actions CI not awaited.

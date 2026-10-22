@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { waitForCanvas } from './helpers';
 
-// The 2D process view (ADR-0026, T-084) on the playground's `?control&view=process`.
+// The 2D process view (ADR-0026, T-084) in the playground workspace (`?control&view=process`).
 
 const view = (page: Page) => page.getByRole('group', { name: 'Process view' });
 const symbol = (page: Page, id: string) => view(page).locator(`[data-component-id="${id}"]`);
