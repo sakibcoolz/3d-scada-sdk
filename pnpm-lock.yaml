@@ -44,6 +44,9 @@ importers:
       '@sakibcoolz/simulation':
         specifier: workspace:*
         version: link:../../packages/simulation
+      '@sakibcoolz/views-2d':
+        specifier: workspace:*
+        version: link:../../packages/views-2d
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.7.0(vite@6.4.4(@types/node@22.20.5))
@@ -125,6 +128,28 @@ importers:
       '@sakibcoolz/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/views-2d:
+    dependencies:
+      '@sakibcoolz/components':
+        specifier: workspace:*
+        version: link:../components
+      '@sakibcoolz/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.3.0(@types/react@19.3.0)
+      react:
+        specifier: ^19.0.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.3.1(react@19.3.1)
 
 packages:
 

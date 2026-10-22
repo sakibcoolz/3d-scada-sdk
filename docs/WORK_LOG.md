@@ -1890,3 +1890,28 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0.
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-084: `@sakibcoolz/views-2d` and the process view (Phase 7b, ADR-0026)
+- Owner merged #84 (T-083) and #85 (playground fix). Branch `feat/T-084-process-view` from `origin/develop`.
+- Change:
+  - **new package `packages/views-2d`:**
+    - pure model: `inView`, `layoutView`, `placeSymbol`, routes and anchors;
+    - ISA-style process symbols as data;
+    - `<ProcessView>` on a shared `DiagramView`: selection, pan and zoom, live values, drag to place.
+  - **core/components:** `ComponentDefinition.views?`, checked at registration; library instruments use both views.
+  - **playground:** `?view=process` panel.
+  - **consumer:** pack check, a "Process" mode in the app, and a `node-check` of the model.
+- Found in testing:
+  - unfilled symbol outlines let clicks through to the background, so selection and dragging failed in e2e; a transparent hit area fixes it;
+  - association lines crossed symbols, so they now run between symbol edges;
+  - text was too small, so it is larger.
+- Tests: `views-2d/src/model.test.ts` (11); registry `views` tests; e2e `process-view.spec.ts` (5); consumer browser test extended.
+- Docs: ADR-0026 T-084 notes; package README; API.md; README; RELEASE.md; backlog T-083 DONE, T-084 REVIEW; plan Phase 7 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test`: the first run exited 1. One existing simulation test (`settles where the feed equals the gravity drain`) hit its 5 s timeout under parallel load; it passed 3 of 3 in isolation. The full re-run exited 0 (1594 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (138 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

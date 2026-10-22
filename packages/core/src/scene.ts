@@ -71,6 +71,8 @@ export interface ComponentDefinition {
   bindable?: Readonly<Record<string, Quantity>>;
   /** Variables an instance usually exposes, for `suggestVariables` (ADR-0024). */
   variables?: readonly VariableTemplate[];
+  /** The 2D views it appears in (ADR-0026). When absent, its ports decide. */
+  views?: readonly ViewKind[];
 }
 /**
  * A variable a component type usually exposes (ADR-0024), e.g. a drive's `ACTUAL_SPEED`. Instances

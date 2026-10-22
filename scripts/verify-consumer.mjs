@@ -10,7 +10,7 @@ const root = resolve(import.meta.dirname, '..');
 const work = process.env.CONSUMER_WORKDIR ? resolve(process.env.CONSUMER_WORKDIR) : mkdtempSync(join(tmpdir(), 'scada3d-consumer-'));
 const pack = join(work, 'pack');
 const app = join(work, 'app');
-const packages = ['core', 'components', 'asset-import', 'react', 'simulation'];
+const packages = ['core', 'components', 'asset-import', 'react', 'simulation', 'views-2d'];
 
 const run = (cmd, args, cwd) => {
   console.log(`\n$ (${cwd === root ? '.' : cwd}) ${cmd} ${args.join(' ')}`);
@@ -32,7 +32,7 @@ manifest.overrides = { ...tarballs };
 writeFileSync(join(app, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
 run('npm', ['install', '--no-audit', '--no-fund'], app);
-run('npm', ['ls', '@sakibcoolz/core', '@sakibcoolz/components', '@sakibcoolz/asset-import', '@sakibcoolz/react', '@sakibcoolz/simulation'], app);
+run('npm', ['ls', '@sakibcoolz/core', '@sakibcoolz/components', '@sakibcoolz/asset-import', '@sakibcoolz/react', '@sakibcoolz/simulation', '@sakibcoolz/views-2d'], app);
 run('npm', ['run', 'typecheck'], app);
 run('npm', ['run', 'build'], app);
 run('npm', ['run', 'node-check'], app);

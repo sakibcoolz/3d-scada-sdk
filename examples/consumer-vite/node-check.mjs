@@ -3,6 +3,7 @@ import { applyTagSuggestions, parseScene, serializeScene, findOpenJoints, pathBe
 import { catalogResolvers, controlLibrary, createComponentRegistry, pipeSizes } from '@sakibcoolz/components';
 import { createSimulation } from '@sakibcoolz/simulation';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
+import { layoutView, placeSymbol } from '@sakibcoolz/views-2d';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -102,6 +103,11 @@ if (chain.join() !== 'PLC-01,SW-01,VFD-101,M-101,P-101') throw new Error(`unexpe
 const wrongMotor = { ...pumpLine, components: pumpLine.components.map((c) => (c.id === 'M-101' ? { ...c, properties: { voltage: '230' } } : c)) };
 if (parseScene(JSON.stringify(wrongMotor), library.resolvers).ok) throw new Error('a 230 V motor on a 400 V drive must be refused');
 if (catalogResolvers.resolveType('sdk.vfd')) throw new Error('the control library must be opt-in');
+// The 2D process view's model runs in plain Node too (ADR-0026): pumps, motors and the drives line.
+const processDrawing = layoutView(libraryLine.scene, 'process', library);
+if (processDrawing.symbols.map((s) => s.id).join() !== 'M-101,P-101' || processDrawing.edges.map((e) => e.relationship).join() !== 'drives') throw new Error('unexpected process view');
+const placed = placeSymbol(libraryLine.scene, 'process', 'P-101', 101, 49);
+if (!parseScene(serializeScene(placed), library.resolvers).ok || placed.views.process.symbols['P-101'].x !== 100) throw new Error('a placed symbol must save and validate');
 // The JSON Schema ships with core and resolves through the package exports (T-069).
 const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
 const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));

@@ -1,4 +1,4 @@
-import { dataTypes, isBuiltInKind, isNamespacedType, portKinds, powerKinds, signalTypes, type ComponentInstance, type ConnectionPort, type ComponentType, type Quantity, type Vector3Tuple } from '@sakibcoolz/core';
+import { dataTypes, isBuiltInKind, isNamespacedType, portKinds, powerKinds, signalTypes, viewKinds, type ComponentInstance, type ConnectionPort, type ComponentType, type Quantity, type Vector3Tuple } from '@sakibcoolz/core';
 import { componentCatalog } from './catalog.js';
 import { isLibraryDefinition } from './library/control.js';
 import { isChoiceParameter, type IndustrialComponentDefinition } from './geometry.js';
@@ -146,6 +146,9 @@ function definitionProblems(d: ComponentTypeDefinition): string[] {
       }
     }
   }
+  if (d.views !== undefined && !(Array.isArray(d.views) && d.views.length > 0 && new Set(d.views).size === d.views.length && d.views.every((v) => (viewKinds as readonly string[]).includes(v)))) {
+    problems.push(`${name} needs views as distinct names from ${viewKinds.join(', ')}`);
+  }
   for (const [param, spec] of Object.entries(d.parameters ?? {})) {
     const ok = isChoiceParameter(spec) ? spec.choices.includes(spec.default) : finite(spec.default) && spec.default >= spec.min && spec.default <= spec.max;
     if (!ok) problems.push(`${name} parameter "${param}" has a default outside its range or choices`);
@@ -171,7 +174,8 @@ export function createComponentRegistry(...definitions: ComponentTypeDefinition[
   for (const d of definitions) {
     const { build, ...rest } = d;
     const variables = rest.variables && Object.freeze(rest.variables.map((t) => Object.freeze({ ...t })));
-    const base = Object.freeze({ ...rest, ...(variables ? { variables } : {}), defaultSize: rest.defaultSize ?? sizeOf(rest.bounds) }) as IndustrialComponentDefinition;
+    const views = rest.views && Object.freeze([...rest.views]);
+    const base = Object.freeze({ ...rest, ...(variables ? { variables } : {}), ...(views ? { views } : {}), defaultSize: rest.defaultSize ?? sizeOf(rest.bounds) }) as IndustrialComponentDefinition;
     custom.set(d.type, { base, build });
   }
   const cache = new Map<string, IndustrialComponentDefinition>();

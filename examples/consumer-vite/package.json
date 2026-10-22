@@ -17,6 +17,7 @@
     "@sakibcoolz/core": "0.1.3",
     "@sakibcoolz/react": "0.1.3",
     "@sakibcoolz/simulation": "0.1.3",
+    "@sakibcoolz/views-2d": "0.1.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
