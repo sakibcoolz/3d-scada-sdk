@@ -36,3 +36,4 @@ Title / Status (Proposed/Accepted/Superseded) / Context / Options considered / D
 | Date | Decision | Approver |
 |---|---|---|
 | 2026-10-15 | Split T-023 so the MVP release gate depends on T-002, T-015, T-017 only; post-MVP hardening moves to T-028; T-018–T-020 are post-MVP | repository owner |
+| 2026-10-22 | Industrial SDK plan (T-067, docs/INDUSTRIAL_SDK_PLAN.md): evolve the scene to v4 with `documentType: "industrial.scene"` (integer schemaVersion); `ajv` allowed as a test-only dev dependency for JSON Schema agreement; 2D views in a new `@sakibcoolz/views-2d`; command requests are describe-plus-host-callback only and need an ADR amending ADR-0003 first; SDK stays host-independent, with no Z-Factory changes, adapters or docs; M9 ships as 0.2.0 | repository owner |
