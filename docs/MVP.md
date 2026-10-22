@@ -1,6 +1,6 @@
 # MVP Definition — 3D SCADA SDK
 
-**MVP release target:** independently installable React viewer/editor over a framework-neutral scene/graph core. **Status:** planned; scaffold partially exists and has not been fully verified. **Source of execution:** `docs/DEVELOPMENT_PLAN.md` + `docs/TASK_BACKLOG.md`. This document is a **scope/acceptance contract**, not a second backlog.
+**MVP release target:** independently installable React viewer/editor over a framework-neutral scene/graph core. **Status:** MVP delivered and published as 0.1.x (see TASK_BACKLOG and WORK_LOG for evidence); post-MVP work continues under M7 and M9. **Source of execution:** `docs/DEVELOPMENT_PLAN.md` + `docs/TASK_BACKLOG.md`. This document is a **scope/acceptance contract**, not a second backlog.
 
 ## 1. MVP vision
 

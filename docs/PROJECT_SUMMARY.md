@@ -59,11 +59,17 @@ Graphify is optional development tooling, **not an SDK runtime dependency** and 
 
 Alternatively a future `sdk.setTagValues([...])` push API can be offered. **These exact observation props/API signatures are planned, not yet verified or guaranteed.** No WebSocket startup or login should be triggered by constructing the SDK.
 
-## Development status at documentation baseline
-- **Code scaffold exists but is unverified:** pnpm monorepo, packages/core/types, packages/components/catalog, packages/react with R3F viewer/editor prototype, apps/playground.
-- **Prototype behavior:** 3D primitives, drag-to-add, component selection/property movement inputs, tank fill control, basic transparent shell, placeholder manual flow indicator.
-- **Not yet production-ready:** clean build/test evidence, robust connections/snapping, automatic routing, validated scene migrations, canvas-accurate drop, gizmos, undo/redo, animated moving fluid, real cutaway, data-input API, SDK publishing.
-- Never treat a roadmap checkbox, diagram or Graphify node as a tested feature. Verify actual current git branch/code before stating completion.
+## Development status (updated 2026-10-22, T-070)
+- **Released:** `@sakibcoolz/core`, `components`, `react`, `simulation` and `asset-import` 0.1.3 on npm, under the MIT licence, verified against a stand-alone consumer app.
+- **Implemented and tested:**
+  - the scene model with migrations (v1–v4) and a JSON Schema;
+  - the port graph, snapping, routing and open-joint checks;
+  - the procedural catalog (14 kinds, ASME-based dimensions);
+  - the 3D viewer and editor (undo/redo, import/export, edit lock);
+  - read-only telemetry with quality and staleness, and the optional simulation;
+  - first-person Walk and WebXR.
+- **In progress:** milestone M9, the industrial model. See docs/INDUSTRIAL_SDK_PLAN.md for what is IMPLEMENTED, PARTIAL and NOT IMPLEMENTED (for example, custom component types without SDK edits are not implemented yet).
+- Never treat a roadmap checkbox, diagram or Graphify node as a tested feature. Verify the actual current git branch and code before stating completion.
 
 ## Repository map: files, links and flow
 
@@ -78,7 +84,9 @@ Alternatively a future `sdk.setTagValues([...])` push API can be offered. **Thes
 | `docs/DEVELOPMENT_PLAN.md` | phase dependencies and exit gates (M0–M8) | `TASK_BACKLOG.md` |
 | `docs/TASK_BACKLOG.md` | task IDs T-001 etc, status and dependencies | `WORK_LOG.md` |
 | `docs/IMPLEMENTATION_ACCEPTANCE.md` | test scenarios and pass conditions | `TEST_STRATEGY.md` |
-| `docs/SCENE_AND_CONNECTIONS.md` | scene persistence and ports | `COMPONENT_STANDARD.md` |
+| `docs/SCENE_AND_CONNECTIONS.md` | ports, connections, snapping, routing and editing | `COMPONENT_STANDARD.md` |
+| `docs/INDUSTRIAL_SCENE_SPEC.md` | scene file specification (v4), limits, error codes, JSON Schema boundary | `adr/0021-scene-v4-industrial-document.md` |
+| `docs/INDUSTRIAL_SDK_PLAN.md` | M9 industrial model: audit, gaps, phases, owner decisions | `TASK_BACKLOG.md` |
 | `docs/GRAPHIFY_AGENT_REFERENCE.md` | local index and source-backed graph queries | `AGENT_WORKFLOW.md` |
 | `docs/AGENT_WORKFLOW.md` | brief → implementation → review → handoff | `WORK_LOG.md`, PR template |
 | `docs/WORK_LOG.md` | append-only observed agent sessions | `TASK_BACKLOG.md` |

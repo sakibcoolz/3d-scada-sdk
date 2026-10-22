@@ -2,6 +2,8 @@
 
 Status: Accepted (owner, 2026-10-16); implemented in T-019a
 
+> Note (2026-10-22, T-070): the packages were published as `@sakibcoolz/*` from 0.1.1 (T-059, ADR-0019 amendment). The `@scada3d/*` names in this record are historical.
+
 ## Context
 Drawings such as P&IDs and floor plans often exist as SVG, and users want to place equipment over them. The requirements limit SVG to **reference input** (FR-11, ARCHITECTURE §5), and require that scripts, remote references and malformed files are rejected (IMPLEMENTATION_ACCEPTANCE "SVG import"). SVG is an active format (scripts, event handlers, external resources, entity expansion), so it must never reach a renderer unsanitized.
 

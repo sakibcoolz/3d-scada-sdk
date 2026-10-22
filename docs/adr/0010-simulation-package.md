@@ -2,6 +2,8 @@
 
 Status: Accepted (owner, 2026-10-15); implemented in T-021
 
+> Note (2026-10-22, T-070): the packages were published as `@sakibcoolz/*` from 0.1.1 (T-059, ADR-0019 amendment). The `@scada3d/*` names in this record are historical.
+
 ## Context
 The architecture plans an optional, deterministic simulator whose results are always labelled SIMULATED and kept apart from measured values (ARCHITECTURE §1 invariant 3, §8). The flow resolver already understands `source: 'SIMULATED'` readings. Nothing yet produces them except the playground's hand-typed feed.
 

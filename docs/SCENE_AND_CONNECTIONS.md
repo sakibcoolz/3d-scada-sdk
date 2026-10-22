@@ -4,11 +4,15 @@
 Right-handed 3D, Y-up; scene translation and dimensions in metres; rotations in radians; local port normals point out from equipment. Display conversion (litres/°C/kPa) must be explicit. Scene IDs persist between sessions.
 
 ## Data model
+The field-by-field specification of the scene file (schema version 4, ADR-0021) is [INDUSTRIAL_SCENE_SPEC.md](INDUSTRIAL_SCENE_SPEC.md); its JSON Schema ships as `@sakibcoolz/core/schema/industrial-scene.v4.schema.json`. This document covers connections, snapping, routing and editing behaviour.
 ```ts
 SceneDocument {
-  schemaVersion: number;
+  schemaVersion: 4;
+  documentType: "industrial.scene";
   units: "m";
-  components: ComponentInstance[];
+  project?: { id?; name?; revision?; description? };
+  components: ComponentInstance[]; // + optional name, typeVersion, manufacturer, model, labels, extensions
+  extensions?: Record<namespace, JSON>;
   connections: ConnectionEdge[];
   tagBindings?: TagBinding[];
   underlay?: SceneUnderlay; // ADR-0012: { svg, position: { x, z }, width, rotation, opacity }
@@ -28,10 +32,11 @@ Optional `underlay` (version 3, [ADR-0012](adr/0012-svg-underlay.md), additive):
 
 Core checks the structure and size. `validateUnderlay` lets the host check the content (`INVALID_UNDERLAY`); the editor's import passes the SVG sanitizer. An underlay is display only: no ports, snapping, collisions, flow or simulation. Older versions do not accept the field.
 
-## Scene file example (version 3, ADR-0007)
+## Scene file example (version 4, ADR-0021; vectors as in version 3, ADR-0007)
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
   "units": "m",
   "components": [
     {
@@ -47,13 +52,13 @@ Core checks the structure and size. `validateUnderlay` lets the host check the c
   "tagBindings": [{ "id": "b1", "tagId": "LT-101", "kind": "property", "instanceId": "tank", "property": "level" }]
 }
 ```
-(`serializeScene` writes the same content with one key per line.) Version 3 requires named objects: arrays, missing or non-finite axes are `INVALID_FIELD`, extra axes are `UNKNOWN_FIELD` (e.g. `components[0].position.w`). Version 2 files with arrays still load and report `migratedFrom: 2`.
+(`serializeScene` writes the same content with one key per line.) Versions 3 and 4 require named objects: arrays, missing or non-finite axes are `INVALID_FIELD`, extra axes are `UNKNOWN_FIELD` (e.g. `components[0].position.w`). Version 2 files with arrays still load and report `migratedFrom: 2`.
 
-## Current runtime validation (T-003; version 2 since T-005, version 3 since T-030)
-`validateScene(input, { resolvePorts, resolveBindable?, limits? })` in `@sakibcoolz/core` validates a scene and returns it in the version 3 model (`schemaVersion: 3`, `units: 'm'`, components with `type`, `position {x,y,z}`, unit-quaternion `rotation {x,y,z,w}`, `scale {x,y,z}`, `properties`). Version 2 input (array vectors) migrates with `migratedFrom: 2`; version 1 input (`version: 1`, `kind`, Euler XYZ radians, no scale) migrates with `migratedFrom: 1` (Euler XYZ → quaternion, `kind` → `type`, scale `{1,1,1}`). Errors use the input's own field names. The caller supplies `resolvePorts` (e.g. from `componentCatalog`) because core does not import the catalog.
+## Current runtime validation (T-003; version 2 since T-005, version 3 since T-030, version 4 since T-068)
+`validateScene(input, { resolvePorts, resolveBindable?, limits? })` in `@sakibcoolz/core` validates a scene and returns it in the version 4 model (`schemaVersion: 4`, `documentType: 'industrial.scene'`, `units: 'm'`, components with `type`, `position {x,y,z}`, unit-quaternion `rotation {x,y,z,w}`, `scale {x,y,z}`, `properties`). Version 3 input migrates losslessly with `migratedFrom: 3`; version 2 input (array vectors) migrates with `migratedFrom: 2`; version 1 input (`version: 1`, `kind`, Euler XYZ radians, no scale) migrates with `migratedFrom: 1` (Euler XYZ → quaternion, `kind` → `type`, scale `{1,1,1}`). Errors use the input's own field names. The caller supplies `resolvePorts` (e.g. from `componentCatalog`) because core does not import the catalog.
 - Rotation must be four finite numbers (`x, y, z, w`) with length within 1e-6 of 1 (never renormalised). Scale must be three positive finite numbers. **Scale policy:** components whose type has ports must keep scale `{ x: 1, y: 1, z: 1 }` (`UNSUPPORTED_SCALE`), because scaling would move ports and break the nominal bore; portless types may scale.
 - Returns `{ ok: true, scene }` with a fresh copy, or `{ ok: false, errors }` with typed `{ code, path, message }` errors in input order. Input is never mutated or repaired.
-- Structure first: object root, `version === 1`, required arrays, non-empty ids, three finite numbers for position/rotation, property values limited to string/boolean/finite number. Unknown fields are rejected (`UNKNOWN_FIELD`), not dropped.
+- Structure first: object root, a supported version (`version: 1` or `schemaVersion` 2–4; version 4 also needs `documentType`), required arrays, non-empty ids, three finite numbers for position/rotation, property values limited to string/boolean/finite number. Unknown fields are rejected (`UNKNOWN_FIELD`), not dropped.
 - References only after structure is valid: unique component and connection ids, known component kind, endpoints resolve to an existing instance and declared port, no self-connection, `portsCompatible` domain and bore, one connection per port (`PORT_OCCUPIED`), no repeated pair in either direction (`DUPLICATE_EDGE`). Tees and loops are valid.
 - Default limits (`defaultSceneLimits`): 10,000 components, 20,000 connections, 128-character ids, 64 properties per component, 1,024-character strings.
 - Not yet checked: port normal alignment and world-space proximity (T-007), per-port capacity other than one, per-kind property schemas.
@@ -153,11 +158,11 @@ Distinguish logical edge from render mesh. Support straight runs and determinist
 - `Scada3DViewer`/`Scada3DEditor` have `collisions` **on by default**: colliding shells turn red (`#e5484d`), an overlay ("Collisions") lists pairs by display name in scene order, and while dragging from the palette the ghost turns red and the status line adds "— overlaps …". Nothing is blocked (the owner chose highlight-only) and nothing is saved. Hosts pass `collisions={false}` to turn it off; the playground shows this with `?collisions=off`.
 
 ## Serialization (T-005)
-`serializeScene(scene)` writes canonical JSON: `schemaVersion: 3` and `units` first, vectors as objects in `x, y, z(, w)` order, fixed key order for every object, property keys sorted, array order preserved, two-space indent, trailing newline. Only authored fields are written, so save → load → save is byte-identical. `parseScene(text, options)` checks length (`maxLength`, default 10,000,000 characters, `LIMIT_EXCEEDED`), parses (`INVALID_JSON`), then runs `validateScene`, which migrates version 1.
+`serializeScene(scene)` writes canonical JSON: `schemaVersion: 4`, `documentType` and `units` first, vectors as objects in `x, y, z(, w)` order, fixed key order for every object, property keys sorted, array order preserved, two-space indent, trailing newline. Only authored fields are written, so save → load → save is byte-identical. `parseScene(text, options)` checks length (`maxLength`, default 10,000,000 characters, `LIMIT_EXCEEDED`), parses (`INVALID_JSON`), then runs `validateScene`, which migrates versions 1–3.
 
 ### Editor import/export (T-012)
 - **Export JSON** downloads `scene.json` with exactly `serializeScene(scene)`; the Scene JSON panel shows the same canonical text.
-- **Import** from a `.json` file (rejected above 10,000,000 bytes before reading) or pasted text (**Load text**). `importSceneText` in `packages/react/src/sceneFile.ts` runs `parseScene` against the catalog ports, so version 1 migrates and every rule in validation applies. On failure the errors are listed (`role="alert"`, path first, capped at 20 lines) and the current scene is unchanged; on success the scene is replaced as one undo step, selection clears and a note reports the counts and any migration.
+- **Import** from a `.json` file (rejected above 10,000,000 bytes before reading) or pasted text (**Load text**). `importSceneText` in `packages/react/src/sceneFile.ts` runs `parseScene` against the catalog ports, so older versions migrate and every rule in validation applies. On failure the errors are listed (`role="alert"`, path first, capped at 20 lines) and the current scene is unchanged; on success the scene is replaced as one undo step, selection clears and a note reports the counts and any migration.
 - The browser test builds a connected scene with a gizmo-rotated pipe, exports it, reloads the page, imports the downloaded file and checks the JSON is byte-identical, then undoes the import.
 - Not done: reference checks are reported only after structural errors are fixed (validator behaviour); no merge/append import; no remote URLs (by design, no network).
 
