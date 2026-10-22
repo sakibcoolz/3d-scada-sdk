@@ -50,5 +50,9 @@
   "unknown-data-source.scene.json": {
     "code": "UNKNOWN_DATA_SOURCE",
     "path": "runtimeVariables[0].source.dataSourceId"
+  },
+  "view-unknown-component.scene.json": {
+    "code": "UNKNOWN_VIEW_REFERENCE",
+    "path": "views.process.symbols.P9"
   }
 }
