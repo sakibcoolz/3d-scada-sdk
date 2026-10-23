@@ -1,6 +1,6 @@
 # ADR-0029: Host and edge contracts, and the command-request boundary
 
-Status: Accepted (owner, 2026-10-23: all four proposed decisions approved: refuse requests on an unknown reading and on simulated telemetry, commands only in a digest-pinned runtime, numeric commands bounded and no string commands, T-094 closes T-018 with REST/SSE/WebSocket examples); T-092..T-093 implemented, T-094 pending. Amends ADR-0003 and ADR-0024 (read-only access). M9 Phase 10 of docs/INDUSTRIAL_SDK_PLAN.md (§8.2, decision D5), tasks T-092..T-094.
+Status: Accepted (owner, 2026-10-23: all four proposed decisions approved: refuse requests on an unknown reading and on simulated telemetry, commands only in a digest-pinned runtime, numeric commands bounded and no string commands, T-094 closes T-018 with REST/SSE/WebSocket examples); T-092..T-094 implemented. Amends ADR-0003 and ADR-0024 (read-only access). M9 Phase 10 of docs/INDUSTRIAL_SDK_PLAN.md (§8.2, decision D5), tasks T-092..T-094.
 
 ## Context
 - **What exists:**
@@ -209,3 +209,21 @@ Status: Accepted (owner, 2026-10-23: all four proposed decisions approved: refus
   - a host-side panel records requests and answers them;
   - `&commands=off` drops the callback; `&pin=revision` approves without a digest.
 
+## Implementation notes (T-094)
+- **`examples/transports/`:** `rest.ts`, `sse.ts` and `websocket.ts` only open a link. The shared parts are in two files:
+  - `link.ts`: one link for all subscribers, backoff, DISCONNECTED marking and statistics;
+  - `observations.ts`: shape validation and URL checks.
+  The folder is self-contained so it can be copied; a test checks its types against core.
+- **DISCONNECTED markers keep each tag's last `sourceTimestamp`:**
+  - the observation store lets ties replace, so the marker replaces the value;
+  - a reconnected feed's value at least as new replaces the marker;
+  - a marker stamped with the browser clock would have hidden unchanged values sent after reconnection.
+- **Backoff is randomized in the upper half of each wait** (500 ms doubling to 30 s), so many operator browsers do not reconnect in step after a gateway restart.
+- **SSE closes the EventSource on an error** instead of relying on the browser's own retry, so all three transports follow one backoff.
+- **Shape is checked in the example, meaning in the SDK:**
+  - unknown fields, a bad quality or a bad data type drop the entry;
+  - timestamps, units and type fit are left to `resolveTelemetry`, which shows them as unknown with a reason.
+- **Tests:**
+  - REST and SSE against a Node `http` server on 127.0.0.1; Node 22 has no `EventSource`, so the test supplies a minimal one over `fetch`;
+  - WebSocket against a fake socket, which also checks that nothing is sent.
+- **T-018 is closed by T-094.** MQTT and OPC UA are documented as gateway translations in RUNTIME_INTEGRATION.md.

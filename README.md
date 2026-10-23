@@ -24,6 +24,7 @@ Reusable industrial 3D visualization SDK for Three.js, with a React editor/viewe
 - `ScadaRuntime`: a locked operator view of an approved revision, pinned by revision and SHA-256 digest, with no edit path, showing host-supplied alarms and quality per component, and offering confirmed command *requests* to the host for bounded writable variables (the SDK never writes; playground `?runtime`)
 - Control equipment library: opt-in `controlLibrary` of generic PLC, I/O, drive, motor, instrument and panel types (playground `?control`)
 - `apps/playground`: Vite research playground
+- `examples/transports`: host code to copy, not published: REST polling, Server-Sent Events and WebSocket `DataProvider`s (see [runtime integration](docs/RUNTIME_INTEGRATION.md))
 - `examples/consumer-vite`: stand-alone app that installs the packed SDK tarballs (see [release packaging](docs/RELEASE.md))
 
 **Licence:** [MIT](LICENSE). Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md); report vulnerabilities as in [SECURITY.md](SECURITY.md).
