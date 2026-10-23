@@ -1,0 +1,86 @@
+{
+  "sourceRevision": "3",
+  "dataSources": [
+    {
+      "id": "ds-drive",
+      "name": "Drive bus",
+      "protocol": "modbus-rtu",
+      "endpointRef": "host:serial/com3"
+    },
+    {
+      "id": "ds-plc",
+      "protocol": "modbus-tcp",
+      "endpointRef": "host:gateway-1/plc-02"
+    },
+    {
+      "id": "ds-host",
+      "protocol": "host"
+    }
+  ],
+  "variables": [
+    {
+      "tagId": "LT-201.PV",
+      "dataSourceId": "ds-plc",
+      "dataType": "int16",
+      "unit": "%",
+      "address": {
+        "address": 10,
+        "area": "input",
+        "unitId": 1
+      },
+      "scaling": {
+        "kind": "linear",
+        "rawMin": 0,
+        "rawMax": 27648,
+        "min": 0,
+        "max": 100
+      },
+      "access": "read"
+    },
+    {
+      "tagId": "P-201.RUNNING",
+      "dataSourceId": "ds-plc",
+      "dataType": "bool",
+      "address": {
+        "address": 3,
+        "area": "coil",
+        "unitId": 1
+      },
+      "access": "read"
+    },
+    {
+      "tagId": "P-201.SPEED",
+      "dataSourceId": "ds-drive",
+      "dataType": "float32",
+      "unit": "rpm",
+      "variable": "ActualSpeed",
+      "address": {
+        "address": 100,
+        "area": "holding",
+        "byteOrder": "big",
+        "unitId": 7,
+        "wordOrder": "low-first"
+      },
+      "access": "read"
+    },
+    {
+      "tagId": "XV-201.OPEN",
+      "dataSourceId": "ds-plc",
+      "dataType": "bool",
+      "address": {
+        "address": 20,
+        "area": "holding",
+        "bit": 4,
+        "unitId": 1
+      },
+      "access": "read"
+    },
+    {
+      "tagId": "TK-201.BATCH",
+      "dataSourceId": "ds-host",
+      "dataType": "string",
+      "variable": "mes/batch/current",
+      "access": "read"
+    }
+  ]
+}

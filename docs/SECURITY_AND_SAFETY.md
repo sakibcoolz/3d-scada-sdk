@@ -32,6 +32,10 @@ If requirements imply real actuator commands, emergency switching, disabling ala
 - Runtime variables are read-only (`access: "read"`). No document can claim a writable tag before an approved command boundary (D5).
 - The SDK describes acquisition and never performs it: no connections, polling or writes.
 
+## Host and edge contracts (ADR-0029)
+- **Typed observations:** a value that does not fit its tag's declared data type, or a gateway that reports another type, is shown as unknown (`INVALID_VALUE`, `TYPE_MISMATCH`), never as a value.
+- **Command requests (T-093):** describe-only plus a confirmed host callback. The SDK still has no device write method and holds no credentials (ADR-0003 as amended).
+
 ## Runtime mode and approved revisions (ADR-0028)
 - **No edit path:** `ScadaRuntime` is built from the viewer and the 2D views only. It cannot reach the editor, the history, the tag editor, keyboard moves or the workspace, which `runtime.test.ts` checks over the import graph.
 - **Pinned documents:** it shows a document only when it is valid and matches the host's approval record: the exact `project.revision`, and `sceneDigest` (SHA-256 of the canonical serialization, FIPS 180-4, implemented in core and tested against the standard vectors and Node's own SHA-256).

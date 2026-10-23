@@ -1,6 +1,6 @@
 import type { FlowReading, Quality, ValueSource } from './flow.js';
 import { assessObservation, isNewer, type FreshnessOptions } from './observation.js';
-import type { ComponentType, Quantity, ScadaScene } from './scene.js';
+import { dataTypes, type ComponentType, type DataType, type Quantity, type ScadaScene } from './scene.js';
 import { isKnownUnit, toCanonical } from './units.js';
 
 /** One value for a host tag. Read-only: the SDK never writes tags (ADR-0003). */
@@ -12,11 +12,16 @@ export interface Observation {
   sourceTimestamp: string;
   /** Default MEASURED. */
   source?: ValueSource;
+  /**
+   * The value's data type as the gateway reports it (ADR-0029). When the tag's runtime variable
+   * declares another type, the value is unknown (TYPE_MISMATCH).
+   */
+  dataType?: DataType;
   /** Unit of `value`; when absent the binding's unit, then the runtime variable's unit, then the canonical unit, is assumed. */
   unit?: string;
 }
 
-export type TelemetryUnknownReason = 'NO_READING' | 'BAD_QUALITY' | 'DISCONNECTED' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE' | 'INVALID_UNIT';
+export type TelemetryUnknownReason = 'NO_READING' | 'BAD_QUALITY' | 'DISCONNECTED' | 'STALE' | 'INVALID_TIMESTAMP' | 'INVALID_VALUE' | 'INVALID_UNIT' | 'TYPE_MISMATCH';
 
 type Target = { bindingId: string; instanceId: string; property: string };
 
@@ -56,6 +61,29 @@ export interface TelemetryResolution {
   unmatchedTagIds: string[];
 }
 
+const integerRanges: Partial<Record<DataType, readonly [number, number]>> = {
+  int16: [-32768, 32767],
+  uint16: [0, 65535],
+  int32: [-2147483648, 2147483647],
+  uint32: [0, 4294967295],
+};
+const FLOAT32_MAX = 3.4028234663852886e38;
+
+/**
+ * Whether `value` fits a tag's data type (ADR-0029): a boolean for `bool`, an integer in range for the
+ * integer types, a finite number for the float types, a string for `string`. A `scaled` variable
+ * carries the host's engineering value, not the raw register, so any finite number fits.
+ */
+export function valueFitsDataType(value: unknown, dataType: DataType, scaled = false): boolean {
+  if (dataType === 'bool') return typeof value === 'boolean';
+  if (dataType === 'string') return typeof value === 'string';
+  if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+  if (scaled || dataType === 'float64') return true;
+  if (dataType === 'float32') return Math.abs(value) <= FLOAT32_MAX;
+  const range = integerRanges[dataType];
+  return !!range && Number.isInteger(value) && value >= range[0] && value <= range[1];
+}
+
 /** Value in the canonical unit, or the reason it cannot be used. */
 function convert(value: Observation['value'], quantity: Quantity | undefined, unit: string | undefined): { value: number | boolean } | { reason: 'INVALID_VALUE' | 'INVALID_UNIT' } {
   if (quantity === 'boolean' || (quantity === undefined && typeof value === 'boolean')) {
@@ -91,6 +119,14 @@ export function resolveTelemetry(scene: ScadaScene, observations: readonly Obser
   const components = new Map(scene.components.map((c) => [c.id, c]));
   // A runtime variable's unit applies when neither the observation nor the binding gives one (ADR-0024).
   const variableUnits = new Map((scene.runtimeVariables ?? []).filter((v) => v.unit !== undefined).map((v) => [v.id, v.unit]));
+  const variables = new Map((scene.runtimeVariables ?? []).map((v) => [v.id, v]));
+  /** The declared type wins; a gateway's stated type must match it, and the value must fit (ADR-0029). */
+  const typeProblem = (o: Observation): 'TYPE_MISMATCH' | 'INVALID_VALUE' | undefined => {
+    const variable = variables.get(o.tagId);
+    if (o.dataType !== undefined && (!dataTypes.includes(o.dataType) || (variable && o.dataType !== variable.dataType))) return 'TYPE_MISMATCH';
+    const declared = variable?.dataType ?? o.dataType;
+    return declared && !valueFitsDataType(o.value, declared, !!variable?.scaling) ? 'INVALID_VALUE' : undefined;
+  };
   const properties: PropertyState[] = [];
   const flowReadings: FlowReading[] = [];
   for (const binding of bindings) {
@@ -100,7 +136,7 @@ export function resolveTelemetry(scene: ScadaScene, observations: readonly Obser
       const converted = convert(o.value, 'flow', o.unit ?? binding.unit ?? variableUnits.get(binding.tagId));
       flowReadings.push({
         connectionId: binding.connectionId,
-        rate: 'value' in converted ? (converted.value as number) : Number.NaN,
+        rate: 'value' in converted && !typeProblem(o) ? (converted.value as number) : Number.NaN,
         quality: o.quality,
         source,
         sourceTimestamp: o.sourceTimestamp,
@@ -116,7 +152,7 @@ export function resolveTelemetry(scene: ScadaScene, observations: readonly Obser
     const owner = components.get(binding.instanceId);
     const quantity = owner ? options.resolveBindable?.(owner.type)?.[binding.property] : undefined;
     const converted = convert(o.value, quantity, o.unit ?? binding.unit ?? variableUnits.get(binding.tagId));
-    const problem = 'reason' in converted ? converted.reason : assessObservation(o, options);
+    const problem = typeProblem(o) ?? ('reason' in converted ? converted.reason : assessObservation(o, options));
     if (problem) properties.push({ ...target, status: 'unknown', reason: problem, ...meta });
     else properties.push({ ...target, status: 'ok', value: (converted as { value: number | boolean }).value, ...meta, uncertain: o.quality === 'UNCERTAIN' });
   }

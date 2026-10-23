@@ -2,7 +2,7 @@ import { alarmSeverities, type AlarmState, type ComponentStatus, type StatusResu
 
 // Words for host alarms and component status in the runtime (ADR-0028 §4). Colour is never the only cue.
 
-const reasonText: Record<TelemetryUnknownReason, string> = { STALE: 'stale', BAD_QUALITY: 'bad quality', DISCONNECTED: 'disconnected', NO_READING: 'no reading', INVALID_TIMESTAMP: 'invalid timestamp', INVALID_VALUE: 'invalid value', INVALID_UNIT: 'invalid unit' };
+const reasonText: Record<TelemetryUnknownReason, string> = { STALE: 'stale', BAD_QUALITY: 'bad quality', DISCONNECTED: 'disconnected', NO_READING: 'no reading', INVALID_TIMESTAMP: 'invalid timestamp', INVALID_VALUE: 'invalid value', INVALID_UNIT: 'invalid unit', TYPE_MISMATCH: 'type mismatch' };
 
 /** "HIGH · Tank level high · since … · unacknowledged": an alarm exactly as the host gave it. */
 export function describeAlarm(alarm: AlarmState): string {

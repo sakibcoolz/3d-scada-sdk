@@ -1,6 +1,6 @@
 # ADR-0003: Read-only telemetry for SDK MVP
 
-Status: Accepted (architecture baseline)
+Status: Accepted (architecture baseline); amended by ADR-0029 (host-callback command requests, describe only, no SDK writes)
 
 ## Context
 Visualization and physical control have very different failure/safety profiles.

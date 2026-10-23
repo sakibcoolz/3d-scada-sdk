@@ -1,0 +1,50 @@
+{
+  "dataSources": [
+    {
+      "id": "ds-plc",
+      "name": "Line PLC",
+      "protocol": "modbus-tcp",
+      "endpointRef": "host:gateway-3/plc-01",
+      "properties": {
+        "pollMs": 500
+      }
+    },
+    {
+      "id": "ds-ua",
+      "protocol": "opcua",
+      "endpointRef": "host:opc/line-2"
+    }
+  ],
+  "variables": [
+    {
+      "tagId": "LT-101",
+      "dataSourceId": "ds-plc",
+      "dataType": "float32",
+      "unit": "%",
+      "address": {
+        "address": 40,
+        "area": "holding",
+        "byteOrder": "big",
+        "unitId": 1,
+        "wordOrder": "high-first"
+      },
+      "scaling": {
+        "kind": "linear",
+        "rawMin": 0,
+        "rawMax": 27648,
+        "min": 0,
+        "max": 100
+      },
+      "access": "read"
+    },
+    {
+      "tagId": "XV-101.OPEN",
+      "dataSourceId": "ds-ua",
+      "dataType": "bool",
+      "address": {
+        "nodeId": "ns=2;s=Line2.XV101.Open"
+      },
+      "access": "read"
+    }
+  ]
+}

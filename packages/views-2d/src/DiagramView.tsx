@@ -91,6 +91,7 @@ const reasons: Record<TelemetryUnknownReason, string> = {
   INVALID_TIMESTAMP: 'invalid timestamp',
   INVALID_VALUE: 'invalid value',
   INVALID_UNIT: 'invalid unit',
+  TYPE_MISMATCH: 'type mismatch',
 };
 
 /** One line for a bound property, e.g. "level: 55 % · GOOD" or "temperature: unknown (disconnected)". */
