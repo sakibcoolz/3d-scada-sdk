@@ -26,6 +26,7 @@ Target modules (not current implementation claims): `packages/core`, `packages/c
 | M7 Assets, advanced simulation and hardening | SVG authoring converter, glTF ingestion, optional engineering network simulation, perf/security/API hardening | M0–M6 | golden asset fixtures; simulation checked against known balance equations; published consumer example builds |
 | M7 MVP gate (T-023) | MVP perf baseline, security, accessibility, public API hardening | M0–M6 MVP-critical tasks (T-002, T-015, T-017) | named benchmark scenes measured; security and a11y checks pass; public exports reviewed |
 | M8 Packaging and external adoption | versioned SDK, declarations, exports, sample host apps, migration docs | M7 MVP gate (T-023); asset import and simulation are not required | independent React app uses package, scenes migrate, clean release checks pass |
+| M10 Component designer (ADR-0030) | design document, `ComponentDesigner`, compile to host definitions, ports and bindable, motions, GLB export | M9 (0.2.0), T-020 for GLB import | a design made in the designer is placed, connected, bound and animated in the factory editor; existing kinds render unchanged; no new runtime dependency |
 
 M7 physics scope is **simplified fluid network / mass-balance simulation** (optional, bounded) and **optional rigid-body interactions**. Real water-fluid dynamics / CFD is a distinct future research program requiring validated solvers, material properties, boundary conditions, engineering review and performance budgets; do not promise it in M8.
 

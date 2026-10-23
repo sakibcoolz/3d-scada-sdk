@@ -19,6 +19,10 @@ Purpose: executable expectations for agents. Every scenario must map to an autom
 | Host-driven data updates | no provider, static snapshot, push values, stale/out-of-order | standalone viewer works offline; bound values and quality update, old observation rejected | SDK creates no sockets; provider unsubscribes on unmount |
 | Optional external OPC UA integration | host bridges tags and calls SDK input contract | renderer sees observations only | SDK has no OPC UA client/PLC writes or mandatory transport |
 | Consumer SDK | independent React app installs built package | viewer/editor render without source workspace aliases | no dependence on Z-Factory or playground packages |
+| Component designer: model (T-100..T-102) | add, transform, group and edit primitives; save; reopen | same tree, names, transforms and materials after reload; undo/redo exact | malformed, oversized or cyclic document refused with a code; existing editor and kinds unchanged |
+| Component designer: factory editor (T-103) | compile a design with ports; register; place, connect and bind it | it snaps, routes and validates like a built-in kind; factory scene save/reload keeps type, ports and bindings | invalid ports or an unknown domain refused at registration |
+| Component designer: motion (T-104) | motor shaft clip driven by synthetic `running` and `speed` | shaft turns while running, rate follows speed; survives save/reload | unknown or stale value stops the motion; simulated values labelled; no network opened |
+| Component designer: GLB (T-105) | export a compiled design | GLB with geometry, materials and clips, plus a sidecar with type, ports and bindable | losses of the design tree documented; no remote resources in the file |
 
 ## Cross-cutting gates
 Types/build/tests + browser smoke; accessibility keyboard/select basic paths; resource disposal on unmount; bounded animation allocations; adversarial JSON/asset tests; documented unit conversions; independent reviewer for safety/schema changes.
