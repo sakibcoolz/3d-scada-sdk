@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
+  "units": "m",
+  "project": {
+    "name": "Control line",
+    "revision": "3"
+  },
+  "components": [
+    {
+      "id": "TK-201",
+      "type": "tank",
+      "position": {
+        "x": 0,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "P-201",
+      "type": "pump",
+      "position": {
+        "x": 2,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "LT-201",
+      "type": "sensor",
+      "position": {
+        "x": -1,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "XV-201",
+      "type": "valve",
+      "position": {
+        "x": 4,
+        "y": 0.5,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    }
+  ],
+  "connections": [],
+  "dataSources": [
+    {
+      "id": "ds-drive",
+      "name": "Drive bus",
+      "protocol": "modbus-rtu",
+      "endpointRef": "host:serial/com3"
+    },
+    {
+      "id": "ds-plc",
+      "protocol": "modbus-tcp",
+      "endpointRef": "host:gateway-1/plc-02"
+    },
+    {
+      "id": "ds-host",
+      "protocol": "host"
+    }
+  ],
+  "runtimeVariables": [
+    {
+      "id": "LT-201.PV",
+      "name": "Tank level",
+      "componentId": "LT-201",
+      "dataType": "int16",
+      "unit": "%",
+      "access": "read",
+      "source": {
+        "dataSourceId": "ds-plc",
+        "address": {
+          "address": 10,
+          "area": "input",
+          "unitId": 1
+        }
+      },
+      "scaling": {
+        "kind": "linear",
+        "rawMin": 0,
+        "rawMax": 27648,
+        "min": 0,
+        "max": 100
+      }
+    },
+    {
+      "id": "P-201.RUNNING",
+      "componentId": "P-201",
+      "dataType": "bool",
+      "access": "read",
+      "source": {
+        "dataSourceId": "ds-plc",
+        "address": {
+          "address": 3,
+          "area": "coil",
+          "unitId": 1
+        }
+      }
+    },
+    {
+      "id": "P-201.SPEED",
+      "componentId": "P-201",
+      "dataType": "float32",
+      "unit": "rpm",
+      "access": "read",
+      "source": {
+        "dataSourceId": "ds-drive",
+        "variable": "ActualSpeed",
+        "address": {
+          "address": 100,
+          "area": "holding",
+          "byteOrder": "big",
+          "unitId": 7,
+          "wordOrder": "low-first"
+        }
+      }
+    },
+    {
+      "id": "XV-201.OPEN",
+      "componentId": "XV-201",
+      "dataType": "bool",
+      "access": "read",
+      "source": {
+        "dataSourceId": "ds-plc",
+        "address": {
+          "address": 20,
+          "area": "holding",
+          "bit": 4,
+          "unitId": 1
+        }
+      }
+    },
+    {
+      "id": "TK-201.BATCH",
+      "componentId": "TK-201",
+      "dataType": "string",
+      "access": "read",
+      "source": {
+        "dataSourceId": "ds-host",
+        "variable": "mes/batch/current"
+      }
+    },
+    {
+      "id": "TK-201.NOTE",
+      "componentId": "TK-201",
+      "dataType": "string",
+      "access": "read"
+    }
+  ],
+  "tagBindings": [
+    {
+      "id": "b-level",
+      "tagId": "LT-201.PV",
+      "kind": "property",
+      "instanceId": "TK-201",
+      "property": "level"
+    }
+  ]
+}

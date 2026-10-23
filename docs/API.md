@@ -23,7 +23,7 @@ All geometry is right-handed, Y-up, metres. Scene components use named vectors (
 | Open joints | `findOpenJoints`, `seatOnConnection` | `JointOptions`, `OpenJoint`, `SeatResult` |
 | Collisions | `findCollisions` | `CollisionOptions`, `CollisionPair`, `CollisionResult` |
 | Flow | `resolveFlow` | `FlowReading`, `FlowState`, `FlowDirection`, `FlowUnknownReason`, `FlowOptions`, `FlowResolution`, `Quality`, `ValueSource` |
-| Telemetry | `resolveTelemetry`, `displayScene` | `Observation`, `PropertyState`, `TelemetryOptions`, `TelemetryResolution`, `TelemetryUnknownReason`, `FreshnessOptions` |
+| Telemetry | `resolveTelemetry`, `displayScene`, `valueFitsDataType` | `Observation`, `PropertyState`, `TelemetryOptions`, `TelemetryResolution`, `TelemetryUnknownReason`, `FreshnessOptions` |
 | Host data input | `createObservationStore`, `connectProvider` | `DataProvider`, `ObservationStore` |
 
 Pure functions take the current time (`now`) and the catalog lookups (`resolvePorts`, `resolveBindable`) as parameters; core has no dependency on React, Three.js, the DOM or the component catalog.
@@ -153,6 +153,14 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
   Missing details never fail a check. `portsCompatible` is `checkPorts(...).ok`.
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
+
+## Typed telemetry and projection fixtures (T-092, ADR-0029)
+- **`Observation.dataType?`:** the type as the gateway read it. If it differs from the tag's runtime variable, the value is unknown with the new reason `TYPE_MISMATCH`.
+- **Values must fit the variable's declared type**, otherwise they are `INVALID_VALUE`:
+  - integers within the type's range, finite floats, booleans for `bool`, strings for `string`;
+  - a variable with `scaling` carries engineering values, so any finite number fits.
+- **`valueFitsDataType(value, dataType, scaled?)`** exposes that check.
+- **Golden `projectAcquisition` outputs** ship in `@sakibcoolz/core/schema/fixtures/projection/`. Host integration is described in [RUNTIME_INTEGRATION.md](RUNTIME_INTEGRATION.md).
 
 ## Locked runtime (T-090..T-091, ADR-0028)
 - **`<ScadaRuntime scene expected? registry? telemetry? layout?/defaultLayout?/onLayoutChange? selectedIds?/onSelectionChange? onRefused? style? />`** shows an approved document, view only: 3D, process, electrical or split, with an information panel (live values, ports, related).

@@ -2081,3 +2081,33 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - Screenshot of `?runtime&layout=split` checked by eye.
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-092: typed telemetry and projection fixtures (Phase 10a, ADR-0029)
+- Owner merged #93 (T-091) and approved ADR-0029 ("Approve"), accepting all four proposed decisions. Branch `docs/T-092-command-boundary-adr` from `origin/develop`.
+- Change:
+  - **core `telemetry.ts`:**
+    - `Observation.dataType?`, and the new reason `TYPE_MISMATCH`;
+    - `valueFitsDataType`;
+    - `resolveTelemetry` checks values against the variable's declared type, with scaled variables carrying engineering values; a mistyped flow becomes a NaN rate.
+  - **Reason labels:** `type mismatch` added in views-2d, the 3D summary and the runtime text.
+  - **Fixtures:** new `schema/fixtures/valid/control-line.scene.json`, and golden `schema/fixtures/projection/{acquisition,control-line}.plan.json`.
+  - **Docs:**
+    - new `docs/RUNTIME_INTEGRATION.md` (first draft, host-neutral);
+    - ADR-0029 Accepted with T-092 notes; ADR-0003 and ADR-0024 marked as amended; DECISION_LOG;
+    - API.md, SECURITY_AND_SAFETY, RELEASE.md;
+    - backlog: T-091 DONE, T-092 REVIEW, T-093/T-094 added, T-018 points to T-094; plan Phase 10 row.
+- Found while implementing:
+  - a scaled `int16` tag carries engineering values (55.3 %), so the strict integer check would have refused valid data. Scaled variables accept any finite number, recorded in the ADR notes;
+  - core's tests cannot load the `sdk.*` control library, so the new control-line fixture uses built-in types in place of the playground's demo.
+- Tests:
+  - `telemetry-types.test.ts` (8);
+  - `projection.test.ts` (5);
+  - the new valid fixture joins the schema fixture suite (1).
+- Verification (exit codes):
+  - `pnpm typecheck` 0 (after typing the test's gateway stand-in, which first failed with exit 1).
+  - `pnpm test` 0 (1648 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (164 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

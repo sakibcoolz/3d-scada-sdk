@@ -1,6 +1,6 @@
 # ADR-0024: Runtime variables and data sources (tag engine)
 
-Status: Accepted (owner, 2026-10-22: read-only access and a separate `reviewTags` explicitly approved); implemented in T-077..T-079. M9 Phase 5 of docs/INDUSTRIAL_SDK_PLAN.md (§5.3, §5.4, §8.2), tasks T-077..T-079.
+Status: Accepted (owner, 2026-10-22: read-only access and a separate `reviewTags` explicitly approved); implemented in T-077..T-079. Amended by ADR-0029 (`readWrite` with mandatory limits, T-093). M9 Phase 5 of docs/INDUSTRIAL_SDK_PLAN.md (§5.3, §5.4, §8.2), tasks T-077..T-079.
 
 ## Context
 Today a tag is an opaque string.

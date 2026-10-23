@@ -102,7 +102,7 @@ export type { CollisionOptions, CollisionPair, CollisionResult } from './collisi
 export { resolveFlow } from './flow.js';
 export type { FlowDirection, FlowOptions, FlowReading, FlowResolution, FlowState, FlowUnknownReason, Quality, ValueSource } from './flow.js';
 export type { FreshnessOptions } from './observation.js';
-export { displayScene, resolveTelemetry } from './telemetry.js';
+export { displayScene, resolveTelemetry, valueFitsDataType } from './telemetry.js';
 export type { Observation, PropertyState, TelemetryOptions, TelemetryResolution, TelemetryUnknownReason } from './telemetry.js';
 export { connectProvider, createObservationStore } from './dataInput.js';
 export type { DataProvider, ObservationStore } from './dataInput.js';

@@ -78,6 +78,7 @@ const publicApi = [
   'unlockFromParent',
   'upgradeDimensions',
   'validateScene',
+  'valueFitsDataType',
   'viewKinds',
 ];
 

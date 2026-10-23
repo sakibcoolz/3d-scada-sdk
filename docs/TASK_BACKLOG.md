@@ -21,7 +21,7 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-015 | M5 | P1 | T-006,T-011 | DONE | glass, X-ray, cutaway, water and heat (view modes + per-component override, level policy, temperature tint; PR #24) |
 | T-016 | M6 | P1 | T-012,T-013 | DONE | read-only telemetry, tag quality/timestamps (tagBindings per ADR-0006, `resolveTelemetry`, `displayScene`, binding editor; PR #25) |
 | T-017 | M6 | P1 | T-016 | DONE | optional DataProvider snapshot/subscribe or setTagValues API; no-network test and cleanup (`createObservationStore`, `connectProvider`, `telemetry.provider`, `ScadaHandle.setTagValues`; PR #26) |
-| T-018 | M6 (post-MVP) | P2 | T-017 | TODO | host-owned transport integration examples (REST, WebSocket, MQTT/backend OPC UA), not SDK dependencies; not an MVP release blocker |
+| T-018 | M6 (post-MVP) | P2 | T-017 | TODO | host-owned transport integration examples (REST, WebSocket, MQTT/backend OPC UA), not SDK dependencies; not an MVP release blocker. Delivered by T-094 (ADR-0029: REST, SSE, WebSocket in code; MQTT and OPC UA documented) |
 | T-019 | M7 (post-MVP) | P2 | T-006 | DONE | part a (ADR-0012): `@scada3d/asset-import` allow-list SVG sanitizer (no DOM), sanitized scene `underlay` drawn on the ground as a tracing reference, editor Underlay section; part b (extrusion) is T-047 |
 | T-020 | M7 (post-MVP) | P2 | T-019 | TODO | glTF importer, provenance and disposal |
 | T-021 | M7 | P2 | T-013,T-016 | DONE | optional `@scada3d/simulation` (ADR-0010): deterministic mass-balance model (gravity drain, feeds, pumps, equal tee split), verified against analytic drain and conservation; `simulation` prop on viewer/editor (SIMULATED badge, never mixed with measured); playground `?simulate`; packed and run in the consumer check |
@@ -90,7 +90,10 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-088 | M9 (industrial model) | P0 | T-087 | DONE | Phase 8b (ADR-0027): wiring picker with compatibility reasons, disconnect, connection relationship and properties, add and remove associations |
 | T-089 | M9 (industrial model) | P1 | T-088 | DONE | Phase 8c (ADR-0027): tag and variable editor dialog (data sources, protocol address forms, scaling, inline errors, suggestions, review, binding datalists) |
 | T-090 | M9 (industrial model) | P0 | T-089 | DONE | Phase 9a (ADR-0028): viewer/editor module split, `sha256Hex`/`sceneDigest`, `checkApproval`, `<ScadaRuntime>` (layouts, information panel, refusal screen), playground `?runtime` |
-| T-091 | M9 (industrial model) | P0 | T-090 | REVIEW | Phase 9b (ADR-0028): host-supplied alarms, `componentStatus`, 2D colouring and badges, 3D markers, Attention list and summary |
+| T-091 | M9 (industrial model) | P0 | T-090 | DONE | Phase 9b (ADR-0028): host-supplied alarms, `componentStatus`, 2D colouring and badges, 3D markers, Attention list and summary |
+| T-092 | M9 (industrial model) | P0 | T-091 | REVIEW | Phase 10a (ADR-0029): typed observations (`dataType`, `TYPE_MISMATCH`, `valueFitsDataType`), golden projection fixtures, mock-gateway integration test, RUNTIME_INTEGRATION.md draft |
+| T-093 | M9 (industrial model) | P0 | T-092 | TODO | Phase 10b (ADR-0029): `readWrite` variables with limits, projection and Tags… dialog, confirmed command requests in `ScadaRuntime` (`onCommandRequest`, `commandStatus`), refusals, e2e |
+| T-094 | M9 (industrial model) | P1 | T-092 | TODO | Phase 10c (ADR-0029): REST polling, SSE and WebSocket `DataProvider` examples with loopback tests; RUNTIME_INTEGRATION.md completed; closes T-018 |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.
