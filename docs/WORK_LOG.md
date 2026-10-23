@@ -2027,3 +2027,29 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-090: locked runtime and approval pin (Phase 9a, ADR-0028)
+- Owner merged #91 (T-089) and approved ADR-0028 ("Approve"). Branch `docs/T-090-runtime-adr` from `origin/develop`.
+- Change:
+  - **react:**
+    - `index.tsx` split into `viewer.tsx` and `editor.tsx`, generated from the declaration dependency graph and verified first with 401 react unit tests and all 156 e2e;
+    - new `approval.ts` (`checkApproval`) and `runtime.tsx` (`<ScadaRuntime>`).
+  - **core:** `digest.ts` (`sha256Hex`, `sceneDigest`).
+  - **playground:** `?runtime`, `?runtime=tampered` and `&revision=`.
+  - **consumer:** `node-check` compares the digest with Node's SHA-256.
+- Found in testing:
+  - the import-graph test first flagged `wiring.ts` (reached through the shared, callback-driven inspector; pure, cannot change a scene) and `drop.ts` (a type-only import, now `import type`). The test now lists the modules that change scenes and skips type-only imports;
+  - the shared `waitForCanvas` helper assumes the editor layout, so the runtime specs use their own wait.
+- Tests: `digest.test.ts` (3); `runtime.test.ts` (3); e2e `runtime.spec.ts` (4).
+- Docs:
+  - ADR-0028 Accepted with T-090 notes; DECISION_LOG; SECURITY_AND_SAFETY;
+  - API.md; README; RELEASE.md;
+  - backlog T-089 DONE, T-090 REVIEW, T-091 TODO; plan Phase 9 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1623 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (160 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

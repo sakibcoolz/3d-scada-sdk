@@ -88,7 +88,9 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-086 | M9 (industrial model) | P1 | T-085 | DONE | Phase 7d (ADR-0026): controlled selection in the editor, `<ScadaWorkspace>` split layout, playground `?control&layout=split`, e2e selection sync, layout round trip and 1,000-component budget |
 | T-087 | M9 (industrial model) | P0 | T-086 | DONE | Phase 8a (ADR-0027): port and terminal inspector and relationship explorer in the editor's Properties panel (`describePorts`, `describeRelations`) |
 | T-088 | M9 (industrial model) | P0 | T-087 | DONE | Phase 8b (ADR-0027): wiring picker with compatibility reasons, disconnect, connection relationship and properties, add and remove associations |
-| T-089 | M9 (industrial model) | P1 | T-088 | REVIEW | Phase 8c (ADR-0027): tag and variable editor dialog (data sources, protocol address forms, scaling, inline errors, suggestions, review, binding datalists) |
+| T-089 | M9 (industrial model) | P1 | T-088 | DONE | Phase 8c (ADR-0027): tag and variable editor dialog (data sources, protocol address forms, scaling, inline errors, suggestions, review, binding datalists) |
+| T-090 | M9 (industrial model) | P0 | T-089 | REVIEW | Phase 9a (ADR-0028): viewer/editor module split, `sha256Hex`/`sceneDigest`, `checkApproval`, `<ScadaRuntime>` (layouts, information panel, refusal screen), playground `?runtime` |
+| T-091 | M9 (industrial model) | P0 | T-090 | TODO | Phase 9b (ADR-0028): host-supplied alarms, `componentStatus`, 2D colouring and badges, 3D markers, Attention list and summary |
 
 ## Release-path change (owner-approved 2026-10-15)
 T-023 was split so the MVP release gate depends only on MVP-critical work (T-002, T-015, T-017), as MVP.md requires. Hardening of post-MVP surfaces moved to T-028. T-018, T-019 and T-020 are post-MVP and not release blockers. T-024 still depends on T-023.
