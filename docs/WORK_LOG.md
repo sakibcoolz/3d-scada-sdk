@@ -2300,3 +2300,20 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `npm run node-check` 0.
 - Docs: backlog T-097 DONE; PROJECT_SUMMARY status.
 - Verification: docs-only change; `pnpm typecheck`, `pnpm test` NOT RUN. GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-098: website and search discoverability
+- Owner request: "optimised this repo for seo on google". Owner decisions: a GitHub Pages site with a landing page and the live playground demo; replace overstated GitHub topics with accurate ones. Branch `feat/T-098-seo-site` from `origin/develop`.
+- Change:
+  - `site/`: landing page (`index.html`: title, meta description, canonical, Open Graph and Twitter cards, `SoftwareSourceCode` JSON-LD, features, quick start from the react README, demo links, packages, FAQ stating the SDK never connects to or writes to a device), `robots.txt`, `sitemap.xml`. No external scripts or fonts; light and dark themes.
+  - `.github/workflows/pages.yml`: on push to `develop`, builds the playground with base `/3d-scada-sdk/demo/` and deploys `site/` + `og.png` (the README image) + the demo to Pages. It deletes `demo/local-models` defensively; those models are git-excluded and never in CI.
+  - Playground `index.html`: descriptive title, meta description and canonical.
+  - README: keyword-rich title and intro, npm/licence/demo badges, website and demo links.
+  - Package `homepage` fields point to the site (on npm from the next publish); the simulation description no longer says "@scada3d".
+  - GitHub (owner-approved settings): Pages enabled with workflow builds, repo homepage set to the site, topics replaced.
+- Verification (exit codes):
+  - `pnpm --filter @sakibcoolz/playground exec vite build --base=/3d-scada-sdk/demo/` 0.
+  - Assembled the site as the workflow does and served it under `/3d-scada-sdk/`; headless Chromium (Playwright): landing at 1280 and 390 px, demo and `?runtime` load with no console errors, no failed requests, no horizontal scroll. JSON-LD parses.
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1748 tests).
+  - GitHub Actions CI not awaited.
+  - The Pages workflow itself runs only after merge: NOT RUN.

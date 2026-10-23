@@ -9,7 +9,7 @@
     "url": "git+https://github.com/sakibcoolz/3d-scada-sdk.git",
     "directory": "packages/components"
   },
-  "homepage": "https://github.com/sakibcoolz/3d-scada-sdk#readme",
+  "homepage": "https://sakibcoolz.github.io/3d-scada-sdk/",
   "bugs": {
     "url": "https://github.com/sakibcoolz/3d-scada-sdk/issues"
   },

@@ -1,6 +1,10 @@
-# 3D SCADA SDK
+# 3D SCADA SDK: industrial 3D HMI and digital twin toolkit for Three.js and React
 
-Reusable industrial 3D visualization SDK for Three.js, with a React editor/viewer layer.
+[![npm](https://img.shields.io/npm/v/@sakibcoolz/react?label=npm)](https://www.npmjs.com/package/@sakibcoolz/react) [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue)](LICENSE) [![live demo](https://img.shields.io/badge/demo-live-brightgreen)](https://sakibcoolz.github.io/3d-scada-sdk/demo/)
+
+An open-source TypeScript SDK for building **3D SCADA and HMI screens in the browser**: tanks, pumps, valves and ASME piping joined by a typed port graph, a React Three Fiber **editor and viewer**, **2D P&ID and electrical views** of the same scene, and a **locked operator runtime** that shows host-supplied live values and alarms.
+
+**[Website](https://sakibcoolz.github.io/3d-scada-sdk/) · [Live demo](https://sakibcoolz.github.io/3d-scada-sdk/demo/) · [npm](https://www.npmjs.com/package/@sakibcoolz/react) · [Changelog](CHANGELOG.md)**
 
 ![A milk processing line built in the playground editor: horizontal, vertical, conical and spherical tanks on braced stands, each filled and emptied through bottom valves and pumps, with transfer lines on an overhead pipe rack, shown in Glass view on the floor slab with the Walk and VR buttons.](docs/images/milk-processing-line.png)
 

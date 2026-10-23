@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sakibcoolz.github.io/3d-scada-sdk/sitemap.xml

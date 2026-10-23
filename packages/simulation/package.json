@@ -1,7 +1,7 @@
 {
   "name": "@sakibcoolz/simulation",
   "version": "0.2.0",
-  "description": "Optional deterministic mass-balance simulation for @scada3d scenes; results are always SIMULATED.",
+  "description": "Optional deterministic mass-balance and hydraulic simulation for 3D SCADA SDK scenes; results are always labelled SIMULATED.",
   "license": "MIT",
   "author": "sakibcoolz",
   "repository": {
@@ -9,7 +9,7 @@
     "url": "git+https://github.com/sakibcoolz/3d-scada-sdk.git",
     "directory": "packages/simulation"
   },
-  "homepage": "https://github.com/sakibcoolz/3d-scada-sdk#readme",
+  "homepage": "https://sakibcoolz.github.io/3d-scada-sdk/",
   "bugs": {
     "url": "https://github.com/sakibcoolz/3d-scada-sdk/issues"
   },
