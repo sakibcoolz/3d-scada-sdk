@@ -66,6 +66,18 @@ describe('copyComponents', () => {
   });
 });
 
+describe('copied components share no nested data (T-096)', () => {
+  it('deep-copies labels and extensions', () => {
+    const scene = plant();
+    scene.components[0] = { ...scene.components[0], labels: { area: 'A' }, extensions: { 'com.example.a': { list: [1, { deep: true }] } } };
+    const clip = copyComponents(scene, [scene.components[0].id]);
+    expect(clip.components[0].labels).toEqual({ area: 'A' });
+    expect(clip.components[0].labels).not.toBe(scene.components[0].labels);
+    expect(clip.components[0].extensions).toEqual(scene.components[0].extensions);
+    expect((clip.components[0].extensions!['com.example.a'] as { list: unknown[] }).list[1]).not.toBe((scene.components[0].extensions!['com.example.a'] as { list: unknown[] }).list[1]);
+  });
+});
+
 describe('clipboardWidth', () => {
   it('is the world X extent of the copied parts', () => {
     expect(clipboardWidth(copyComponents(plant(), ['a', 'b', 'c']), options)).toBeCloseTo(5.2, 9); // x from -1 to 4.2

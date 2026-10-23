@@ -23,6 +23,8 @@ export const hostileValues = (): unknown[] => [
   null, undefined, 0, -0, 1e308, -1, Number.NaN, Number.POSITIVE_INFINITY, '', 'x'.repeat(5000), '<script>alert(1)</script>',
   true, [], [[[]]], {}, { __proto__: { polluted: true } }, JSON.parse('{"__proto__":{"polluted":true}}'), { constructor: { prototype: { polluted: true } } },
   Object.create(null), [1, 2, 3, 4, 5], { toString: 'not a function' }, Symbol('s'), () => 1, 10n,
+  // Inherited names as ids and property names (T-096).
+  'constructor', 'toString', '__proto__', 'hasOwnProperty',
 ];
 const hostileKeys = ['__proto__', 'constructor', 'prototype', 'toString', 'hasOwnProperty', '', 'id', 'type', 'kind'];
 
@@ -65,6 +67,9 @@ export const baseV4 = () => ({
   dataSources: [{ id: 'ds', name: 'PLC', protocol: 'modbus-tcp', deviceId: 'valve', endpointRef: 'host:plc', properties: { pollMs: 500 } }],
   runtimeVariables: [
     { id: 'LT-101', name: 'Level', componentId: 'tank', dataType: 'float32', unit: '%', access: 'read', source: { dataSourceId: 'ds', variable: 'L', address: { area: 'holding', address: 40, unitId: 1 } }, scaling: { kind: 'linear', rawMin: 0, rawMax: 27648, min: 0, max: 100 } },
+    // Writable (ADR-0029): command limits are fuzzed too.
+    { id: 'LIC-101.SP', componentId: 'tank', dataType: 'float32', unit: '%', access: 'readWrite', source: { dataSourceId: 'ds', address: { area: 'holding', address: 42, unitId: 1 } }, command: { min: 0, max: 100, step: 0.5, confirm: 'Changes the level target.' } },
+    { id: 'XV-101.CMD', componentId: 'valve', dataType: 'bool', access: 'readWrite', source: { dataSourceId: 'ds', address: { area: 'coil', address: 1, unitId: 1 } }, command: { confirm: 'Opens or closes the valve.' } },
   ],
   tagBindings: [{ id: 'b1', tagId: 'LT-101', kind: 'property', instanceId: 'tank', property: 'level', unit: '%' }],
   views: { process: { symbols: { tank: { x: 0, y: 0 }, valve: { x: 50, y: 10, rotation: 90 } }, routes: { e1: { points: [[10, 0], [40, 10]] } } }, electrical: { symbols: { valve: { x: 0, y: 0, hidden: true } } } },

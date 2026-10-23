@@ -47,7 +47,8 @@ const portSizeParameters: Partial<Record<ComponentKind, Readonly<Record<string, 
  */
 export function sizeParameterFor(type: ComponentKind, portId: string): string | undefined {
   const parameters = componentCatalog[type].parameters ?? {};
-  const name = portSizeParameters[type]?.[portId] ?? (parameters.nozzleSize ? 'nozzleSize' : 'size');
+  const byPort = portSizeParameters[type];
+  const name = (byPort && Object.hasOwn(byPort, portId) ? byPort[portId] : undefined) ?? (parameters.nozzleSize ? 'nozzleSize' : 'size');
   return parameters[name] ? name : undefined;
 }
 

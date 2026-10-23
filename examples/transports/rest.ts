@@ -15,12 +15,29 @@ export interface RestProviderOptions extends LinkOptions {
   fetch?: typeof fetch;
 }
 
+/** The body as text, or undefined once it passes `maxChars`: reading stops there, not at the end (T-096). */
+async function readCapped(response: Response, maxChars: number): Promise<string | undefined> {
+  if (!response.body) return response.text().then((t) => (t.length > maxChars ? undefined : t));
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+    text += decoder.decode(chunk.value, { stream: true });
+    if (text.length > maxChars) {
+      await reader.cancel();
+      return undefined;
+    }
+  }
+  return text + decoder.decode();
+}
+
 export function createRestProvider(options: RestProviderOptions): TransportProvider {
   const url = checkFeedUrl(options.url, ['http:', 'https:']);
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init));
   const intervalMs = options.intervalMs ?? 2_000;
   const timeoutMs = options.timeoutMs ?? 5_000;
-  return createTransportProvider(({ opened, message, failed }) => {
+  const maxChars = options.maxMessageChars ?? 1_000_000;
+  return createTransportProvider(({ opened, message, failed, dropped }) => {
     let stopped = false;
     let next: ReturnType<typeof setTimeout> | undefined;
     let abort: AbortController | undefined;
@@ -34,10 +51,11 @@ export function createRestProvider(options: RestProviderOptions): TransportProvi
       try {
         const response = await doFetch(url, { signal: controller.signal, cache: 'no-store', headers: { accept: 'application/json' } });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const text = await response.text();
+        const text = await readCapped(response, maxChars);
         if (stopped) return;
         opened();
-        message(text);
+        if (text === undefined) dropped('TOO_LARGE');
+        else message(text);
         next = setTimeout(poll, intervalMs);
       } catch (error) {
         if (!stopped) failed(timedOut ? `no answer within ${timeoutMs} ms` : error instanceof Error ? error.message : String(error));

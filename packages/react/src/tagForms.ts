@@ -1,4 +1,5 @@
 import { validateScene, type DataType, type JsonValue, type RuntimeVariable, type ScadaScene, type SceneDataSource, type SceneValidationError, type SceneValidationOptions } from '@sakibcoolz/core';
+import { parseDecimal } from './commands.js';
 
 // The tag editor's form models (ADR-0027, T-089): text fields in, typed data sources and read-only
 // runtime variables out, and validation errors mapped back to the field that caused them. Core's
@@ -119,7 +120,8 @@ export function variableForm(v: RuntimeVariable): VariableForm {
 }
 
 /** A typed number, or the text itself so validation names the field (an empty field is undefined). */
-const num = (s: string): number | string | undefined => (s.trim() === '' ? undefined : Number.isFinite(Number(s)) ? Number(s) : s);
+// Anything but a plain decimal stays text, so validation names the field.
+const num = (s: string): number | string | undefined => (s.trim() === '' ? undefined : Number.isFinite(parseDecimal(s)) ? parseDecimal(s) : s);
 
 /**
  * The variable a form describes (read-only, or writable with command limits), given its data source's protocol. The address takes the

@@ -351,3 +351,11 @@ export function matesPhysically(port: ConnectionPort): boolean {
 export function portCapacity(port: ConnectionPort): number {
   return port.maxConnections ?? 1;
 }
+
+/**
+ * `record[key]` for an own key only. Keys from documents and hosts are untrusted: a plain lookup of
+ * "constructor", "toString" or "__proto__" finds inherited values (T-096). Internal; not exported by the package.
+ */
+export function ownValue<T>(record: Readonly<Record<string, T>> | undefined, key: string): T | undefined {
+  return record !== undefined && record !== null && typeof key === 'string' && Object.hasOwn(record, key) ? record[key] : undefined;
+}

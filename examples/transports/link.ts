@@ -26,6 +26,8 @@ export interface LinkOptions {
   maxDelayMs?: number;
   /** Messages longer than this are dropped unread. Default 1,000,000 characters. */
   maxMessageChars?: number;
+  /** Most distinct tags remembered for DISCONNECTED marking; observations of further new tags are dropped. Default 50,000, as the SDK's store. */
+  maxTags?: number;
   /** Called on every change of the stats, for a host's connection indicator or log. */
   onStats?: (stats: TransportStats) => void;
   /** For tests; default Math.random. */
@@ -37,6 +39,8 @@ export interface LinkHandlers {
   opened(): void;
   /** One message as received; validated here. */
   message(data: unknown): void;
+  /** A message the transport dropped itself, e.g. a REST body over the size limit. */
+  dropped(reason: DropReason): void;
   /** The link is down. Later calls from the same link are ignored. */
   failed(error: string): void;
 }
@@ -66,6 +70,7 @@ export function createTransportProvider(open: OpenLink, options: LinkOptions = {
   const initialDelayMs = options.initialDelayMs ?? 500;
   const maxDelayMs = options.maxDelayMs ?? 30_000;
   const maxMessageChars = options.maxMessageChars ?? 1_000_000;
+  const maxTags = options.maxTags ?? 50_000;
   const listeners = new Set<(observations: readonly Observation[]) => void>();
   // The last observation per (source, tag), so an outage can mark exactly what was shown.
   const last = new Map<string, Observation>();
@@ -81,6 +86,12 @@ export function createTransportProvider(open: OpenLink, options: LinkOptions = {
   const update = (patch: Partial<TransportStats>) => {
     stats = { ...stats, ...patch };
     options.onStats?.(stats);
+  };
+  const countDrops = (reasons: readonly DropReason[]) => {
+    if (reasons.length === 0) return;
+    const counts = { ...stats.dropped };
+    for (const reason of reasons) counts[reason] = (counts[reason] ?? 0) + 1;
+    update({ dropped: counts });
   };
   const emit = (batch: readonly Observation[]) => {
     if (batch.length > 0) for (const listener of [...listeners]) listener(batch);
@@ -124,20 +135,26 @@ export function createTransportProvider(open: OpenLink, options: LinkOptions = {
       },
       message(data) {
         if (!live()) return;
-        const { observations, dropped } = parseBatch(data, maxMessageChars);
-        if (dropped.length > 0) {
-          const counts = { ...stats.dropped };
-          for (const reason of dropped) counts[reason] = (counts[reason] ?? 0) + 1;
-          update({ dropped: counts });
-        }
+        const parsed = parseBatch(data, maxMessageChars);
+        const dropped = [...parsed.dropped];
+        // Bounded like the SDK's store: a feed cannot grow this map without limit (T-096).
+        const observations = parsed.observations.filter((o) => {
+          const key = keyOf(o);
+          if (last.has(key) || last.size < maxTags) return last.set(key, o), true;
+          dropped.push('TOO_MANY_TAGS');
+          return false;
+        });
+        countDrops(dropped);
         if (observations.length === 0) return;
-        for (const o of observations) last.set(keyOf(o), o);
         marked = false;
         update({ received: stats.received + observations.length });
         emit(observations);
       },
       failed(error) {
         if (live()) fail(error);
+      },
+      dropped(reason) {
+        if (live()) countDrops([reason]);
       },
     };
     let c: (() => void) | undefined;

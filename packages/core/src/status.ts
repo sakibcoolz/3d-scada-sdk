@@ -53,10 +53,26 @@ export interface StatusResult {
 
 const rank = (s: AlarmSeverity) => alarmSeverities.indexOf(s);
 
-/** Host data is untrusted: an unrecognised severity is shown as critical, never under-reported. */
+/** Plain text from a host value; objects and symbols (whose conversion can throw) become ''. */
+const text = (value: unknown): string => (typeof value === 'string' ? value : typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint' ? String(value) : '');
+
+/**
+ * Host data is untrusted: an unrecognised severity is shown as critical, never under-reported, and
+ * every field the views render becomes plain text or is dropped (T-096).
+ */
 function normalise(alarm: AlarmState): AlarmState {
   const severity = alarmSeverities.includes(alarm.severity) ? alarm.severity : 'critical';
-  return { ...alarm, severity, message: typeof alarm.message === 'string' ? alarm.message : String(alarm.message ?? '') };
+  const { componentId, tagId, since } = alarm;
+  return {
+    id: text(alarm.id),
+    severity,
+    message: text(alarm.message),
+    active: true,
+    acknowledged: alarm.acknowledged === true,
+    ...(typeof componentId === 'string' ? { componentId } : {}),
+    ...(typeof tagId === 'string' ? { tagId } : {}),
+    ...(typeof since === 'string' ? { since } : {}),
+  };
 }
 
 /**
@@ -68,7 +84,7 @@ export function componentStatus(scene: ScadaScene, resolution: { properties: rea
   const ids = new Set(scene.components.map((c) => c.id));
   const tagTargets = new Map<string, Set<string>>();
   const target = (tagId: string, componentId: string) => {
-    if (ids.has(componentId)) tagTargets.set(tagId, new Set([...(tagTargets.get(tagId) ?? []), componentId]));
+    if (ids.has(componentId)) { const set = tagTargets.get(tagId); if (set) set.add(componentId); else tagTargets.set(tagId, new Set([componentId])); }
   };
   const connections = new Map(scene.connections.map((c) => [c.id, c]));
   for (const b of scene.tagBindings ?? []) {
@@ -87,11 +103,12 @@ export function componentStatus(scene: ScadaScene, resolution: { properties: rea
     const alarm = normalise(raw);
     const targets = alarm.componentId !== undefined && ids.has(alarm.componentId) ? [alarm.componentId] : [...(alarm.tagId !== undefined ? (tagTargets.get(alarm.tagId) ?? []) : [])];
     if (targets.length === 0) unlinked.push(alarm);
-    for (const id of targets) byAlarm.set(id, [...(byAlarm.get(id) ?? []), alarm]);
+    // Pushed, not copied: folding must stay linear in the number of host alarms (T-096).
+    for (const id of targets) { const list = byAlarm.get(id); if (list) list.push(alarm); else byAlarm.set(id, [alarm]); }
   }
 
   const states = new Map<string, PropertyState[]>();
-  for (const p of resolution?.properties ?? []) states.set(p.instanceId, [...(states.get(p.instanceId) ?? []), p]);
+  for (const p of resolution?.properties ?? []) { const list = states.get(p.instanceId); if (list) list.push(p); else states.set(p.instanceId, [p]); }
 
   const byComponent = new Map<string, ComponentStatus>();
   for (const { id } of scene.components) {

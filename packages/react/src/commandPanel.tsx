@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { RuntimeVariable, ScadaScene, ValueSource, VariableState } from '@sakibcoolz/core';
-import { checkCommandValue, COMMAND_NOTICE, commandAvailability, createCommandRequest, formatCommandValue, requestIds, writableVariables, type CommandRequest, type CommandStatus } from './commands.js';
+import { checkCommandValue, COMMAND_NOTICE, commandAvailability, createCommandRequest, formatCommandValue, hostCommandStatus, recheckCommand, requestIds, writableVariables, type CommandRequest, type CommandStatus } from './commands.js';
 
 // The runtime's command requests (ADR-0029 §3): a form, then a confirmation, then one call to the
 // host. The displayed value never changes here; only telemetry changes it.
@@ -63,7 +63,11 @@ export function Commands({ scene, componentId, states, source, revision, digest,
     // The reading may have changed while the dialog was open: check again, and send nothing if it is now unknown.
     const now = commandAvailability(states.get(dialog.variable.id), source);
     if (!now.ok) return setDialog({ ...dialog, error: now.reason });
-    const request = createCommandRequest({ requestId: nextId(), variable: dialog.variable, value: dialog.value, current: states.get(dialog.variable.id), revision, digest, at: new Date() });
+    // So may the approved document: check the value again against the variable as it is now (T-096).
+    const again = recheckCommand(scene, componentId, dialog.variable.id, dialog.input ?? '', dialog.value);
+    if (!again.ok) return setDialog({ ...dialog, ...(again.variable ? { variable: again.variable, stage: 'form' as const } : {}), error: again.message });
+    const { variable } = again;
+    const request = createCommandRequest({ requestId: nextId(), variable, value: dialog.value, current: states.get(variable.id), revision, digest, at: new Date() });
     setDialog(undefined);
     setSent((s) => ({ ...s, [request.tagId]: { requestId: request.requestId, at: Date.now() } }));
     onCommandRequest(request);
@@ -76,9 +80,9 @@ export function Commands({ scene, componentId, states, source, revision, digest,
         {variables.map((v) => {
           const state = states.get(v.id);
           const available = commandAvailability(state, source);
-          const last = sent[v.id];
+          const last = Object.hasOwn(sent, v.id) ? sent[v.id] : undefined;
           const waiting = !!last && Date.now() - last.at < RESEND_DELAY_MS;
-          const status = last ? commandStatus?.[last.requestId] : undefined;
+          const status = last ? hostCommandStatus(commandStatus?.[last.requestId]) : undefined;
           return (
             <li key={v.id} data-tag-id={v.id} style={{ margin: '4px 0' }}>
               <div>{v.name ?? v.id}: {state?.status === 'ok' ? `${formatCommandValue(v, state.value)} · ${state.quality}` : 'unknown'}</div>

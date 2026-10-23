@@ -1,6 +1,6 @@
 import type { FlowReading, Quality, ValueSource } from './flow.js';
 import { assessObservation, isNewer, type FreshnessOptions } from './observation.js';
-import { dataTypes, type ComponentType, type DataType, type Quantity, type RuntimeVariable, type ScadaScene } from './scene.js';
+import { dataTypes, ownValue, type ComponentType, type DataType, type Quantity, type RuntimeVariable, type ScadaScene } from './scene.js';
 import { isKnownUnit, toCanonical } from './units.js';
 
 /** One value for a host tag. Read-only: the SDK never writes tags (ADR-0003). */
@@ -106,7 +106,8 @@ export function resolveVariableValues(scene: ScadaScene, observations: readonly 
   const variables = new Map((scene.runtimeVariables ?? []).map((v) => [v.id, v]));
   const latest = new Map<string, Observation>();
   for (const o of observations) {
-    if (!variables.has(o.tagId) || (o.source ?? 'MEASURED') !== source) continue;
+    // Host data is untrusted: skip entries that are not observations at all (T-096).
+    if (typeof o !== 'object' || o === null || !variables.has(o.tagId) || (o.source ?? 'MEASURED') !== source) continue;
     if (isNewer(o, latest.get(o.tagId))) latest.set(o.tagId, o);
   }
   const states = new Map<string, VariableState>();
@@ -148,8 +149,9 @@ export function resolveTelemetry(scene: ScadaScene, observations: readonly Obser
   const latest = new Map<string, Observation>();
   const unmatched = new Set<string>();
   for (const o of observations) {
+    if (typeof o !== 'object' || o === null) continue;
     if (!boundTags.has(o.tagId)) {
-      unmatched.add(o.tagId);
+      if (typeof o.tagId === 'string') unmatched.add(o.tagId);
       continue;
     }
     if ((o.source ?? 'MEASURED') !== source) continue;
@@ -184,7 +186,7 @@ export function resolveTelemetry(scene: ScadaScene, observations: readonly Obser
     }
     const meta = { quality: o.quality, source, sourceTimestamp: o.sourceTimestamp };
     const owner = components.get(binding.instanceId);
-    const quantity = owner ? options.resolveBindable?.(owner.type)?.[binding.property] : undefined;
+    const quantity = owner ? ownValue(options.resolveBindable?.(owner.type), binding.property) : undefined;
     const converted = convert(o.value, quantity, o.unit ?? binding.unit ?? variableUnits.get(binding.tagId));
     const problem = typeProblem(o) ?? ('reason' in converted ? converted.reason : assessObservation(o, options));
     if (problem) properties.push({ ...target, status: 'unknown', reason: problem, ...meta });
@@ -201,7 +203,7 @@ export function resolveTelemetry(scene: ScadaScene, observations: readonly Obser
 export function displayScene(scene: ScadaScene, properties: readonly PropertyState[]): ScadaScene {
   if (properties.length === 0) return scene;
   const byComponent = new Map<string, PropertyState[]>();
-  for (const p of properties) byComponent.set(p.instanceId, [...(byComponent.get(p.instanceId) ?? []), p]);
+  for (const p of properties) { const list = byComponent.get(p.instanceId); if (list) list.push(p); else byComponent.set(p.instanceId, [p]); }
   return {
     ...scene,
     components: scene.components.map((c) => {

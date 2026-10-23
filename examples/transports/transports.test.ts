@@ -37,6 +37,27 @@ describe('messages and URLs', () => {
     expect(parseBatch(JSON.stringify([good('A', 1)]), 10).dropped).toEqual(['TOO_LARGE']);
   });
 
+  it('never throws on hostile messages, and passes on only well-shaped observations (T-096)', () => {
+    const values = ['null', '1', '"x"', 'true', '[]', '{}', '{"__proto__":{"polluted":true}}', '{"constructor":{"prototype":{"polluted":true}}}', '1e999', '-0', '"GOOD"', '"DISCONNECTED"', '"float32"', '"2026-10-23T08:00:00Z"', '[[[[[[[[]]]]]]]]'];
+    const keys = ['tagId', 'value', 'quality', 'sourceTimestamp', 'source', 'dataType', 'unit', '__proto__', 'constructor', 'toString', 'write'];
+    let seed = 1096;
+    const next = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    const pick = <T,>(list: readonly T[]) => list[Math.floor(next() * list.length)];
+    for (let i = 0; i < 3000; i++) {
+      const entries = Array.from({ length: Math.floor(next() * 4) }, () => `{${keys.filter(() => next() < 0.6).map((k) => `"${k}":${pick(values)}`).join(',')}}`);
+      let text = next() < 0.5 ? `[${entries.join(',')}]` : `{"observations":[${entries.join(',')}]}`;
+      if (next() < 0.1) text = text.slice(0, Math.floor(next() * text.length));
+      let parsed: ReturnType<typeof parseBatch> | undefined;
+      expect(() => (parsed = parseBatch(text, 10_000)), text).not.toThrow();
+      for (const o of parsed!.observations) {
+        expect(Object.getPrototypeOf(o)).toBe(Object.prototype);
+        expect(Object.keys(o).every((k) => ['tagId', 'value', 'quality', 'sourceTimestamp', 'source', 'dataType', 'unit'].includes(k)), text).toBe(true);
+        expect(typeof o.tagId === 'string' && typeof o.sourceTimestamp === 'string', text).toBe(true);
+      }
+    }
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
   it('refuses credentials in the URL and other protocols', () => {
     expect(() => checkFeedUrl('http://operator:secret@127.0.0.1/feed', ['http:'])).toThrow(/credentials/);
     expect(() => checkFeedUrl('https://:token@plant.example/feed', ['https:'])).toThrow(/credentials/);
@@ -81,6 +102,18 @@ describe('a link that is down', () => {
     expect(provider.stats()).toMatchObject({ state: 'open', reconnects: 1, received: 4 });
     stop();
     expect(provider.stats().state).toBe('stopped');
+  });
+
+  it('remembers at most maxTags tags, dropping observations of further new ones (T-096)', () => {
+    let handlers: Parameters<Parameters<typeof createTransportProvider>[0]>[0] | undefined;
+    const provider = createTransportProvider((h) => ((handlers = h), () => undefined), { ...fast, maxTags: 2 });
+    const seen: string[] = [];
+    const stop = provider.subscribe((batch) => seen.push(...batch.map((o) => o.tagId)));
+    handlers!.message(JSON.stringify([good('A', 1), good('B', 2), good('C', 3)]));
+    handlers!.message(JSON.stringify([good('A', 4)]));
+    expect(seen).toEqual(['A', 'B', 'A']);
+    expect(provider.stats().dropped).toEqual({ TOO_MANY_TAGS: 1 });
+    stop();
   });
 
   it('ignores callbacks from a link it has closed', () => {
@@ -144,6 +177,18 @@ describe('REST polling', () => {
     await new Promise((resolve) => setTimeout(resolve, 60));
     expect(requests.length).toBe(count);
     expect(provider.stats().state).toBe('stopped');
+  });
+
+  it('stops reading a body past the size limit, and keeps the link up (T-096)', async () => {
+    route = (_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(Array.from({ length: 200 }, (_, i) => good(`T${i}`, i))));
+    };
+    const provider = createRestProvider({ url: `${base}/feed`, intervalMs: 1000, maxMessageChars: 500 });
+    const stop = provider.subscribe(() => undefined);
+    await vi.waitFor(() => expect(provider.stats().dropped).toEqual({ TOO_LARGE: 1 }));
+    expect(provider.stats()).toMatchObject({ state: 'open', received: 0, failures: 0 });
+    stop();
   });
 
   it('times out a request that never answers', async () => {

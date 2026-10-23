@@ -68,3 +68,40 @@ describe('committing', () => {
     expect('dataSources' in removeEntry(one, 'dataSources', 0)).toBe(false);
   });
 });
+
+describe('hostile form input (T-096)', () => {
+  it('never throws, and commits only what validation keeps', () => {
+    const pieces = ['', ' ', '0', '1', '-1', '0x10', '1e3', '65536', 'NaN', '{}', '[]', '{"__proto__":{"polluted":true}}', '{"a":', '<script>', 'holding', 'coil', 'big', 'ns=2;s=X', 'user:pass@', 'password', '\u0000', 'é'.repeat(300)];
+    const fields = ['id', 'name', 'unit', 'variable', 'area', 'address', 'unitId', 'byteOrder', 'wordOrder', 'bit', 'nodeId', 'namespaceUri', 'rawAddress', 'rawMin', 'rawMax', 'min', 'max', 'commandMin', 'commandMax', 'commandStep', 'commandConfirm'] as const;
+    let seed = 7;
+    const next = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    const pick = <T,>(list: readonly T[]) => list[Math.floor(next() * list.length)];
+    let committed = 0;
+    for (let i = 0; i < 2000; i++) {
+      const form = { ...emptyVariable(), id: `V${i}`, dataSourceId: pick(['', 'plc', 'ua']), dataType: pick(['bool', 'int16', 'float32', 'string'] as const), access: pick(['read', 'readWrite'] as const), scaling: next() < 0.3 };
+      for (const f of fields) if (next() < 0.4) (form as Record<string, unknown>)[f] = pick(pieces);
+      const protocol = form.dataSourceId === 'plc' ? 'modbus-tcp' : form.dataSourceId === 'ua' ? 'opcua' : undefined;
+      let made: ReturnType<typeof toVariable> | undefined;
+      expect(() => (made = toVariable(form, protocol)), `iteration ${i}`).not.toThrow();
+      const made2 = made as ReturnType<typeof toVariable>;
+      if (!('variable' in made2)) continue;
+      const { variable } = made2;
+      let result: ReturnType<typeof commitEntry> | undefined;
+      expect(() => (result = commitEntry(scene, 'runtimeVariables', undefined, variable, options)), `iteration ${i}`).not.toThrow();
+      if (!result!.ok) continue;
+      committed++;
+      const checked = validateScene(result!.scene, options);
+      expect(checked.ok && checked.scene, `iteration ${i}`).toEqual(result!.scene);
+    }
+    expect(committed).toBeGreaterThan(50);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it('keeps hex and binary limits as text, so validation refuses them', () => {
+    const made = toVariable({ ...emptyVariable(), id: 'SP', dataSourceId: 'plc', area: 'holding', address: '1', unitId: '1', dataType: 'float32', access: 'readWrite', commandMin: '0x0', commandMax: '0b11' }, 'modbus-tcp');
+    if (!('variable' in made)) throw new Error('expected a variable');
+    expect(made.variable.command).toEqual({ min: '0x0', max: '0b11' });
+    const result = commitEntry(scene, 'runtimeVariables', undefined, made.variable, options);
+    expect(result.ok ? {} : result.errors).toMatchObject({ commandMin: expect.any(String) });
+  });
+});

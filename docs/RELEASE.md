@@ -42,6 +42,18 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, security review (T-096):**
+  - `componentStatus` returns alarms as plain data:
+    - `id` and `message` are text (anything else becomes `''`);
+    - `componentId`, `tagId` and `since` are kept only when they are strings;
+    - `acknowledged` is always a boolean.
+  - The runtime shows a host's `commandStatus` only when its `state` is one of the five known states, and its `message` only when it is a string.
+  - Command values and the Tags… dialog's numbers take plain decimal numbers only; `0x10`, `0b11` and `0o7` are refused.
+  - `createComponentRegistry` refuses parameters that are not objects or have non-finite limits. A symbol with an invalid size reports only that problem.
+  - Documents that 0.1.x accepted may now be refused with `SECRET_FIELD`. This covers component properties named like credentials, keys containing `passphrase` or `accessKey`, keys named `auth` or starting `authorization`, and an `endpointRef` with leading spaces before user info or with a secret-named query parameter.
+  - A binding to an inherited name such as `constructor` is now `UNBINDABLE_PROPERTY`; it used to throw or validate.
+  - `resolveTelemetry` and `resolveVariableValues` skip entries that are not objects.
+  - In the transport examples, `LinkHandlers` gains `dropped(reason)`, `LinkOptions` gains `maxTags`, and `DropReason` gains `TOO_MANY_TAGS`.
 - **0.2.0, scale limits (T-095):**
   - `parseScene` now accepts up to 32,000,000 characters by default (was 10,000,000), and `MAX_SCENE_FILE_BYTES` is 32,000,000. A host that relied on the old cap should pass `maxLength`.
   - A variable address may hold at most 64 JSON values. It no longer counts toward the 10,000-value extension budget, so documents with more than about 2,500 sourced variables now validate.

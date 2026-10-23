@@ -16,6 +16,9 @@ const cloneComponent = (c: ComponentInstance): ComponentInstance => ({
   rotation: { ...c.rotation },
   scale: { ...c.scale },
   properties: { ...c.properties },
+  // Deep copies, so a pasted component never shares nested data with the original (T-096).
+  ...(c.labels ? { labels: { ...c.labels } } : {}),
+  ...(c.extensions ? { extensions: structuredClone(c.extensions) } : {}),
 });
 
 /**
