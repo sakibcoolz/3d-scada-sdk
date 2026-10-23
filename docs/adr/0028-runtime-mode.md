@@ -1,6 +1,6 @@
 # ADR-0028: Locked runtime mode
 
-Status: Accepted (owner, 2026-10-23: host-supplied alarms displayed only, canonical-form SHA-256 in core, runtime in `@sakibcoolz/react`); T-090 implemented, T-091 pending. M9 Phase 9 of docs/INDUSTRIAL_SDK_PLAN.md (§8.1), tasks T-090..T-091.
+Status: Accepted (owner, 2026-10-23: host-supplied alarms displayed only, canonical-form SHA-256 in core, runtime in `@sakibcoolz/react`); T-090 and T-091 implemented. M9 Phase 9 of docs/INDUSTRIAL_SDK_PLAN.md (§8.1), tasks T-090..T-091.
 
 ## Context
 The SDK has an editor (with an edit lock) and a viewer. An operator screen is neither:
@@ -137,3 +137,25 @@ UI locks remain **not a security boundary** (SECURITY_AND_SAFETY). Access contro
   - `digest.test.ts` (3) and `runtime.test.ts` (3);
   - e2e `runtime.spec.ts` (4): no editing controls, keys and drags change nothing, live values follow the feed, panel links, layouts, and digest and revision refusals;
   - consumer `node-check`: the digest equals Node's SHA-256.
+
+## Implementation notes (T-091)
+- **Core `status.ts`:** `componentStatus(scene, resolution, alarms)` returns `byComponent`, `attention`, `unlinked` and `counts`. `AlarmState` and the other status types are defined in core, so the pure function can use them, and are re-exported by `@sakibcoolz/react`.
+- **Resolution of alarms:**
+  - an explicit `componentId` that exists wins;
+  - otherwise `tagId` maps through property bindings (the bound component), flow bindings (both ends of the connection) and runtime variables (their `componentId`);
+  - only active alarms count;
+  - an alarm that resolves to nothing is listed under "Not linked to equipment".
+- **Untrusted host data:** non-object entries are skipped, and an unrecognised severity is shown as critical, so it is never under-reported.
+- **One status for every view:** `ScadaRuntime` resolves telemetry once and passes the same `status` to the 3D viewer (new optional `status` prop: rings from `statusMarkers.tsx`) and to the 2D views (new optional `status` prop). The colour table `statusColors` and `describeStatus` live in `@sakibcoolz/views-2d` and are shared with 3D.
+- **2D:**
+  - the outline takes the status colour;
+  - alarms get a "!" + severity letter badge, filled while unacknowledged;
+  - unknown gets a dashed grey outline;
+  - the symbol's accessible name adds the status in words.
+- **3D:** a ring centred over the component's world-space bounds. It blinks at 1 Hz only for an unacknowledged alarm and never under `prefers-reduced-motion: reduce`.
+- **Runtime panel:**
+  - Attention list first (a button per component, then unlinked alarms);
+  - the selected component's active alarms as the host gave them;
+  - live values with "· SIMULATED" where simulated;
+  - a "SIMULATED values, not plant data" badge when the feed is simulated, and a status summary overlay.
+- **Playground:** `?runtime` adds a "Demo alarms (host side)" panel: LAH-101 on tag LT-101.PV, VIB-101 on P-101 (inactive), and ZS-999 on a component that is not in the scene. Each can be raised or cleared, acknowledged and re-graded.

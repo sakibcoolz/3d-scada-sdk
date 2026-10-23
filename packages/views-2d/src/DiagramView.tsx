@@ -5,6 +5,8 @@ import {
   createObservationStore,
   resolveTelemetry,
   type DataProvider,
+  type AlarmSeverity,
+  type ComponentStatus,
   type Observation,
   type PropertyState,
   type ScadaScene,
@@ -37,6 +39,11 @@ export interface DiagramViewProps {
   selectedIds?: readonly string[];
   onSelectionChange?: (ids: string[]) => void;
   telemetry?: ViewTelemetry;
+  /**
+   * Status per component (`componentStatus`, ADR-0028): outlines take the status colour, alarms get
+   * a badge, unknown values a dashed outline. Display only.
+   */
+  status?: ReadonlyMap<string, ComponentStatus>;
   /** Lets the user drag symbols; each drop saves `views.<view>.symbols[id]` through `onChange`. */
   editable?: boolean;
   onChange?: (scene: ScadaScene) => void;
@@ -53,6 +60,28 @@ const colors = {
   unknown: '#e7a33e',
   wire: { power: '#e8892c', signal: '#3d8bfd', network: '#2fb36d', electrical: '#e8892c', fluid: '#9fb3c8', mechanical: '#9fb3c8' },
 } as const;
+
+/**
+ * The one status colour table (ADR-0028 §4), shared by the 2D and 3D views. Colour is never the only
+ * cue: there is always text, a badge letter, or a dashed outline for unknown.
+ */
+export const statusColors: Readonly<Record<AlarmSeverity | 'unknown' | 'uncertain', string>> = {
+  critical: '#e5484d',
+  high: '#f76b15',
+  medium: '#ffb224',
+  low: '#f5d90a',
+  unknown: '#8a96a3',
+  uncertain: '#7cc4fa',
+};
+
+/** The colour and words for a status, or undefined for ok and unbound. */
+export function describeStatus(status: ComponentStatus | undefined): { color: string; text: string } | undefined {
+  if (!status) return undefined;
+  if (status.status === 'alarm') return { color: statusColors[status.severity!], text: `${status.severity} alarm${status.unacknowledged ? ', unacknowledged' : ''}` };
+  if (status.status === 'unknown') return { color: statusColors.unknown, text: 'unknown value' };
+  if (status.status === 'uncertain') return { color: statusColors.uncertain, text: 'uncertain value' };
+  return undefined;
+}
 
 const reasons: Record<TelemetryUnknownReason, string> = {
   STALE: 'stale',
@@ -125,7 +154,7 @@ function Edge({ edge }: { edge: DrawnEdge }) {
 type Camera = { x: number; y: number; width: number; height: number };
 
 /** The shared SVG diagram; `ProcessView` and `ElectricalView` choose the view. */
-export function DiagramView({ view, label, scene, registry = builtInRegistry, selectedIds, onSelectionChange, telemetry, editable = false, onChange, style }: DiagramViewProps & { view: ViewKind; label: string }) {
+export function DiagramView({ view, label, scene, registry = builtInRegistry, selectedIds, onSelectionChange, telemetry, status, editable = false, onChange, style }: DiagramViewProps & { view: ViewKind; label: string }) {
   const drawing = useMemo(() => layoutView(scene, view, registry), [scene, view, registry]);
   const [ownSelection, setOwnSelection] = useState<string[]>([]);
   const selection = selectedIds ?? ownSelection;
@@ -247,7 +276,9 @@ export function DiagramView({ view, label, scene, registry = builtInRegistry, se
         })}
         {drawing.symbols.map((s) => {
           const selected = selection.includes(s.id);
-          const stroke = selected ? colors.selected : colors.line;
+          const st = status?.get(s.id);
+          const flagged = describeStatus(st);
+          const stroke = flagged?.color ?? (selected ? colors.selected : colors.line);
           const [x, y] = dragged?.id === s.id ? [dragged.x, dragged.y] : [s.x, s.y];
           const lines = live.get(s.id) ?? [];
           return (
@@ -255,9 +286,10 @@ export function DiagramView({ view, label, scene, registry = builtInRegistry, se
               key={s.id}
               role="button"
               tabIndex={0}
-              aria-label={`${s.label}${s.placed ? '' : ' (unplaced)'}`}
+              aria-label={`${s.label}${s.placed ? '' : ' (unplaced)'}${flagged ? `, ${flagged.text}` : ''}`}
               aria-pressed={selected}
               data-component-id={s.id}
+              data-status={st?.status}
               data-x={s.x}
               data-y={s.y}
               data-placed={s.placed}
@@ -275,9 +307,17 @@ export function DiagramView({ view, label, scene, registry = builtInRegistry, se
                 {/* Outlines leave the inside unpainted; this makes the whole symbol clickable and draggable. */}
                 <rect x={-3} y={-3} width={s.symbol.width + 6} height={s.symbol.height + 6} fill="transparent" />
                 {!s.placed && <rect x={-3} y={-3} width={s.symbol.width + 6} height={s.symbol.height + 6} fill="none" stroke={colors.muted} strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />}
-                {selected && <rect x={-4} y={-4} width={s.symbol.width + 8} height={s.symbol.height + 8} fill={colors.selected} opacity={0.12} />}
+                {selected && <rect x={-4} y={-4} width={s.symbol.width + 8} height={s.symbol.height + 8} fill={colors.selected} opacity={0.12} stroke={flagged ? colors.selected : 'none'} vectorEffect="non-scaling-stroke" />}
+                {st?.status === 'unknown' && <rect data-role="unknown-outline" x={-5} y={-5} width={s.symbol.width + 10} height={s.symbol.height + 10} fill="none" stroke={statusColors.unknown} strokeDasharray="3 2" vectorEffect="non-scaling-stroke" />}
                 {s.symbol.shapes.map((shape, i) => <Shape key={i} shape={shape} stroke={stroke} />)}
               </g>
+              {st?.status === 'alarm' && (
+                // "!" plus the severity letter; filled while unacknowledged, outlined once acknowledged.
+                <g data-role="alarm-badge" data-severity={st.severity} data-unacknowledged={st.unacknowledged} transform={`translate(${Math.max(s.symbol.width, s.symbol.height) / 2 + 2} ${-Math.max(s.symbol.width, s.symbol.height) / 2 - 2})`}>
+                  <rect x={-6} y={-4.5} width={12} height={9} rx={2} fill={st.unacknowledged ? flagged!.color : colors.background} stroke={flagged!.color} vectorEffect="non-scaling-stroke" />
+                  <text y={2} fontSize={6} fontWeight={700} textAnchor="middle" fill={st.unacknowledged ? colors.background : flagged!.color}>!{st.severity![0].toUpperCase()}</text>
+                </g>
+              )}
               <text y={Math.max(s.symbol.width, s.symbol.height) / 2 + 8} fontSize={7} textAnchor="middle" fill={colors.text}>{s.label}</text>
               {lines.map((line, i) => (
                 <text key={i} y={Math.max(s.symbol.width, s.symbol.height) / 2 + 15 + i * 6} fontSize={5.5} textAnchor="middle" fill={line.includes('unknown') ? colors.unknown : colors.muted}>{line}</text>

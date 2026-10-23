@@ -16,3 +16,5 @@ export type { ScadaWorkspaceProps, WorkspaceLayout } from './workspace.js';
 export { ScadaRuntime } from './runtime.js';
 export type { RuntimeLayout, ScadaRuntimeProps } from './runtime.js';
 export type { ApprovalRecord, RuntimeRefusal } from './approval.js';
+// Host-supplied alarms and status per component (ADR-0028); defined in core, re-exported for runtime hosts.
+export type { AlarmSeverity, AlarmState, ComponentStatus, StatusResult } from '@sakibcoolz/core';

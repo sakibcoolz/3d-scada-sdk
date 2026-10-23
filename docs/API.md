@@ -154,12 +154,18 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
-## Locked runtime (T-090, ADR-0028)
+## Locked runtime (T-090..T-091, ADR-0028)
 - **`<ScadaRuntime scene expected? registry? telemetry? layout?/defaultLayout?/onLayoutChange? selectedIds?/onSelectionChange? onRefused? style? />`** shows an approved document, view only: 3D, process, electrical or split, with an information panel (live values, ports, related).
   - It has no editing controls and cannot reach the editor's code.
   - `scene` may be text or parsed JSON. A document that is invalid, or does not match `expected.revision` or `expected.digest`, shows a refusal screen and calls `onRefused(RuntimeRefusal)`.
 - **Core:** `sceneDigest(scene)`, the SHA-256 hex of the canonical serialization, which a host records when it approves a revision; and `sha256Hex(text)`.
 - **Types:** `ScadaRuntimeProps`, `RuntimeLayout`, `ApprovalRecord` and `RuntimeRefusal`.
+- **Alarms and status (T-091):** `alarms?: AlarmState[]` from the host's alarm system, displayed only. The runtime shows:
+  - each component's status in every view (2D outline colour and "!" badges, 3D rings that blink only when unacknowledged and never under reduced motion);
+  - an Attention list (alarms by severity, then unknown values) and a status summary;
+  - alarms that match no equipment, under "Not linked to equipment".
+- **Core:** `componentStatus(scene, resolution, alarms)` gives `{ byComponent, attention, unlinked, counts }`; per component, the status is `alarm` (highest severity), then `unknown`, `uncertain`, `ok` or `unbound`. Also `alarmSeverities`, and the types `AlarmState`, `AlarmSeverity`, `ComponentStatus`, `ComponentStatusKind` and `StatusResult` (re-exported by react).
+- **Views:** `Scada3DViewer` and the 2D views take an optional `status` (`componentStatus(...).byComponent`). `@sakibcoolz/views-2d` exports `statusColors` and `describeStatus`.
 
 ## Editor: tags and variables (T-089, ADR-0027)
 - **"Tags…"** opens a dialog for the scene's data sources and read-only runtime variables:
@@ -211,7 +217,7 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
   - `inView(view, component, registry)`;
   - `orthogonalRoute`, `portAnchor`, `GRID`.
 - **Symbols:** `builtInSymbol(view, component)` and `fallbackSymbol(label)`; `SymbolDefinition` is data (shapes plus optional port points).
-- **Also exported:** `DiagramView` (the shared base) and `describeLiveValue`.
+- **Also exported:** `DiagramView` (the shared base), `describeLiveValue`, and the status table `statusColors` with `describeStatus` (T-091).
 - **Definitions** may set `views?: ('process' | 'electrical')[]`, which is checked at registration.
 
 ## 2D view layouts (T-083, ADR-0026)
