@@ -1,6 +1,6 @@
 {
   "name": "@sakibcoolz/views-2d",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Process and electrical 2D views (SVG) over one @sakibcoolz scene: symbols, automatic placement, shared selection. No three.js.",
   "license": "MIT",
   "author": "sakibcoolz",

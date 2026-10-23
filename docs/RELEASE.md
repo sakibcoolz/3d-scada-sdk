@@ -6,8 +6,10 @@ The SDK packages ship as compiled ES modules with type declarations and are publ
 | Package | Depends on | Tarball contents |
 |---|---|---|
 | `@sakibcoolz/core` | nothing | `dist/` (JS, `.d.ts`, source maps with inlined sources), `LICENSE`, `package.json` |
-| `@sakibcoolz/components` | `@sakibcoolz/core` | same layout |
-| `@sakibcoolz/react` | core, components, asset-import, `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`; peers `react`/`react-dom` 19 | same layout |
+| `@sakibcoolz/core` schema files | — | also `schema/`: the JSON Schema and fixtures, including the migration corpus and projection golden files |
+| `@sakibcoolz/components` | core, asset-import | same layout |
+| `@sakibcoolz/views-2d` (new in 0.2.0) | core, components; peers `react`/`react-dom` 19 | same layout |
+| `@sakibcoolz/react` | core, components, asset-import, views-2d, `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`; peers `react`/`react-dom` 19 | same layout |
 | `@sakibcoolz/asset-import` | nothing | same layout |
 | `@sakibcoolz/simulation` (optional) | core, components | same layout |
 
@@ -33,6 +35,11 @@ CONSUMER_APP=<printed dir> pnpm test:consumer   # browser check of that app's pr
 `e2e-consumer/consumer.spec.ts` serves the app's production build and checks:
 - the viewer renders the tank → valve → reducer → DN100 pipe scene with no open joints;
 - the editor adds a ball valve and undoes it;
+- the 2D process view draws one symbol per component and the three pipes;
+- `ScadaRuntime` (T-097):
+  - shows the approved revision with "digest verified" and the host alarm;
+  - switches to the electrical and process views;
+  - sends exactly one confirmed command request, which the example host records and answers;
 - the console has no errors.
 
 ## Licensing check
@@ -42,64 +49,8 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
-- **0.2.0, security review (T-096):**
-  - `componentStatus` returns alarms as plain data:
-    - `id` and `message` are text (anything else becomes `''`);
-    - `componentId`, `tagId` and `since` are kept only when they are strings;
-    - `acknowledged` is always a boolean.
-  - The runtime shows a host's `commandStatus` only when its `state` is one of the five known states, and its `message` only when it is a string.
-  - Command values and the Tags… dialog's numbers take plain decimal numbers only; `0x10`, `0b11` and `0o7` are refused.
-  - `createComponentRegistry` refuses parameters that are not objects or have non-finite limits. A symbol with an invalid size reports only that problem.
-  - Documents that 0.1.x accepted may now be refused with `SECRET_FIELD`. This covers component properties named like credentials, keys containing `passphrase` or `accessKey`, keys named `auth` or starting `authorization`, and an `endpointRef` with leading spaces before user info or with a secret-named query parameter.
-  - A binding to an inherited name such as `constructor` is now `UNBINDABLE_PROPERTY`; it used to throw or validate.
-  - `resolveTelemetry` and `resolveVariableValues` skip entries that are not objects.
-  - In the transport examples, `LinkHandlers` gains `dropped(reason)`, `LinkOptions` gains `maxTags`, and `DropReason` gains `TOO_MANY_TAGS`.
-- **0.2.0, scale limits (T-095):**
-  - `parseScene` now accepts up to 32,000,000 characters by default (was 10,000,000), and `MAX_SCENE_FILE_BYTES` is 32,000,000. A host that relied on the old cap should pass `maxLength`.
-  - A variable address may hold at most 64 JSON values. It no longer counts toward the 10,000-value extension budget, so documents with more than about 2,500 sourced variables now validate.
-  - The migration corpus in `@sakibcoolz/core/schema/fixtures/migration/` holds documents written by earlier versions, each with its version 4 result.
-- **0.2.0, command requests (T-093, ADR-0029):** `RuntimeVariable.access` may be `readWrite`, with required `command` limits. Code that assumed `access` is always `read` must handle it. Older 0.1.x readers refuse such documents. `ScadaRuntime` gains `onCommandRequest` and `commandStatus`. Core adds `resolveVariableValues`, and the projection carries `command`. Fixture `invalid/writable-variable` was renamed `writable-without-limits`.
-- **0.2.0, typed telemetry (T-092, ADR-0029):** `Observation` gains an optional `dataType`, and `TelemetryUnknownReason` gains `TYPE_MISMATCH`. An unscaled variable's values must fit its type: a host sending 1.5 for an `int16` tag now sees it as unknown. Code that switches over the reasons exhaustively needs the new case. Core adds `valueFitsDataType`, and the package includes golden projection fixtures.
-- **0.2.0, alarm status (T-091, ADR-0028):** `ScadaRuntime` takes `alarms`. Core adds `componentStatus` and `alarmSeverities`. `Scada3DViewer` and the 2D views take an optional `status`, and views-2d adds `statusColors`/`describeStatus`. All additive.
-- **0.2.0, locked runtime (T-090, ADR-0028):** new `ScadaRuntime` and core `sceneDigest`/`sha256Hex`. The react package's internals moved to `viewer.tsx` and `editor.tsx`; the public exports are unchanged.
-- **0.2.0, workspace (T-086, ADR-0026):** `@sakibcoolz/react` depends on `@sakibcoolz/views-2d` and exports `ScadaWorkspace`. The editor's selection can be controlled, and `ScadaHandle` gains the optional `setViews`.
-- **0.2.0, electrical view and host symbols (T-085, ADR-0026):** `@sakibcoolz/components` depends on `@sakibcoolz/asset-import`. Definitions may carry `symbol2D` and `electricalSymbol`; an unsafe SVG fails registration.
-- **0.2.0, new package `@sakibcoolz/views-2d` (T-084, ADR-0026):** publish it with the others, at the same version. Definitions may set `views`.
-- **0.2.0, 2D view layouts (T-083, ADR-0026):** optional root `views` in scene v4 and the error code `UNKNOWN_VIEW_REFERENCE`. Readers built before this change refuse files that carry `views`.
-- **0.2.0, control equipment library (T-080..T-082, ADR-0025):** additive and opt-in (`controlLibrary`).
-  - Host types may no longer use the `sdk.` prefix.
-  - A definition's `build` may also return `variables`.
-- **0.2.0, tag suggestions and review (T-079, ADR-0024):** additive.
-  - `ComponentDefinition.variables`, `catalogResolvers.resolveVariables` and registry `resolvers.resolveVariables`.
-  - New exports `suggestVariables`, `applyTagSuggestions` and `reviewTags`.
-- **0.2.0, bindings, quality and acquisition (T-078, ADR-0024):**
-  - `Quality` gains `DISCONNECTED`, and `TelemetryUnknownReason` and `FlowUnknownReason` gain `DISCONNECTED`. Code with an exhaustive switch or a `Record` over them must add it.
-  - New error code `TYPE_MISMATCH`.
-  - New export `projectAcquisition`.
-- **0.2.0, data sources and runtime variables (T-077, ADR-0024):**
-  - `ScadaScene` gains optional `dataSources` and `runtimeVariables`. Code that rebuilds a scene field by field must carry them.
-  - `SceneValidationErrorCode` gains four codes, and `SceneLimits` gains `maxDataSources` and `maxVariables`.
-- **0.2.0, graph queries (T-076, ADR-0023):** additive: `neighbours`, `relatedComponents`, `pathBetween`, `physicalDomains`, optional filters on the older helpers, and an optional `resolvePorts` on `lockConnectedAsChildren`. Without the new arguments, results are unchanged.
-- **0.2.0, associations (T-075, ADR-0023):**
-  - `ScadaScene` gains optional `associations`. Code that rebuilds a scene field by field must carry it; spread the scene instead.
-  - `GraphErrorCode` adds `UNKNOWN_ASSOCIATION`, and `SceneLimits` adds `maxAssociations`.
-- **0.2.0, connection fields (T-074, ADR-0023):**
-  - `SceneConnection` gains optional `domain`, `relationship` and `properties`. Code that rebuilds connections as `{id, from, to}` drops them; spread the connection instead.
-  - `routeScene` no longer returns a route for power, signal or network connections, so the routes array can be shorter than `connections`. Look routes up by `connectionId`.
-- **0.2.0, port domains (T-073, ADR-0023):**
-  - `PortKind` gains `power` and `network`; `electrical` is deprecated. TypeScript code that switches exhaustively on `PortKind` must handle the new values.
-  - `INCOMPATIBLE_PORTS` messages now name the failed rule; the code is unchanged.
-  - Snapping, touching and attach ignore power, signal and network ports.
-  - Nothing changes for scenes whose ports are all fluid.
-- **0.2.0, open component registry (T-071, ADR-0022):**
-  - `ComponentInstance.type` is now `ComponentType`, which is `ComponentKind` or a namespaced string. TypeScript code that switches exhaustively on `ComponentKind`, or indexes `componentCatalog[c.type]`, must handle other types. Use `isBuiltInKind(type)` or a registry's `definitionFor`.
-  - Resolver callbacks you write yourself take `ComponentType`.
-  - Nothing changes at runtime for hosts that use only built-in kinds.
-- **0.2.0, scene version 4 (T-068, ADR-0021):**
-  - Saved files are now `schemaVersion: 4` with `documentType: "industrial.scene"`. Older SDKs (0.1.x) cannot open them.
-  - v1, v2 and v3 files still load, and report `migratedFrom`. The editor's import message says "(migrated from version 3)" for them.
-  - The in-memory `ScadaScene` type now has `schemaVersion: 4` and `documentType`. Code that builds scenes by hand updates the literal, or starts from `createEmptyScene()`.
-  - The new optional identity, label and extension fields need no change in hosts that do not use them.
+- **0.1.x → 0.2.0:** see [UPGRADING_TO_0.2.md](UPGRADING_TO_0.2.md), one guide ordered by what a host must change. The per-task notes it was written from are in WORK_LOG.md and the ADRs.
+- **Before 0.2.0** (all also covered by the guide's `upgradeDimensions` step):
 - **0.1.0 → ASME fittings (T-050, ADR-0014):** elbows, tees and reducers changed size, so their ports moved. The editor's import upgrades older files automatically. A host that loads saved scenes itself (`parseScene`/`validateScene` and then the viewer) must also call:
 
   ```ts
@@ -110,17 +61,24 @@ Licences of everything installed in the consumer app (2026-10-15):
 - **Tank family (T-053 to T-056, ADR-0017, ADR-0018):** new kinds `horizontalTank`, `sphericalTank` and `pool`; files using them need this SDK version. `vesselOf(type, properties?)` follows each tank's dimensions; existing calls without properties still give the default shape.
 - **ASME valves and nozzles (T-052, ADR-0016):** the ball valve is now its B16.10 face-to-face (DN150: 267 mm instead of 1.2 m), so its ports moved. The same `upgradeDimensions` call closes up older files, including those saved after T-050. Tanks take `nozzleSize` and the pump `suctionSize`/`dischargeSize` (absent = DN150, nothing changes). `HYDRAULIC.lengths` was removed; valve flow length comes from geometry. The editor's import message now reads "Updated N parts to ASME dimensions."
 
-## Publish (T-058, ADR-0019)
+## Publish (T-058, ADR-0019; 0.2.0 in T-097)
 1. All checks green on `develop`, including `pnpm verify:consumer` and `pnpm test:consumer`.
-2. `git tag -a vX.Y.Z` on `develop`, push the tag, and create the GitHub Release with the packed tarballs attached.
-3. `npm login` as the owner of the `@sakibcoolz` scope (T-059: the packages are published under the owner's npm user scope), then from the repository root:
+2. **The owner publishes** the packed tarballs, in dependency order: asset-import, core, components, views-2d, simulation, react. The npm account uses passkey 2FA, so publish from a terminal with web authentication:
 
    ```sh
-   pnpm -r publish --access public --no-git-checks --dry-run   # check contents first
-   pnpm -r publish --access public --no-git-checks
+   script -qfec "npm publish <tarball>.tgz --access public --auth-type=web" /dev/null
    ```
-   pnpm publishes in dependency order and rewrites `workspace:*` to the exact version, as `pnpm pack` does.
+   - npm prints an approval link. The owner approves it in the browser.
+   - Never interrupt a publish that is waiting for approval: npm may then stage the version and refuse a re-publish.
+   - `@sakibcoolz/views-2d` is published for the first time in 0.2.0.
+   - New versions can take some minutes to appear: check with `npm view @sakibcoolz/<package> version`.
+3. **Tag and release after publishing:** `git tag -a vX.Y.Z` on `develop`, push the tag, and create the GitHub Release from CHANGELOG.md, with the packed tarballs attached.
+4. **Check a fresh install from the registry.** `examples/consumer-vite` pins the release version, so a plain install in a copy of it uses npm, not the tarballs:
+
+   ```sh
+   cp -r examples/consumer-vite /tmp/registry-check && cd /tmp/registry-check
+   npm install && npm run typecheck && npm run build && npm run node-check
+   ```
 
 ## Not done here
-- Semantic-version policy and changelog.
 - CommonJS builds: ESM only.

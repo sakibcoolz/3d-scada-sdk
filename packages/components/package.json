@@ -1,6 +1,6 @@
 {
   "name": "@sakibcoolz/components",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Industrial component catalog (tank, pipe, valve, fittings) for @sakibcoolz/core.",
   "license": "MIT",
   "author": "sakibcoolz",

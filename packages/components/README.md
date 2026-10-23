@@ -1,6 +1,6 @@
 # @sakibcoolz/components
 
-The **industrial parts catalog** of the [3D SCADA SDK](https://github.com/sakibcoolz/3d-scada-sdk): tanks, pipes, ASME fittings, valves and pumps, each described as plain data — **ports** (where pipes connect), **size settings**, **bounds** and framework-free **3D geometry parts**. It does not draw anything itself; use it with [`@sakibcoolz/core`](https://www.npmjs.com/package/@sakibcoolz/core) (scene model, validation, routing) and [`@sakibcoolz/react`](https://www.npmjs.com/package/@sakibcoolz/react) (3D viewer and editor).
+The **industrial parts catalog** of the [3D SCADA SDK](https://github.com/sakibcoolz/3d-scada-sdk): tanks, pipes, ASME fittings, valves and pumps, each described as plain data — **ports** (where pipes and wires connect), **size settings**, **bounds** and framework-free **3D geometry parts** — plus a **component registry** for your own types and an opt-in **control equipment library**. It does not draw anything itself; use it with [`@sakibcoolz/core`](https://www.npmjs.com/package/@sakibcoolz/core) (scene model, validation, routing) and [`@sakibcoolz/react`](https://www.npmjs.com/package/@sakibcoolz/react) (3D viewer and editor).
 
 ```sh
 npm install @sakibcoolz/components @sakibcoolz/core
@@ -45,7 +45,7 @@ const at = (id, type, x, y, properties = {}) => ({
 const F = asme.DN150.valveFaceToFace; // 0.267 m
 
 const scene = {
-  schemaVersion: 3, units: 'm',
+  schemaVersion: 4, documentType: 'industrial.scene', units: 'm',
   components: [
     at('T1', 'tank', 0, 1.535, { level: 60 }),          // outlet at x = 1.2, y = 0.635
     at('V1', 'valve', 1.2 + F / 2, 0.635, { open: true }),
@@ -63,9 +63,28 @@ findOpenJoints(result.scene, catalogResolvers);             // [] — every join
 routeScene(result.scene, catalogResolvers);                 // pipe routes for connections that do not touch
 ```
 
-**`catalogResolvers` is the bridge to core.** It tells core where each part's ports are, how big it is and which settings are valid. Pass it to every core function: `parseScene`, `validateScene`, `snapComponent`, `attachComponents`, `routeScene`, `findOpenJoints`, `findCollisions`, `upgradeDimensions`, …
+**`catalogResolvers` is the bridge to core.** It tells core where each part's ports are, how big it is and which settings are valid (`builtInRegistry.resolvers` is the same thing). Pass it, or your registry's `resolvers`, to every core function: `parseScene`, `validateScene`, `snapComponent`, `attachComponents`, `routeScene`, `findOpenJoints`, `findCollisions`, `upgradeDimensions`, …
 
 To see it in 3D, hand the scene to [`@sakibcoolz/react`](https://www.npmjs.com/package/@sakibcoolz/react): `<Scada3DViewer scene={result.scene} />`.
+
+## Your own types and the control library
+
+```js
+import { parseScene } from '@sakibcoolz/core';
+import { createComponentRegistry, controlLibrary } from '@sakibcoolz/components';
+
+const registry = createComponentRegistry(...controlLibrary, {   // controlLibrary is opt-in
+  type: 'com.example.press', label: 'Hydraulic press', category: 'machine', // namespaced id
+  ports: [{ id: 'run', kind: 'signal', position: [0.5, 1, 0], direction: [1, 0, 0], signal: { type: 'DI' } }],
+  bounds: { min: [-0.5, 0, -0.5], max: [0.5, 2, 0.5] },
+  parts: [{ shape: 'box', role: 'shell', center: [0, 1, 0], size: [1, 2, 1] }],
+  variables: [{ name: 'RUNNING', dataType: 'bool' }],              // template for suggestVariables
+});
+parseScene(text, registry.resolvers);   // files using com.example.press now validate; pass `registry` to the React views too
+```
+- A `ComponentTypeDefinition` uses the catalog's building blocks (ports, bounds, parts, optional `parameters`, `bindable`, `variables`, `build(values)` for parametric shapes). Bare names are reserved for built-in kinds and `sdk.` for the library; unregistered types are rejected.
+- Optional `symbol2D` and `electricalSymbol` (`{ svg, width, height, ports? }`) give 2D symbols; the SVG is sanitized at registration and an unsafe one fails it.
+- `controlLibrary` adds generic `sdk.*` types: PLC CPU and DI/DO/AI/AO modules, DCS controller, Ethernet switch, 24 V power supply, VFD, motor, transmitter, digital switch and panel. Their ratings drive compatibility checks only; they are not product data.
 
 ## Working with a single part
 
@@ -89,6 +108,8 @@ componentPresets.map((p) => p.label);             // "Vertical Tank (Large)", "C
 | Export | Purpose |
 |---|---|
 | `componentCatalog` | default definition of every kind |
+| `createComponentRegistry(...definitions)`, `builtInRegistry`, `unknownTypeDefinition` | registry of built-in plus host types (`has`, `get`, `list`, `definitionFor`, `resolvers`, …) |
+| `controlLibrary` | opt-in generic PLC, I/O, drive, motor, instrument and panel definitions (`sdk.*`) |
 | `definitionFor(type, properties)` | definition for given settings (ports, bounds, parts, parameters) |
 | `catalogResolvers` | `resolvePorts`, `resolveBounds`, `resolveBindable`, `validateProperties`, `bendRadiusFor` for core |
 | `validateProperties`, `sizeParameterFor(type, portId)` | check settings; which setting sizes a port |
@@ -100,11 +121,12 @@ componentPresets.map((p) => p.label);             // "Vertical Tank (Large)", "C
 | `liquidProfile`, `isChoiceParameter` | rendering and UI helpers |
 | `legacyCatalogResolvers` | with core's `upgradeDimensions`, brings scenes saved by older versions up to date |
 
-Types: `IndustrialComponentDefinition`, `GeometryPart`, `PartRole`, `Bounds`, `ParameterSpec`, `PipeSize`, `AsmeSize`, `AsmeFlange`, `CapacityUnit`, `ComponentPreset`, `VesselProfile`, `VesselSegment`.
+Types: `ComponentRegistry`, `ComponentTypeDefinition`, `HostSymbol`, `RegisteredSymbol`, `IndustrialComponentDefinition`, `GeometryPart`, `PartRole`, `Bounds`, `ParameterSpec`, `PipeSize`, `AsmeSize`, `AsmeFlange`, `CapacityUnit`, `ComponentPreset`, `VesselProfile`, `VesselSegment`.
 
 ## Notes
 - Changing a size or dimension can move a part's ports; re-check joints with `findOpenJoints`.
 - ASME values are as published in common tables and **must be verified before engineering use** — this is not a certified design tool.
+- The control library and port checks are engineering aids on the model you describe; they do not verify physical wiring, protective earth or functional safety.
 - The SDK visualises and simulates; it does not connect to or control PLCs or physical equipment.
 
 Full API reference: [docs/API.md](https://github.com/sakibcoolz/3d-scada-sdk/blob/develop/docs/API.md) · Working app: [examples/consumer-vite](https://github.com/sakibcoolz/3d-scada-sdk/tree/develop/examples/consumer-vite) · Licence: MIT

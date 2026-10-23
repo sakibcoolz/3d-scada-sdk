@@ -380,7 +380,7 @@ The owner's phases 0–11 are reconciled with the backlog. New task IDs continue
 | **8 Editor** (T-087..T-089; ADR-0027 accepted, T-087..T-089 IMPLEMENTED) | existing editor | port and terminal inspector; connection editing per domain; tag and variable editor; relationship explorer panel | e2e per editor |
 | **9 Runtime** (T-090..T-091; ADR-0028 accepted, T-090..T-091 IMPLEMENTED) | viewer, telemetry | `ScadaRuntime`: read-only, alarms/quality per component, revision pin, no edit paths | e2e: no mutation possible; stale/disconnected/simulated display |
 | **10 Host/edge** (T-092..T-094; ADR-0029 accepted, T-092..T-094 IMPLEMENTED) | core | `projectAcquisition`; normalized telemetry; command-request boundary (only if D5 is approved); host transport examples (T-018) | projection fixtures; mock-telemetry integration tests; no network in the SDK |
-| **11 Hardening** (T-095..T-097; T-095..T-096 IMPLEMENTED) | existing gates | migration corpus, perf with 10k components plus variables, consumer verify, security review, docs review, release 0.2.0 | perf budget, consumer e2e, fuzz |
+| **11 Hardening** (T-095..T-097; T-095..T-096 IMPLEMENTED, T-097 prepared, publishing by the owner) | existing gates | migration corpus, perf with 10k components plus variables, consumer verify, security review, docs review, release 0.2.0 | perf budget, consumer e2e, fuzz |
 
 - **Sequencing:** 1→2→3→4→5 are strictly ordered (each builds on the last); 6 depends on 3 and 5; 7 on 4; 8 on 5 and 7; 9 on 5; 10 on 5; 11 last.
 - **Early vertical slice:** after phase 5, ship a "PLC → VFD → Motor → pump" demo scene in the playground, so the owner can review the model in a real scene before the 2D work.

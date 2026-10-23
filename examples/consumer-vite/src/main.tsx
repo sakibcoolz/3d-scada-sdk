@@ -1,8 +1,8 @@
-import { StrictMode, useState } from 'react';
+import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { parseScene, upgradeDimensions, type ScadaScene } from '@sakibcoolz/core';
+import { parseScene, sceneDigest, serializeScene, upgradeDimensions, type AlarmState, type Observation, type ScadaScene } from '@sakibcoolz/core';
 import { catalogResolvers, legacyCatalogResolvers } from '@sakibcoolz/components';
-import { Scada3DEditor, Scada3DViewer } from '@sakibcoolz/react';
+import { Scada3DEditor, Scada3DViewer, ScadaRuntime, type CommandRequest, type CommandStatus } from '@sakibcoolz/react';
 import { ProcessView } from '@sakibcoolz/views-2d';
 
 // A tank feeding a valve, a reducer and a DN100 pipe: authored as plain JSON, checked by the core.
@@ -28,8 +28,57 @@ if (!loaded.ok) throw new Error(loaded.errors.map((e) => e.message).join('\n'));
 // itself upgrades them, so joints that met under the old sizes meet again.
 const initial: ScadaScene = upgradeDimensions(loaded.scene, { ...catalogResolvers, ...legacyCatalogResolvers }).scene;
 
+// The runtime (ADR-0028, ADR-0029): the same line as an approved version 4 document, with a level
+// variable bound to the tank and a writable valve command, pinned by revision and digest.
+const approved: ScadaScene = {
+  ...initial,
+  project: { name: 'Consumer line', revision: '1' },
+  dataSources: [{ id: 'gw', protocol: 'host', endpointRef: 'host:gateway' }],
+  runtimeVariables: [
+    { id: 'LT-1.PV', componentId: 'tank', dataType: 'float32', unit: '%', access: 'read', source: { dataSourceId: 'gw' } },
+    { id: 'XV-1.CMD', name: 'Valve command', componentId: 'valve', dataType: 'bool', access: 'readWrite', source: { dataSourceId: 'gw' }, command: { confirm: 'Opens or closes the outlet valve.' } },
+  ],
+  tagBindings: [{ id: 'b-level', tagId: 'LT-1.PV', kind: 'property', instanceId: 'tank', property: 'level', unit: '%' }],
+};
+const approvedText = serializeScene(approved);
+const expected = { revision: '1', digest: sceneDigest(approved) };
+const alarms: AlarmState[] = [{ id: 'LAH-1', componentId: 'tank', severity: 'high', message: 'Level high', active: true }];
+
+/** A stand-in host feed: fresh GOOD values every second, so nothing goes stale. */
+function useFeed(): Observation[] {
+  const make = (): Observation[] => {
+    const sourceTimestamp = new Date().toISOString();
+    return [{ tagId: 'LT-1.PV', value: 82, quality: 'GOOD', sourceTimestamp, dataType: 'float32', unit: '%' }, { tagId: 'XV-1.CMD', value: true, quality: 'GOOD', sourceTimestamp, dataType: 'bool' }];
+  };
+  const [observations, setObservations] = useState(make);
+  useEffect(() => {
+    const timer = setInterval(() => setObservations(make()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return observations;
+}
+
+function Runtime() {
+  const observations = useFeed();
+  const [requests, setRequests] = useState<CommandRequest[]>([]);
+  const [status, setStatus] = useState<Record<string, CommandStatus>>({});
+  const onCommandRequest = (request: CommandRequest) => {
+    // A real host authorizes, audits and writes through its gateway; this one only records and answers.
+    setRequests((list) => [...list, request]);
+    setStatus((s) => ({ ...s, [request.requestId]: { state: 'accepted', message: 'recorded by the example host' } }));
+  };
+  return (
+    <div style={{ display: 'grid', gridTemplateRows: 'minmax(0, 1fr) auto', height: '100%' }}>
+      <ScadaRuntime scene={approvedText} expected={expected} telemetry={{ observations }} alarms={alarms} onCommandRequest={onCommandRequest} commandStatus={status} />
+      <ul aria-label="Requests received by the host" style={{ margin: 0, padding: '4px 24px', fontSize: 12 }}>
+        {requests.map((r) => <li key={r.requestId}>{r.tagId} = {String(r.value)} (revision {r.sceneRevision}, digest {r.sceneDigest.slice(0, 12)})</li>)}
+      </ul>
+    </div>
+  );
+}
+
 function App() {
-  const [mode, setMode] = useState<'viewer' | 'editor' | 'process'>('viewer');
+  const [mode, setMode] = useState<'viewer' | 'editor' | 'process' | 'runtime'>('viewer');
   const [scene, setScene] = useState(initial);
   return (
     <div style={{ display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr)', height: '100%' }}>
@@ -38,10 +87,11 @@ function App() {
         <button aria-pressed={mode === 'viewer'} onClick={() => setMode('viewer')}>Viewer</button>
         <button aria-pressed={mode === 'editor'} onClick={() => setMode('editor')}>Editor</button>
         <button aria-pressed={mode === 'process'} onClick={() => setMode('process')}>Process</button>
+        <button aria-pressed={mode === 'runtime'} onClick={() => setMode('runtime')}>Runtime</button>
         <span aria-label="Component count">{scene.components.length} components</span>
       </header>
       <main style={{ minHeight: 0 }}>
-        {mode === 'viewer' ? <Scada3DViewer scene={scene} /> : mode === 'editor' ? <Scada3DEditor initialScene={scene} onChange={setScene} /> : <ProcessView scene={scene} editable onChange={setScene} style={{ height: '100%' }} />}
+        {mode === 'runtime' ? <Runtime /> : mode === 'viewer' ? <Scada3DViewer scene={scene} /> : mode === 'editor' ? <Scada3DEditor initialScene={scene} onChange={setScene} /> : <ProcessView scene={scene} editable onChange={setScene} style={{ height: '100%' }} />}
       </main>
     </div>
   );
