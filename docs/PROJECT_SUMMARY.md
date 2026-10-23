@@ -59,16 +59,29 @@ Graphify is optional development tooling, **not an SDK runtime dependency** and 
 
 Alternatively a future `sdk.setTagValues([...])` push API can be offered. **These exact observation props/API signatures are planned, not yet verified or guaranteed.** No WebSocket startup or login should be triggered by constructing the SDK.
 
-## Development status (updated 2026-10-22, T-070)
-- **Released:** `@sakibcoolz/core`, `components`, `react`, `simulation` and `asset-import` 0.1.3 on npm, under the MIT licence, verified against a stand-alone consumer app.
+## Development status (updated 2026-10-23, T-097)
+- **On npm:** `@sakibcoolz/core`, `components`, `react`, `simulation` and `asset-import` **0.1.2**, under the MIT licence. 0.1.3 was never published.
+- **0.2.0 prepared (T-097):**
+  - all six packages, including the new `@sakibcoolz/views-2d`;
+  - verified from packed tarballs in a stand-alone consumer app, with a browser check of the viewer, editor, process view and `ScadaRuntime`.
+
+  The owner publishes it. Upgrade guide: docs/UPGRADING_TO_0.2.md; release notes: CHANGELOG.md.
 - **Implemented and tested:**
-  - the scene model with migrations (v1–v4) and a JSON Schema;
-  - the port graph, snapping, routing and open-joint checks;
-  - the procedural catalog (14 kinds, ASME-based dimensions);
-  - the 3D viewer and editor (undo/redo, import/export, edit lock);
-  - read-only telemetry with quality and staleness, and the optional simulation;
-  - first-person Walk and WebXR.
-- **In progress:** milestone M9, the industrial model. See docs/INDUSTRIAL_SDK_PLAN.md for what is IMPLEMENTED, PARTIAL and NOT IMPLEMENTED (for example, custom component types without SDK edits are not implemented yet).
+  - the scene document v4 with migrations from v1–v3 (a corpus of real older files), and a JSON Schema;
+  - the port graph in five domains, associations and graph queries, snapping, routing and open-joint checks;
+  - the procedural catalog (14 kinds, ASME-based dimensions), host component types and an opt-in control equipment library;
+  - acquisition descriptions (data sources, runtime variables, `projectAcquisition`), tag suggestions and typed telemetry;
+  - the 3D viewer and editor (undo/redo, import/export, edit lock, Tags… dialog, ports and relationship panels);
+  - 2D process and electrical views, and `ScadaWorkspace`;
+  - `ScadaRuntime` (revision and digest pin, host alarms and quality, opt-in confirmed command requests; the SDK never writes);
+  - the optional simulation; first-person Walk and WebXR;
+  - scale checked at the validator limits, and a security review of the 0.2 surfaces (docs/SECURITY_AND_SAFETY.md).
+- **Not implemented:**
+  - glTF import (T-020);
+  - provenance for SVG underlays;
+  - any device write path, which by design is out of scope (ADR-0003, ADR-0029).
+
+  See docs/INDUSTRIAL_SDK_PLAN.md and docs/TASK_BACKLOG.md.
 - Never treat a roadmap checkbox, diagram or Graphify node as a tested feature. Verify the actual current git branch and code before stating completion.
 
 ## Repository map: files, links and flow

@@ -113,10 +113,10 @@ Rules:
 - Credentials are never stored, and the SDK never connects.
 
 ### 6.2 Runtime variables (ADR-0024)
-`{ id, name?, componentId?, dataType, unit?, access, source?, scaling? }`
+`{ id, name?, componentId?, dataType, unit?, access, source?, scaling?, command? }`
 - **`id`** is the tag ID observations and bindings carry. IDs are unique.
 - **`dataType`:** `bool, int16, uint16, int32, uint32, float32, float64, string`. `unit` is at most 32 characters.
-- **`access`:** `read` only. Writable variables wait for the command ADR (D5).
+- **`access`:** `read`, or `readWrite` (ADR-0029). A `readWrite` variable needs a source and `command: { min?, max?, step?, confirm? }`. Numeric types need `min` < `max` within the data type, `bool` takes neither, and `string` cannot be writable. The SDK only raises confirmed requests to the host; it never writes.
 - **`source`:** `{ dataSourceId, variable?, address? }`. The address is typed by the source's protocol:
 
   | Protocol | Address |
@@ -188,7 +188,7 @@ Root and component `extensions` hold host or library data:
 `serializeScene` writes one canonical form, so save → load → save is byte-identical:
 - two-space indent and a trailing newline;
 - root key order: `schemaVersion, documentType, units, project?, components, connections, associations?, dataSources?, runtimeVariables?, tagBindings?, underlay?, views?, extensions?`;
-- data source key order: `id, name?, protocol, deviceId?, endpointRef?, properties?`; variable key order: `id, name?, componentId?, dataType, unit?, access, source? (dataSourceId, variable?, address?), scaling? (kind, rawMin, rawMax, min, max)`; address keys sorted;
+- data source key order: `id, name?, protocol, deviceId?, endpointRef?, properties?`; variable key order: `id, name?, componentId?, dataType, unit?, access, source? (dataSourceId, variable?, address?), scaling? (kind, rawMin, rawMax, min, max), command? (min, max, step, confirm)`; address keys sorted;
 - association key order: `id, relationship, from, to, properties?`;
 - views: `process` before `electrical`, `symbols` before `routes`, symbol and route IDs sorted, symbol key order `x, y, rotation?, hidden?`;
 - component key order: `id, name?, type, typeVersion?, manufacturer?, model?, parentId?, position, rotation, scale, properties, labels?, extensions?`;

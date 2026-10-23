@@ -1,6 +1,6 @@
 {
   "name": "@sakibcoolz/simulation",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Optional deterministic mass-balance simulation for @scada3d scenes; results are always SIMULATED.",
   "license": "MIT",
   "author": "sakibcoolz",

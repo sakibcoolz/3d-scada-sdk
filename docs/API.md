@@ -281,7 +281,7 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 
 ## Data sources and runtime variables (T-077, ADR-0024)
 - **`scene.dataSources`:** optional `{ id, name?, protocol, deviceId?, endpointRef?, properties? }`. `endpointRef` is an opaque host reference and never holds credentials.
-- **`scene.runtimeVariables`:** optional `{ id, name?, componentId?, dataType, unit?, access: 'read', source?: { dataSourceId, variable?, address? }, scaling? }`.
+- **`scene.runtimeVariables`:** optional `{ id, name?, componentId?, dataType, unit?, access: 'read' | 'readWrite', source?: { dataSourceId, variable?, address? }, scaling?, command? }` (`readWrite` and `command` since T-093).
   - The address is typed by the source's protocol (`ModbusAddress`, `OpcUaAddress`, or plain JSON for a namespaced protocol).
   - Scaling is descriptive only.
 - **`validateScene`:**

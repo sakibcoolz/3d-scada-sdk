@@ -34,7 +34,7 @@ Reusable industrial 3D visualization SDK for Three.js, with a React editor/viewe
 npm install @sakibcoolz/core @sakibcoolz/components @sakibcoolz/react three @react-three/fiber @react-three/drei react react-dom
 npm install @sakibcoolz/simulation   # optional
 ```
-ESM only, Node.js 20+. Releases are verified against a stand-alone consumer app before publishing (`pnpm verify:consumer`, see [release packaging](docs/RELEASE.md)). Component dimensions follow common ASME tables and must be verified before engineering use; the SDK is not a certified design tool.
+ESM only, Node.js 20+. What changed in each release: [CHANGELOG.md](CHANGELOG.md); upgrading from 0.1.x: [docs/UPGRADING_TO_0.2.md](docs/UPGRADING_TO_0.2.md). Releases are verified against a stand-alone consumer app before publishing (`pnpm verify:consumer`, see [release packaging](docs/RELEASE.md)). Component dimensions follow common ASME tables and must be verified before engineering use; the SDK is not a certified design tool.
 
 ## Quick start
 Install Node.js 20+ and pnpm 9+.

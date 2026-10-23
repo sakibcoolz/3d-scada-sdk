@@ -1,6 +1,6 @@
 {
   "name": "@sakibcoolz/core",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Framework-neutral scene model, port graph, validation and routing for 3D SCADA scenes.",
   "license": "MIT",
   "author": "sakibcoolz",

@@ -2263,3 +2263,28 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-097: prepare the 0.2.0 release (Phase 11c)
+- Owner merged #98 (T-096). Branch `release/T-097-v0.2.0` from `origin/develop`. The owner did not answer on the dev-only vitest/ajv upgrades, so they are not included.
+- Change:
+  - **Versions:** all six packages, the root, the playground and the consumer app's dependencies move from 0.1.3 to 0.2.0. npm has only 0.1.1 and 0.1.2; 0.1.3 was never published, and `@sakibcoolz/views-2d` is new on npm.
+  - **Consumer app:** a "Runtime" mode, a pinned `ScadaRuntime` with a v4 document, a host feed, an alarm, a writable valve command and a host-side request log. `e2e-consumer/consumer.spec.ts` gains a runtime test: the pin banner, the alarm, the electrical and process views, and one confirmed request recorded and answered.
+  - **Docs:**
+    - new docs/UPGRADING_TO_0.2.md (one guide from 0.1.2) and CHANGELOG.md;
+    - RELEASE.md: package table with views-2d, the migration section points to the guide, publish steps for passkey web authentication and the registry check, consumer check description;
+    - PROJECT_SUMMARY status; README links;
+    - INDUSTRIAL_SCENE_SPEC §6.2 and API.md no longer say variables are read-only;
+    - the core, react and components READMEs were updated for 0.2 by a delegated agent: examples validated with vitest (exit 0), TSX typechecked (exit 0), export names checked against the index files.
+  - **Backlog:** T-096 DONE, T-097 REVIEW; plan row.
+- Found while preparing: the guide's first draft said `PortKind` gained `mechanical`, which 0.1.2 already had. Corrected against `git show v0.1.2`.
+- Not done here (owner):
+  - npm publish of the six tarballs;
+  - after it, the v0.2.0 tag and GitHub Release from CHANGELOG.md, and the registry install check.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1748 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (170 tests).
+  - `pnpm verify:consumer` 0, packed from the final tree. The six 0.2.0 tarballs carry no `workspace:` references, and the core README in the tarball is the v4 one.
+  - `pnpm test:consumer` 0 (2 tests).
+  - GitHub Actions CI not awaited.
