@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D SCADA SDK: industrial 3D HMI and digital twin toolkit for Three.js and React</title>
+<meta name="description" content="Open-source TypeScript SDK for building industrial 3D SCADA and HMI screens in the browser: ASME piping components, a typed port graph, routed pipes, a React Three Fiber editor and viewer, 2D P&amp;ID and electrical views, and a locked operator runtime. MIT licensed, on npm.">
+<meta name="keywords" content="3D SCADA, SCADA SDK, 3D HMI, web HMI, digital twin, Three.js, React Three Fiber, P&amp;ID, process diagram, industrial automation, piping, ASME, TypeScript">
+<link rel="canonical" href="https://sakibcoolz.github.io/3d-scada-sdk/">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#0f1720">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="3D SCADA SDK">
+<meta property="og:title" content="3D SCADA SDK: industrial 3D HMI for Three.js and React">
+<meta property="og:description" content="Build browser-based 3D SCADA and HMI screens: piping components, a typed port graph, an editor and viewer, 2D P&amp;ID views and a locked operator runtime. MIT, on npm.">
+<meta property="og:url" content="https://sakibcoolz.github.io/3d-scada-sdk/">
+<meta property="og:image" content="https://sakibcoolz.github.io/3d-scada-sdk/og.png">
+<meta property="og:image:width" content="1923">
+<meta property="og:image:height" content="965">
+<meta property="og:image:alt" content="A milk processing line built with the 3D SCADA SDK editor: tanks, valves, pumps and an overhead pipe rack in glass view.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="3D SCADA SDK: industrial 3D HMI for Three.js and React">
+<meta name="twitter:description" content="Open-source TypeScript SDK for 3D SCADA and HMI screens in the browser. MIT, on npm.">
+<meta name="twitter:image" content="https://sakibcoolz.github.io/3d-scada-sdk/og.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "3D SCADA SDK",
+  "description": "Open-source TypeScript SDK for industrial 3D SCADA and HMI screens in the browser, built on Three.js and React Three Fiber.",
+  "url": "https://sakibcoolz.github.io/3d-scada-sdk/",
+  "codeRepository": "https://github.com/sakibcoolz/3d-scada-sdk",
+  "programmingLanguage": ["TypeScript", "JavaScript"],
+  "runtimePlatform": ["Web browser", "Node.js 20+"],
+  "license": "https://opensource.org/licenses/MIT",
+  "version": "0.2.0",
+  "author": { "@type": "Person", "name": "sakibcoolz", "url": "https://github.com/sakibcoolz" },
+  "keywords": "3D SCADA, HMI, digital twin, Three.js, React Three Fiber, P&ID, industrial automation"
+}
+</script>
+
+<style>
+:root {
+  --bg: #f7f8fa; --surface: #ffffff; --text: #18202a; --muted: #566273; --line: #dde2e8;
+  --accent: #0b6bcb; --accent-ink: #ffffff; --code: #eef1f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1720; --surface: #16202b; --text: #e6ebf1; --muted: #9aa7b6; --line: #273340;
+    --accent: #4ea3ff; --accent-ink: #08121c; --code: #1c2834;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1720; --surface: #16202b; --text: #e6ebf1; --muted: #9aa7b6; --line: #273340;
+  --accent: #4ea3ff; --accent-ink: #08121c; --code: #1c2834;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+header.top { border-bottom: 1px solid var(--line); background: var(--surface); }
+header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; }
+header.top strong { font-size: 17px; }
+header.top nav { display: flex; gap: 18px; font-size: 15px; }
+header.top nav a { color: var(--muted); text-decoration: none; }
+header.top nav a:hover { color: var(--text); }
+.hero { padding: 56px 0 32px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.15; margin: 0 0 16px; letter-spacing: -0.02em; }
+.hero p.lead { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 46em; margin: 0 0 24px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn { display: inline-block; padding: 10px 18px; border-radius: 8px; border: 1px solid var(--line); text-decoration: none; font-weight: 600; color: var(--text); background: var(--surface); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+figure { margin: 32px 0 0; }
+figure img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); display: block; }
+figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; }
+section { padding: 40px 0; border-top: 1px solid var(--line); }
+section h2 { font-size: 26px; margin: 0 0 16px; letter-spacing: -0.01em; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+.card h3 { margin: 0 0 6px; font-size: 17px; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 14px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:first-child { white-space: nowrap; }
+.tablewrap { overflow-x: auto; }
+dl dt { font-weight: 600; margin-top: 14px; }
+dl dd { margin: 4px 0 0; color: var(--muted); }
+footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+@media (max-width: 560px) { header.top nav a.hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <strong>3D SCADA SDK</strong>
+    <nav>
+      <a href="demo/">Live demo</a>
+      <a class="hide-sm" href="#packages">Packages</a>
+      <a class="hide-sm" href="#faq">FAQ</a>
+      <a href="https://github.com/sakibcoolz/3d-scada-sdk">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <h1>Industrial 3D SCADA and HMI screens for the web, in Three.js and React</h1>
+    <p class="lead">3D SCADA SDK is an open-source TypeScript toolkit for drawing process plants in the browser: tanks, pumps, valves and ASME piping joined by a typed port graph, a React Three Fiber editor and viewer, 2D P&amp;ID and electrical views of the same scene, and a locked operator runtime that shows your live values and alarms.</p>
+    <div class="cta">
+      <a class="btn primary" href="demo/">Open the live demo</a>
+      <a class="btn" href="https://github.com/sakibcoolz/3d-scada-sdk">View on GitHub</a>
+      <a class="btn" href="https://www.npmjs.com/package/@sakibcoolz/react">npm</a>
+    </div>
+    <figure>
+      <img src="og.png" width="1923" height="965" alt="A milk processing line built with the 3D SCADA SDK editor: horizontal, vertical, conical and spherical tanks on stands, valves and pumps, with transfer lines on an overhead pipe rack, shown in glass view.">
+      <figcaption>A milk processing line built in the editor: 49 components and 50 connections, DN80 lines on a pipe rack, in glass view.</figcaption>
+    </figure>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <h2>What it does</h2>
+      <div class="grid">
+        <div class="card"><h3>Process equipment and piping</h3><p>A procedural catalog of 14 kinds (tanks, pumps, valves, elbows, tees, reducers, pipes) with dimensions based on common ASME tables, plus your own namespaced component types.</p></div>
+        <div class="card"><h3>Typed port graph</h3><p>Connections join named ports in five domains (fluid, mechanical, power, signal, network). Snapping, pipe routing and open-joint checks keep the model consistent.</p></div>
+        <div class="card"><h3>3D editor and viewer</h3><p>React components for viewing and editing a plant: undo and redo, import and export, glass, X-ray and cutaway views, walk mode and WebXR.</p></div>
+        <div class="card"><h3>2D P&amp;ID and electrical views</h3><p>SVG process and electrical diagrams generated from the same scene, with automatic placement, saved layouts and one shared selection across 3D and 2D.</p></div>
+        <div class="card"><h3>Locked operator runtime</h3><p><code>ScadaRuntime</code> shows an approved revision pinned by SHA-256 digest, with host alarms and value quality per component, and raises confirmed command requests to your application.</p></div>
+        <div class="card"><h3>Acquisition description</h3><p>Data sources and runtime variables with typed Modbus and OPC UA addresses, for your gateway to read. Transport examples for REST polling, Server-Sent Events and WebSocket.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Quick start</h2>
+      <pre><code>npm install @sakibcoolz/react @sakibcoolz/core @sakibcoolz/components three @react-three/fiber @react-three/drei react react-dom</code></pre>
+<pre><code>import { useState } from 'react';
+import { parseScene, type ScadaScene } from '@sakibcoolz/core';
+import { catalogResolvers } from '@sakibcoolz/components';
+import { Scada3DEditor, Scada3DViewer } from '@sakibcoolz/react';
+
+const loaded = parseScene(savedJson, catalogResolvers); // savedJson: your scene file text
+if (!loaded.ok) throw new Error(loaded.errors[0].message);
+
+export function Plant() {
+  const [scene, setScene] = useState&lt;ScadaScene&gt;(loaded.scene);
+  const [editing, setEditing] = useState(false);
+  return (
+    &lt;div style={{ height: '100vh' }}&gt;
+      &lt;button onClick={() =&gt; setEditing(!editing)}&gt;{editing ? 'View' : 'Edit'}&lt;/button&gt;
+      {editing
+        ? &lt;Scada3DEditor initialScene={scene} onChange={setScene} /&gt;
+        : &lt;Scada3DViewer scene={scene} viewMode="glass" /&gt;}
+    &lt;/div&gt;
+  );
+}</code></pre>
+      <p>React 19, ESM only, Node.js 20+, TypeScript types included. See the <a href="https://github.com/sakibcoolz/3d-scada-sdk/blob/develop/packages/react/README.md">React package guide</a> and the <a href="https://github.com/sakibcoolz/3d-scada-sdk/blob/develop/docs/RUNTIME_INTEGRATION.md">runtime integration guide</a>.</p>
+    </div>
+  </section>
+
+  <section id="demo">
+    <div class="wrap">
+      <h2>Try the demo</h2>
+      <p>The playground runs entirely in your browser; nothing connects to a device.</p>
+      <ul>
+        <li><a href="demo/">Editor</a>: place tanks, valves and pipes and connect them.</li>
+        <li><a href="demo/?control&amp;layout=split">3D and 2D side by side</a>: the control equipment library with process and electrical views.</li>
+        <li><a href="demo/?runtime">Operator runtime</a>: a pinned revision with simulated values, alarms and command requests.</li>
+        <li><a href="demo/?simulate">Simulation</a>: a deterministic mass-balance model, always labelled SIMULATED.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="packages">
+    <div class="wrap">
+      <h2>Packages</h2>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Package</th><th>What it is</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://www.npmjs.com/package/@sakibcoolz/core">@sakibcoolz/core</a></td><td>Framework-neutral scene model, port graph, validation, routing and telemetry. Runs in Node.js too.</td></tr>
+          <tr><td><a href="https://www.npmjs.com/package/@sakibcoolz/components">@sakibcoolz/components</a></td><td>Industrial component catalog with procedural geometry, host component types and the control equipment library.</td></tr>
+          <tr><td><a href="https://www.npmjs.com/package/@sakibcoolz/react">@sakibcoolz/react</a></td><td>React Three Fiber viewer, editor, workspace and locked runtime.</td></tr>
+          <tr><td><a href="https://www.npmjs.com/package/@sakibcoolz/views-2d">@sakibcoolz/views-2d</a></td><td>2D process (P&amp;ID style) and electrical views in SVG.</td></tr>
+          <tr><td><a href="https://www.npmjs.com/package/@sakibcoolz/simulation">@sakibcoolz/simulation</a></td><td>Optional deterministic mass-balance and hydraulic simulation.</td></tr>
+          <tr><td><a href="https://www.npmjs.com/package/@sakibcoolz/asset-import">@sakibcoolz/asset-import</a></td><td>Allow-list SVG sanitizer for reference drawings and host symbols.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <h2>FAQ</h2>
+      <dl>
+        <dt>Does the SDK connect to PLCs?</dt>
+        <dd>No. It never opens a network connection or writes to a device. Your application supplies values (from your gateway, historian or broker) and receives command requests, which it decides how to handle.</dd>
+        <dt>Which protocols does it understand?</dt>
+        <dd>A scene can describe Modbus and OPC UA addresses for each variable, so your gateway knows what to read. Transport is up to you; examples for REST, Server-Sent Events and WebSocket are included.</dd>
+        <dt>Can I use my own equipment models?</dt>
+        <dd>Yes. Register namespaced host component types with their ports and parameters, and draw them in 3D and as 2D symbols.</dd>
+        <dt>Is it a certified engineering tool?</dt>
+        <dd>No. Dimensions follow common ASME tables and must be verified before engineering use.</dd>
+        <dt>What is the licence?</dt>
+        <dd>MIT. Contributions are welcome on <a href="https://github.com/sakibcoolz/3d-scada-sdk">GitHub</a>.</dd>
+      </dl>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">3D SCADA SDK 0.2.0 · MIT licence · <a href="https://github.com/sakibcoolz/3d-scada-sdk">GitHub</a> · <a href="https://github.com/sakibcoolz/3d-scada-sdk/blob/develop/CHANGELOG.md">Changelog</a></div>
+</footer>
+</body>
+</html>
