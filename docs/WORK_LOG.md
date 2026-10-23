@@ -2149,3 +2149,34 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - Screenshot of the confirmation dialog checked by eye.
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-094: host transport examples (Phase 10c, ADR-0029; closes T-018)
+- Owner merged #95 (T-093). Branch `feat/T-094-transport-examples` from `origin/develop`.
+- Change:
+  - **`examples/transports/`** (host code, not published, no dependencies, browser APIs only):
+    - `rest.ts` (`fetch` polling with a timeout), `sse.ts` (`EventSource`), `websocket.ts` (read only, never sends);
+    - `link.ts`: one link for all subscribers, randomized capped backoff, DISCONNECTED marking, `stats()`/`onStats`;
+    - `observations.ts`: shape validation with counted drop reasons, a message size limit, and URL checks (no credentials, protocol per transport);
+    - README.
+  - The root `vitest.config.ts` and `tsconfig.tests.json` include the examples.
+- Found while implementing:
+  - a DISCONNECTED marker stamped with the browser clock would have hidden unchanged values sent after reconnection (older timestamp). Markers keep each tag's last timestamp; the store lets ties replace;
+  - the browser's own EventSource retry would bypass the backoff, so the stream is closed on an error;
+  - Node 22 has no `EventSource`, so the SSE test supplies a minimal one over `fetch`, against a real loopback server.
+- Tests: `examples/transports/transports.test.ts` (14):
+  - REST and SSE against a Node `http` server on 127.0.0.1;
+  - WebSocket against a fake socket;
+  - types checked against core.
+  - Run 10 more times without a failure. Disabling the DISCONNECTED marking fails 4 of them.
+- Docs:
+  - RUNTIME_INTEGRATION.md completed: transports, plus MQTT and OPC UA as gateway translations;
+  - ADR-0029 T-094 notes and status; SECURITY_AND_SAFETY; README;
+  - backlog: T-093 DONE, T-094 REVIEW, T-018 REVIEW (DONE with T-094); plan Phase 10 row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1681 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (170 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

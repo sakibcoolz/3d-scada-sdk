@@ -2,9 +2,7 @@
 
 How a host application connects the SDK to live plant data. This guide is host-neutral (decision D6): it names no host product, and the SDK ships no host-specific code. Decisions: ADR-0003, ADR-0024, ADR-0028 and ADR-0029.
 
-> **Status:** draft.
-> - T-092 and T-093 are in.
-> - Transport examples are added in T-094.
+> **Status:** complete for ADR-0029 (T-092..T-094).
 
 ## 1. Who does what
 | | SDK (`@sakibcoolz/*`) | Host application |
@@ -62,7 +60,39 @@ interface Observation {
 - **`telemetry={{ provider }}`:** a `DataProvider` with `getSnapshot()` and `subscribe(onObservations) → unsubscribe`. It is subscribed while mounted.
 - **`ref.current.setTagValues(observations)`:** push from a host callback.
 
-Newest per tag wins; older or unparseable timestamps lose. (T-094 adds REST, Server-Sent Events and WebSocket provider examples.)
+Newest per tag wins; older or unparseable timestamps lose; on a tie the later one wins.
+
+### Transport examples (T-094)
+[`examples/transports/`](../examples/transports/README.md) has three `DataProvider`s to copy and adapt. They are not published, have no dependencies and use browser APIs only:
+
+| Feed | Factory | Each message |
+|---|---|---|
+| REST polling | `createRestProvider({ url, intervalMs, timeoutMs, fetch? })` | the response body |
+| Server-Sent Events | `createSseProvider({ url, event?, withCredentials? })` | the event's data |
+| WebSocket | `createWebSocketProvider({ url, protocols? })` | each text message |
+
+- **Message format:** a JSON array of observations, or `{ "observations": [...] }`.
+- **Validation:**
+  - each observation's shape is checked;
+  - bad entries and bad messages are dropped and counted in `stats().dropped`.
+- **Link down:**
+  - every tag already shown is sent as `DISCONNECTED` with its own last timestamp, so a value at least as new replaces the marker after reconnection;
+  - reconnection waits double from 500 ms to a 30 s cap, randomized in the upper half.
+- **Refused:** URLs with a user name or password, and the wrong protocol.
+- **Authentication:** cookies, or for REST a wrapped `fetch` that adds a header.
+- **Read only:** nothing is sent on the socket, and REST uses GET only.
+- **Link state:** `stats()` and `onStats` give the state (`connecting`, `open`, `down`, `stopped`), failures, reconnects, the last error and the next wait, for a connection indicator.
+- **Stopping:** the link opens with the first subscriber and closes with the last; nothing arrives after that.
+
+### MQTT, OPC UA and other plant protocols
+These are not given as code: both need client libraries, and neither belongs in an operator's browser.
+- **Your gateway or backend** subscribes to the broker or the OPC UA server, using the acquisition plan (§2). It holds the credentials and certificates.
+- **It translates** to the observation format above:
+  - OPC UA `StatusCode` Good, Uncertain or Bad becomes `GOOD`, `UNCERTAIN` or `BAD`;
+  - a lost session or broker connection becomes `DISCONNECTED` for its tags;
+  - `SourceTimestamp`, or the payload's own timestamp, becomes `sourceTimestamp`, never the time of arrival;
+  - the scaling becomes engineering values (§3).
+- **It serves the result** to browsers over one of the three transports. MQTT over WebSockets straight from the browser is possible, but then the broker's credentials and topic permissions reach every operator's page; prefer the gateway.
 
 ## 5. Alarms
 - **Pass `alarms`** (`AlarmState[]`) to `ScadaRuntime`, each with:

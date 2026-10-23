@@ -34,6 +34,9 @@ If requirements imply real actuator commands, emergency switching, disabling ala
 
 ## Host and edge contracts (ADR-0029)
 - **Typed observations:** a value that does not fit its tag's declared data type, or a gateway that reports another type, is shown as unknown (`INVALID_VALUE`, `TYPE_MISMATCH`), never as a value.
+- **Transport examples (T-094):** host code in `examples/transports/`, not part of any package.
+  - They refuse URLs with credentials, validate every message's shape, drop messages over a size limit, and never send on a socket.
+  - While a link is down they mark its tags `DISCONNECTED`, never leaving the last value shown as current.
 - **Command requests (T-093):** describe-only plus a confirmed host callback. The SDK still has no device write method, holds no credentials, and opens no connection; a test checks that the command modules contain no network or write call.
   - **When offered:** only in `ScadaRuntime`, only when the host passes `onCommandRequest`, and only for a digest-pinned document. Each request names the approved revision and digest.
   - **Limits:**
