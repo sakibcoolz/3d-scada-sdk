@@ -2288,3 +2288,15 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0, packed from the final tree. The six 0.2.0 tarballs carry no `workspace:` references, and the core README in the tarball is the v4 one.
   - `pnpm test:consumer` 0 (2 tests).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-097: 0.2.0 published and released
+- Owner merged #99 (T-097). Branch `docs/T-097-released` from `origin/develop`.
+- **Published** (owner approved each web-auth link; tarballs packed from merged `develop` `e4e4f6b`), in dependency order: asset-import, core, components, views-2d, simulation, react, all 0.2.0. `npm publish` printed `+ @sakibcoolz/<package>@0.2.0` for each. Two components attempts expired unapproved (npm E404 on the auth poll, nothing staged) before the third succeeded.
+- **Tag and release:** annotated tag `v0.2.0` on `e4e4f6b`, pushed; GitHub Release "0.2.0" from the CHANGELOG 0.2.0 section with the six tarballs attached.
+- **Registry install check** (copy of `examples/consumer-vite`, plain npm; lockfile resolves all six from `registry.npmjs.org`):
+  - `npm install` 0;
+  - `npm run typecheck` 0;
+  - `npm run build` 0;
+  - `npm run node-check` 0.
+- Docs: backlog T-097 DONE; PROJECT_SUMMARY status.
+- Verification: docs-only change; `pnpm typecheck`, `pnpm test` NOT RUN. GitHub Actions CI not awaited.
