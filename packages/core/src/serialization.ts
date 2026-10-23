@@ -125,6 +125,16 @@ export function serializeScene(scene: ScadaScene): string {
                 }
               : {}),
             ...(v.scaling ? { scaling: { kind: v.scaling.kind, rawMin: v.scaling.rawMin, rawMax: v.scaling.rawMax, min: v.scaling.min, max: v.scaling.max } } : {}),
+            ...(v.command
+              ? {
+                  command: {
+                    ...(v.command.min !== undefined ? { min: v.command.min } : {}),
+                    ...(v.command.max !== undefined ? { max: v.command.max } : {}),
+                    ...(v.command.step !== undefined ? { step: v.command.step } : {}),
+                    ...(v.command.confirm !== undefined ? { confirm: v.command.confirm } : {}),
+                  },
+                }
+              : {}),
           })),
         }
       : {}),

@@ -54,5 +54,13 @@
   "view-unknown-component.scene.json": {
     "code": "UNKNOWN_VIEW_REFERENCE",
     "path": "views.process.symbols.P9"
+  },
+  "command-max-below-min.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "runtimeVariables[0].command.max"
+  },
+  "command-out-of-type-range.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "runtimeVariables[0].command.max"
   }
 }

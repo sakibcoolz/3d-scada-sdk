@@ -129,8 +129,21 @@ function VariableEditor({ scene, index, options, onCommit, onDone }: { scene: Sc
       <label style={{ display: 'block', fontSize: 12, marginTop: 6 }}><input type="checkbox" checked={form.scaling} onChange={(e) => set({ scaling: e.target.checked })} /> Linear scaling (descriptive; the host applies it)</label>
       {form.scaling && <div style={grid}>{input('rawMin', 'Raw minimum')}{input('rawMax', 'Raw maximum')}{input('min', 'Scaled minimum')}{input('max', 'Scaled maximum')}</div>}
       {errors.scaling && <div role="alert" style={errorStyle}>{errors.scaling}</div>}
+      <Field label="Access" error={errors.access}>
+        <select value={form.access} onChange={(e) => set({ access: e.target.value as VariableForm['access'] })}>
+          <option value="read">read only</option>
+          <option value="readWrite">read and request changes</option>
+        </select>
+      </Field>
+      {form.access === 'readWrite' && (
+        <div style={grid}>
+          {form.dataType !== 'bool' && <>{input('commandMin', 'Command minimum')}{input('commandMax', 'Command maximum')}</>}
+          {input('commandStep', 'Command step', 'Optional, counted from the minimum')}
+          {input('commandConfirm', 'Confirmation note', 'Optional, shown before a request')}
+        </div>
+      )}
       {errors._ && <div role="alert" style={errorStyle}>{errors._}</div>}
-      <p style={muted}>Read only: the SDK never writes tags.</p>
+      <p style={muted}>{form.access === 'readWrite' ? 'The SDK never writes tags: a writable variable lets the runtime send a confirmed request to the host, whose gateway must enforce these limits too.' : 'Read only: the SDK never writes tags.'}</p>
       <button type="submit">Save variable</button> <button type="button" onClick={onDone}>Cancel</button>
     </form>
   );

@@ -57,7 +57,8 @@ export function useDemoFeed(scene: ScadaScene, initialRows: Record<string, TagRo
     return () => clearInterval(timer);
   }, [live]);
 
-  const tags = useMemo(() => [...new Set((scene.tagBindings ?? []).map((b) => b.tagId))], [scene]);
+  // Bound tags, plus unbound ones the demo feeds (the control demo's writable setpoints).
+  const tags = useMemo(() => [...new Set([...(scene.tagBindings ?? []).map((b) => b.tagId), ...Object.keys(initialRows)])], [scene, initialRows]);
 
   function update(tagId: string, change: Partial<TagRow>) {
     setRows((existing) => {

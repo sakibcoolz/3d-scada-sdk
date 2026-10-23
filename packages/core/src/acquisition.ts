@@ -10,6 +10,8 @@ export interface AcquisitionVariable {
   address?: VariableAddress;
   scaling?: RuntimeVariable['scaling'];
   access: RuntimeVariable['access'];
+  /** A writable variable's limits (ADR-0029). The gateway must enforce them itself. */
+  command?: RuntimeVariable['command'];
 }
 
 /** Everything a gateway needs to acquire a scene's tags, and nothing it does not: no geometry, views or labels. */
@@ -41,6 +43,7 @@ export function projectAcquisition(scene: ScadaScene): AcquisitionPlan {
       ...(v.source.address !== undefined ? { address: copy(v.source.address) } : {}),
       ...(v.scaling ? { scaling: { ...v.scaling } } : {}),
       access: v.access,
+      ...(v.command ? { command: { ...v.command } } : {}),
     });
   }
   return {

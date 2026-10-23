@@ -2111,3 +2111,41 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-093: writable variables and command requests (Phase 10b, ADR-0029)
+- Owner merged #94 (T-092). Branch `feat/T-093-command-requests` from `origin/develop`.
+- Change:
+  - **core:**
+    - `access: 'readWrite'` with `CommandLimits`, validated by `checkCommand` (limits required and in range, source required, no strings);
+    - canonical serialization; projection carries `command`;
+    - the JSON Schema's conditional rules, and fixtures (one renamed, five new);
+    - new `resolveVariableValues`.
+  - **react:**
+    - `commands.ts` and `commandPanel.tsx`;
+    - `ScadaRuntime` gains `onCommandRequest` and `commandStatus`, offered only with a digest pin;
+    - the Tags… dialog gains access and command limit fields;
+    - `CommandRequest`/`CommandState`/`CommandStatus` exported.
+  - **playground:** writable `VFD-101.SPEED_SP` and `RUN_CMD` in the control demo, a host-side request log with answers, and `&commands=off` and `&pin=revision`.
+  - **consumer:** `node-check` checks limits and projection with the packed core.
+- Found in testing:
+  - Ajv strict mode refused `required` without the property declared alongside it, and without `type: object`. The schema's conditional subschemas declare both;
+  - the new `checkCommand` helper first returned `push`'s count, a type error, now void;
+  - the last request per tag would have been lost on a selection change, so it is kept in the runtime;
+  - a setpoint is usually unbound, so its current value comes from the new `resolveVariableValues`.
+- Tests:
+  - core `commands.test.ts` (5), plus 2 in `telemetry-types.test.ts`, plus schema fixtures (5);
+  - react `commands.test.ts` (9), plus a `tagForms.test.ts` case;
+  - e2e `runtime-commands.spec.ts` (5), plus 1 in `tag-editor.spec.ts`.
+- Docs:
+  - ADR-0029 T-093 notes; API.md; SECURITY_AND_SAFETY; RUNTIME_INTEGRATION §6;
+  - RELEASE.md; README;
+  - backlog T-092 DONE, T-093 REVIEW; plan rows.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1667 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (170 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - Screenshot of the confirmation dialog checked by eye.
+  - GitHub Actions CI not awaited.

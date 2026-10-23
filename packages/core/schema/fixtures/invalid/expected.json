@@ -51,12 +51,20 @@
     "code": "INVALID_FIELD",
     "path": "associations[0].relationship"
   },
-  "writable-variable.scene.json": {
-    "code": "INVALID_FIELD",
-    "path": "runtimeVariables[0].access"
-  },
   "view-rotation.scene.json": {
     "code": "INVALID_FIELD",
     "path": "views.process.symbols.V1.rotation"
+  },
+  "writable-without-limits.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "runtimeVariables[0].command"
+  },
+  "writable-string.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "runtimeVariables[0].access"
+  },
+  "command-zero-step.scene.json": {
+    "code": "INVALID_FIELD",
+    "path": "runtimeVariables[0].command.step"
   }
 }

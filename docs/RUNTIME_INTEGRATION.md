@@ -2,8 +2,8 @@
 
 How a host application connects the SDK to live plant data. This guide is host-neutral (decision D6): it names no host product, and the SDK ships no host-specific code. Decisions: ADR-0003, ADR-0024, ADR-0028 and ADR-0029.
 
-> **Status:** first draft (T-092).
-> - Command requests are added in T-093.
+> **Status:** draft.
+> - T-092 and T-093 are in.
 > - Transport examples are added in T-094.
 
 ## 1. Who does what
@@ -13,7 +13,7 @@ How a host application connects the SDK to live plant data. This guide is host-n
 | **Acquisition** | describes it (`projectAcquisition`): pure, no network | deploys the plan to its gateway; owns discovery, connections, credentials, polling and subscriptions, recovery and history |
 | **Telemetry** | resolves observations against the scene: quality, freshness, units, data types | delivers observations (`DataProvider`, `setTagValues` or the `telemetry` prop) |
 | **Alarms** | displays host alarms per component (`componentStatus`) | evaluates limits, raises, clears, shelves and acknowledges |
-| **Commands** | (T-093) describes writable variables, and raises a confirmed request | authorizes, audits, enforces limits, and writes; the controller's interlocks stay authoritative |
+| **Commands** | describes writable variables, and raises a confirmed request | authorizes, audits, enforces limits, and writes; the controller's interlocks stay authoritative |
 
 The SDK never opens a connection, holds a credential or writes to a device.
 
@@ -75,7 +75,31 @@ Newest per tag wins; older or unparseable timestamps lose. (T-094 adds REST, Ser
   - acknowledge: acknowledgement belongs to your alarm system, and the runtime shows what you send.
 
 ## 6. Command requests
-To be written with T-093 (ADR-0029 §2–3).
+- **Describe** what may be requested. In the document, a writable variable is:
+  ```json
+  { "id": "VFD-101.SPEED_SP", "componentId": "VFD-101", "dataType": "float32", "unit": "rpm",
+    "access": "readWrite", "source": { "dataSourceId": "gw" },
+    "command": { "min": 0, "max": 1500, "step": 10, "confirm": "The pump flow follows the speed." } }
+  ```
+  Numeric types need `min` and `max` within their data type, `bool` takes neither, and text cannot be writable. The projection gives your gateway the same limits; **enforce them there**.
+- **Opt in:** `<ScadaRuntime expected={{ revision, digest }} onCommandRequest={…} commandStatus={…} />`.
+  - Without the callback, or without a digest, no command control appears.
+- **What the operator sees:**
+  - the current value;
+  - a form checked against the limits;
+  - a confirmation stating that your authorization and the controller's interlocks decide.
+
+  Requests are refused while the reading is unknown or values are simulated.
+- **What you receive:** a `CommandRequest`, once per confirmation:
+  `{ requestId, tagId, componentId?, dataType, value, unit?, current?, sceneRevision, sceneDigest, requestedAt }`.
+  1. Check `sceneDigest` against the revision you deployed.
+  2. Authorize the operator, and audit the request.
+  3. Write through your gateway, with limit checks and interlocks.
+  4. Answer through `commandStatus[requestId] = { state, message? }`.
+- **What the SDK never does:**
+  - write, retry, queue or batch;
+  - treat the request as the new value. The display follows your telemetry, so report the result as an observation.
+- **Request IDs:** unique within a runtime session (they do not rely on `crypto.randomUUID`, which needs HTTPS). Keep your own idempotency.
 
 ## 7. Testing without a plant
 - Use `source: 'SIMULATED'` with `@sakibcoolz/simulation`, or a scripted feed. Simulated values are always labelled.

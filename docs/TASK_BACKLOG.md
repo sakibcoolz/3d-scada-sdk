@@ -91,8 +91,8 @@ Statuses: TODO / IN_PROGRESS / BLOCKED / REVIEW / DONE. No task DONE without PR,
 | T-089 | M9 (industrial model) | P1 | T-088 | DONE | Phase 8c (ADR-0027): tag and variable editor dialog (data sources, protocol address forms, scaling, inline errors, suggestions, review, binding datalists) |
 | T-090 | M9 (industrial model) | P0 | T-089 | DONE | Phase 9a (ADR-0028): viewer/editor module split, `sha256Hex`/`sceneDigest`, `checkApproval`, `<ScadaRuntime>` (layouts, information panel, refusal screen), playground `?runtime` |
 | T-091 | M9 (industrial model) | P0 | T-090 | DONE | Phase 9b (ADR-0028): host-supplied alarms, `componentStatus`, 2D colouring and badges, 3D markers, Attention list and summary |
-| T-092 | M9 (industrial model) | P0 | T-091 | REVIEW | Phase 10a (ADR-0029): typed observations (`dataType`, `TYPE_MISMATCH`, `valueFitsDataType`), golden projection fixtures, mock-gateway integration test, RUNTIME_INTEGRATION.md draft |
-| T-093 | M9 (industrial model) | P0 | T-092 | TODO | Phase 10b (ADR-0029): `readWrite` variables with limits, projection and Tags… dialog, confirmed command requests in `ScadaRuntime` (`onCommandRequest`, `commandStatus`), refusals, e2e |
+| T-092 | M9 (industrial model) | P0 | T-091 | DONE | Phase 10a (ADR-0029): typed observations (`dataType`, `TYPE_MISMATCH`, `valueFitsDataType`), golden projection fixtures, mock-gateway integration test, RUNTIME_INTEGRATION.md draft |
+| T-093 | M9 (industrial model) | P0 | T-092 | REVIEW | Phase 10b (ADR-0029): `readWrite` variables with limits, projection and Tags… dialog, confirmed command requests in `ScadaRuntime` (`onCommandRequest`, `commandStatus`), refusals, e2e |
 | T-094 | M9 (industrial model) | P1 | T-092 | TODO | Phase 10c (ADR-0029): REST polling, SSE and WebSocket `DataProvider` examples with loopback tests; RUNTIME_INTEGRATION.md completed; closes T-018 |
 
 ## Release-path change (owner-approved 2026-10-15)

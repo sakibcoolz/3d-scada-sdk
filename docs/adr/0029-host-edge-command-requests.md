@@ -1,6 +1,6 @@
 # ADR-0029: Host and edge contracts, and the command-request boundary
 
-Status: Accepted (owner, 2026-10-23: all four proposed decisions approved: refuse requests on an unknown reading and on simulated telemetry, commands only in a digest-pinned runtime, numeric commands bounded and no string commands, T-094 closes T-018 with REST/SSE/WebSocket examples); T-092 implemented, T-093..T-094 pending. Amends ADR-0003 and ADR-0024 (read-only access). M9 Phase 10 of docs/INDUSTRIAL_SDK_PLAN.md (§8.2, decision D5), tasks T-092..T-094.
+Status: Accepted (owner, 2026-10-23: all four proposed decisions approved: refuse requests on an unknown reading and on simulated telemetry, commands only in a digest-pinned runtime, numeric commands bounded and no string commands, T-094 closes T-018 with REST/SSE/WebSocket examples); T-092..T-093 implemented, T-094 pending. Amends ADR-0003 and ADR-0024 (read-only access). M9 Phase 10 of docs/INDUSTRIAL_SDK_PLAN.md (§8.2, decision D5), tasks T-092..T-094.
 
 ## Context
 - **What exists:**
@@ -182,4 +182,30 @@ Status: Accepted (owner, 2026-10-23: all four proposed decisions approved: refus
   - The new fixture covers Modbus RTU and TCP, a host source, coils, a register bit, a scaled `int16`, a string and an unsourced variable.
   - The playground's control demo uses `sdk.*` library types, which core's tests cannot load, so the new fixture stands in for it.
 - **The mock gateway** in `projection.test.ts` receives the plan as JSON, applies scaling, and reports types and a down source.
+
+## Implementation notes (T-093)
+- **Core:**
+  - `RuntimeVariable.access` is `'read' | 'readWrite'`, with the new `CommandLimits` type (`command?`);
+  - `checkCommand` in validation enforces the §2 rules. Command errors use paths such as `command.max`, and the Tags… dialog maps them to their own fields (`commandMin` and so on), apart from scaling;
+  - serialization keeps `min`, `max`, `step`, `confirm` order, and `projectAcquisition` carries `command`.
+- **JSON Schema:** `access` becomes an enum, plus a `command` block and three `if`/`then` rules:
+  - `readWrite` needs `command` and `source`, and is not `string`;
+  - numeric types need `min` and `max`;
+  - `bool` takes neither.
+
+  Ajv strict mode required each `required` property to be declared in the same subschema. `min < max` and the type range stay validator-only.
+- **Fixtures:**
+  - the former `invalid/writable-variable` is now `invalid/writable-without-limits` (expected path `….command`);
+  - new: `invalid/writable-string`, `invalid/command-zero-step`, `validator-only/command-max-below-min`, `validator-only/command-out-of-type-range` and `valid/commands.scene.json`.
+- **Current values:** new `resolveVariableValues(scene, observations, options)` gives every runtime variable its latest trusted value, bound or not, with the same type, quality and freshness rules. A setpoint is usually not bound to a property, so the binding resolution cannot supply it.
+- **React:**
+  - `commands.ts` (pure): `writableVariables`, `commandAvailability`, `checkCommandValue`, `createCommandRequest`, `requestIds`, `COMMAND_NOTICE`;
+  - `commandPanel.tsx`: the "Request changes" section and the dialog. The form step goes to Review; at the confirmation step, Cancel has focus, so a stray Enter never sends;
+  - the reading is re-checked on Send, and nothing is sent if it became unknown;
+  - the last request per tag lives in the runtime (`useCommandSession`), so it survives a change of selection;
+  - a test checks that both modules contain no network, socket or write call.
+- **Playground `?runtime`:**
+  - VFD-101 gains `SPEED_SP` (0–1500 rpm, step 10) and `RUN_CMD`, fed by the demo feed;
+  - a host-side panel records requests and answers them;
+  - `&commands=off` drops the callback; `&pin=revision` approves without a digest.
 

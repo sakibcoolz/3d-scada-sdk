@@ -23,6 +23,7 @@ import {
   type TagBinding,
   type SceneAssociation,
   type SceneDataSource,
+  type CommandLimits,
   type RuntimeVariable,
   type VariableAddress,
   dataTypes,
@@ -38,6 +39,7 @@ import {
 } from './scene.js';
 import { quaternionFromEuler } from './quaternion.js';
 import { isKnownUnit } from './units.js';
+import { valueFitsDataType } from './telemetry.js';
 import { tupleToQuaternion, tupleToVector } from './vectors.js';
 
 export type SceneValidationErrorCode =
@@ -196,7 +198,8 @@ const connectionKeys: Record<SchemaVersion, string[]> = {
 };
 const associationKeys = ['id', 'relationship', 'from', 'to', 'properties'];
 const dataSourceKeys = ['id', 'name', 'protocol', 'deviceId', 'endpointRef', 'properties'];
-const variableKeys = ['id', 'name', 'componentId', 'dataType', 'unit', 'access', 'source', 'scaling'];
+const variableKeys = ['id', 'name', 'componentId', 'dataType', 'unit', 'access', 'source', 'scaling', 'command'];
+const commandKeys = ['min', 'max', 'step', 'confirm'];
 const variableSourceKeys = ['dataSourceId', 'variable', 'address'];
 const scalingKeys = ['kind', 'rawMin', 'rawMax', 'min', 'max'];
 const opcUaKeys = ['nodeId', 'namespaceUri'];
@@ -669,8 +672,8 @@ function readVariable(value: unknown, path: string, limits: SceneLimits, errors:
     if (typeof value.unit === 'string' && value.unit.length <= MAX_UNIT_LENGTH) variable.unit = value.unit;
     else errors.push({ code: 'INVALID_FIELD', path: `${path}.unit`, message: `Expected a unit of at most ${MAX_UNIT_LENGTH} characters.` });
   }
-  if (value.access === 'read') variable.access = 'read';
-  else errors.push({ code: 'INVALID_FIELD', path: `${path}.access`, message: `Expected access "read"; writable variables wait for an approved command boundary (ADR-0024, D5).` });
+  if (value.access === 'read' || value.access === 'readWrite') variable.access = value.access;
+  else errors.push({ code: 'INVALID_FIELD', path: `${path}.access`, message: `Expected access "read" or "readWrite".` });
   if (value.source !== undefined) {
     const s = value.source;
     if (!isObject(s)) errors.push({ code: 'INVALID_FIELD', path: `${path}.source`, message: 'Expected a source object.' });
@@ -697,8 +700,54 @@ function readVariable(value: unknown, path: string, limits: SceneLimits, errors:
       if (rawMin !== undefined && rawMax !== undefined && min !== undefined && max !== undefined) variable.scaling = { kind: 'linear', rawMin, rawMax, min, max };
     }
   }
+  if (value.command !== undefined) variable.command = readCommand(value.command, `${path}.command`, limits, errors);
+  if (variable.dataType && variable.access) checkCommand(variable as RuntimeVariable, value, path, errors);
   if (errors.length > before || !id) return undefined;
   return { id, ...variable } as RuntimeVariable;
+}
+
+function readCommand(value: unknown, path: string, limits: SceneLimits, errors: Errors): CommandLimits | undefined {
+  if (!isObject(value)) {
+    errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a command limits object.' });
+    return undefined;
+  }
+  checkKeys(value, commandKeys, path, errors);
+  const command: CommandLimits = {};
+  for (const key of ['min', 'max', 'step'] as const) if (value[key] !== undefined) command[key] = readFinite(value[key], `${path}.${key}`, errors);
+  if (value.confirm !== undefined) command.confirm = readText(value.confirm, `${path}.confirm`, limits, errors);
+  return command;
+}
+
+/**
+ * The command boundary's document rules (ADR-0029 §2): only a `readWrite` variable has limits; it
+ * needs a source; strings cannot be commanded; numeric types are bounded within their data type.
+ */
+function checkCommand(variable: RuntimeVariable, value: Json, path: string, errors: Errors): void {
+  const bad = (field: string, message: string): void => {
+    errors.push({ code: 'INVALID_FIELD', path: `${path}${field}`, message });
+  };
+  if (variable.access === 'read') {
+    if (value.command !== undefined) bad('.command', 'Only a "readWrite" variable takes command limits.');
+    return;
+  }
+  if (variable.dataType === 'string') return bad('.access', 'A string variable cannot be commanded (ADR-0029).');
+  if (value.source === undefined) bad('.source', 'A writable variable needs a source the host writes to.');
+  const command = variable.command;
+  if (value.command === undefined) return bad('.command', 'A writable variable needs command limits (ADR-0029).');
+  if (!command) return;
+  if (command.step !== undefined && !(command.step > 0)) bad('.command.step', 'The step must be greater than zero.');
+  if (variable.dataType === 'bool') {
+    for (const key of ['min', 'max'] as const) if (command[key] !== undefined) bad(`.command.${key}`, 'An on/off variable takes no minimum or maximum.');
+    return;
+  }
+  // Unbounded setpoints are refused: both limits, in order, and within the data type.
+  for (const key of ['min', 'max'] as const) {
+    const limit = command[key];
+    if (limit === undefined) {
+      if (value.command && isObject(value.command) && value.command[key] === undefined) bad(`.command.${key}`, `A numeric writable variable needs a ${key === 'min' ? 'minimum' : 'maximum'}.`);
+    } else if (!valueFitsDataType(limit, variable.dataType, !!variable.scaling)) bad(`.command.${key}`, `${limit} does not fit ${variable.dataType}.`);
+  }
+  if (command.min !== undefined && command.max !== undefined && !(command.min < command.max)) bad('.command.max', 'The maximum must be greater than the minimum.');
 }
 
 /** Keys anywhere in plain JSON that name a credential. */

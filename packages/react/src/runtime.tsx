@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { componentStatus, type AlarmState, type ScadaScene, type StatusResult, type TelemetryResolution } from '@sakibcoolz/core';
+import { componentStatus, resolveVariableValues, type AlarmState, type ScadaScene, type StatusResult, type TelemetryResolution } from '@sakibcoolz/core';
 import { builtInRegistry, type ComponentRegistry } from '@sakibcoolz/components';
 import { describeStatus, ElectricalView, ProcessView, statusColors } from '@sakibcoolz/views-2d';
 import { Scada3DViewer, useNow, useTelemetry, useTelemetryFeed, type TelemetryInput } from './viewer.js';
@@ -9,6 +9,8 @@ import { describePorts } from './ports.js';
 import { describeRelations } from './relations.js';
 import { describeProperty } from './telemetryView.js';
 import { describeAlarm, describeAttention, summarizeStatus } from './statusText.js';
+import { Commands, useCommandSession } from './commandPanel.js';
+import type { CommandRequest, CommandStatus } from './commands.js';
 
 // The locked runtime (ADR-0028): an approved document shown with live values, never changed. Built from
 // the viewer and the 2D views only. This module must not import the editor, so no edit path exists here
@@ -38,6 +40,14 @@ export interface ScadaRuntimeProps {
   onSelectionChange?: (ids: string[]) => void;
   /** Called once per refused document, with the reason. */
   onRefused?: (refusal: RuntimeRefusal) => void;
+  /**
+   * Opts in to command requests (ADR-0029). Offered only with `expected.digest`, for writable variables
+   * with a trusted measured reading, after a confirmation; called once per confirmed request. The SDK
+   * never writes, retries or queues: the host authorizes, audits and writes.
+   */
+  onCommandRequest?: (request: CommandRequest) => void;
+  /** The host's answers by `requestId`, shown as given. */
+  commandStatus?: Readonly<Record<string, CommandStatus>>;
   style?: React.CSSProperties;
 }
 
@@ -85,7 +95,7 @@ function Attention({ scene, status, onGo }: { scene: ScadaScene; status: StatusR
   );
 }
 
-function Information({ scene, id, registry, live, status, onGo }: { scene: ScadaScene; id?: string; registry: ComponentRegistry; live?: TelemetryResolution; status: StatusResult; onGo: (id: string) => void }) {
+function Information({ scene, id, registry, live, status, commands, onGo }: { scene: ScadaScene; id?: string; registry: ComponentRegistry; live?: TelemetryResolution; status: StatusResult; commands?: (id: string) => React.ReactNode; onGo: (id: string) => void }) {
   const component = id ? scene.components.find((c) => c.id === id) : undefined;
   const attention = <Attention scene={scene} status={status} onGo={onGo} />;
   if (!component) return <aside aria-label="Information" style={panel}>{attention}<p style={{ opacity: 0.7, marginTop: 16 }}>Select equipment to see its values and connections.</p></aside>;
@@ -105,6 +115,7 @@ function Information({ scene, id, registry, live, status, onGo }: { scene: Scada
       {values.length === 0 ? <p style={{ opacity: 0.7, fontSize: 12 }}>No bound values.</p> : (
         <ul aria-label="Live values" style={{ fontSize: 12, paddingLeft: 16, margin: 0 }}>{values.map((p) => <li key={p.bindingId}>{describeProperty(p, bindable[p.property])}{p.source === 'SIMULATED' ? ' · SIMULATED' : ''}</li>)}</ul>
       )}
+      {commands?.(component.id)}
       <h3 style={heading}>Ports</h3>
       <PortsInspector key={`ports:${component.id}`} rows={describePorts(scene, component.id, registry)} onGo={onGo} />
       <h3 style={heading}>Related</h3>
@@ -114,7 +125,7 @@ function Information({ scene, id, registry, live, status, onGo }: { scene: Scada
 }
 
 /** A read-only operator view of an approved document (ADR-0028): 3D and 2D, live values, no editing. */
-export function ScadaRuntime({ scene: document, expected, registry = builtInRegistry, telemetry: telemetryInput, alarms, layout, defaultLayout = '3d', onLayoutChange, selectedIds, onSelectionChange, onRefused, style }: ScadaRuntimeProps) {
+export function ScadaRuntime({ scene: document, expected, registry = builtInRegistry, telemetry: telemetryInput, alarms, layout, defaultLayout = '3d', onLayoutChange, selectedIds, onSelectionChange, onRefused, onCommandRequest, commandStatus, style }: ScadaRuntimeProps) {
   const approval = useMemo(() => checkApproval(document, expected, registry.resolvers), [document, expected?.revision, expected?.digest, registry]);
   useEffect(() => {
     if (!approval.ok) onRefused?.(approval.refusal);
@@ -133,14 +144,21 @@ export function ScadaRuntime({ scene: document, expected, registry = builtInRegi
   const telemetry = useTelemetryFeed(telemetryInput, undefined);
 
   if (!approval.ok) return <Refused refusal={approval.refusal} style={style} />;
-  return <Approved scene={approval.scene} expected={expected} registry={registry} telemetry={telemetry} alarms={alarms} shown={shown} onLayout={(id) => { if (!layout) setOwnLayout(id); onLayoutChange?.(id); }} selection={selection} select={select} style={style} />;
+  return <Approved scene={approval.scene} digest={approval.digest} onCommandRequest={onCommandRequest} commandStatus={commandStatus} expected={expected} registry={registry} telemetry={telemetry} alarms={alarms} shown={shown} onLayout={(id) => { if (!layout) setOwnLayout(id); onLayoutChange?.(id); }} selection={selection} select={select} style={style} />;
 }
 
 /** The runtime over an approved scene: one telemetry resolution and one status for every view and the panel. */
-function Approved({ scene, expected, registry, telemetry, alarms, shown, onLayout, selection, select, style }: { scene: ScadaScene; expected?: ApprovalRecord; registry: ComponentRegistry; telemetry?: TelemetryInput; alarms?: readonly AlarmState[]; shown: RuntimeLayout; onLayout: (layout: RuntimeLayout) => void; selection: readonly string[]; select: (ids: string[]) => void; style?: React.CSSProperties }) {
+function Approved({ scene, digest, onCommandRequest, commandStatus, expected, registry, telemetry, alarms, shown, onLayout, selection, select, style }: { scene: ScadaScene; digest: string; onCommandRequest?: (request: CommandRequest) => void; commandStatus?: Readonly<Record<string, CommandStatus>>; expected?: ApprovalRecord; registry: ComponentRegistry; telemetry?: TelemetryInput; alarms?: readonly AlarmState[]; shown: RuntimeLayout; onLayout: (layout: RuntimeLayout) => void; selection: readonly string[]; select: (ids: string[]) => void; style?: React.CSSProperties }) {
   const now = useNow(1000);
   const live = useTelemetry(scene, telemetry, now, registry);
   const status = useMemo(() => componentStatus(scene, live, alarms), [scene, live, alarms]);
+  // Command requests only from a digest-pinned document, and only when the host opts in (ADR-0029).
+  const commandsOn = !!onCommandRequest && !!expected?.digest;
+  const session = useCommandSession();
+  const variableStates = useMemo(() => (commandsOn ? resolveVariableValues(scene, telemetry?.observations ?? [], { now, source: telemetry?.source, staleAfterMs: telemetry?.staleAfterMs }) : undefined), [commandsOn, scene, telemetry, now]);
+  const commands = commandsOn && variableStates
+    ? (id: string) => <Commands scene={scene} componentId={id} states={variableStates} source={telemetry?.source} revision={scene.project?.revision ?? ''} digest={digest} onCommandRequest={onCommandRequest!} commandStatus={commandStatus} session={session} />
+    : undefined;
   const diagram = { scene, registry, telemetry, status: status.byComponent, selectedIds: selection, onSelectionChange: select, editable: false, style: { height: '100%' } };
   const show3d = shown === '3d' || shown === 'split';
   const show2d = shown === 'process' || shown === 'electrical' ? shown : shown === 'split' ? 'process' : undefined;
@@ -167,7 +185,7 @@ function Approved({ scene, expected, registry, telemetry, alarms, shown, onLayou
             {show2d === 'process' ? <ProcessView {...diagram} /> : <ElectricalView {...diagram} />}
           </div>
         )}
-        <Information scene={scene} id={selection.at(-1)} registry={registry} live={live} status={status} onGo={(id) => select([id])} />
+        <Information scene={scene} id={selection.at(-1)} registry={registry} live={live} status={status} commands={commands} onGo={(id) => select([id])} />
       </div>
     </div>
   );

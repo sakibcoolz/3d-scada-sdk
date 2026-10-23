@@ -84,7 +84,7 @@ describe('data sources', () => {
 describe('runtime variables', () => {
   it('rejects malformed variables', () => {
     expect(errors(doc([], [{ id: 'V', dataType: 'double', access: 'read' }]))).toEqual([['INVALID_FIELD', 'runtimeVariables[0].dataType']]);
-    expect(errors(doc([], [{ id: 'V', dataType: 'bool', access: 'readWrite' }]))).toEqual([['INVALID_FIELD', 'runtimeVariables[0].access']]);
+    expect(errors(doc([], [{ id: 'V', dataType: 'bool', access: 'write' }]))).toEqual([['INVALID_FIELD', 'runtimeVariables[0].access']]);
     expect(errors(doc([], [{ id: 'V', dataType: 'bool' }]))).toEqual([['INVALID_FIELD', 'runtimeVariables[0].access']]);
     expect(errors(doc([], [{ id: 'V', dataType: 'bool', access: 'read', unit: 'x'.repeat(33) }]))).toEqual([['INVALID_FIELD', 'runtimeVariables[0].unit']]);
     expect(errors(doc([], [{ id: 'V', dataType: 'bool', access: 'read', alarm: {} }]))).toEqual([['UNKNOWN_FIELD', 'runtimeVariables[0].alarm']]);

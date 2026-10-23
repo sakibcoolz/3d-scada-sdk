@@ -57,6 +57,12 @@ describe('committing', () => {
     const at = (path: string) => errorField({ code: 'INVALID_FIELD', path, message: '' }, 'runtimeVariables[2]');
     expect([at('runtimeVariables[2].source.address.unitId'), at('runtimeVariables[2].source.address'), at('runtimeVariables[2].unit'), at('runtimeVariables[2]'), at('runtimeVariables[3].id')])
       .toEqual(['unitId', 'address', 'unit', 'id', undefined]);
+    // Command limits have their own fields, apart from the scaling's min and max (ADR-0029).
+    expect([at('runtimeVariables[2].command.min'), at('runtimeVariables[2].command.step'), at('runtimeVariables[2].command'), at('runtimeVariables[2].scaling.min')]).toEqual(['commandMin', 'commandStep', 'access', 'min']);
+    const writable = { ...emptyVariable(), id: 'SP', access: 'readWrite' as const, commandMin: '0', commandMax: '100', commandStep: '', commandConfirm: ' Ramps. ' };
+    const built = toVariable(writable, undefined);
+    expect('variable' in built && built.variable).toMatchObject({ access: 'readWrite', command: { min: 0, max: 100, confirm: 'Ramps.' } });
+    expect('variable' in built && variableForm(built.variable)).toMatchObject({ access: 'readWrite', commandMin: '0', commandMax: '100', commandStep: '', commandConfirm: 'Ramps.' });
     const one = removeEntry(scene, 'dataSources', 0);
     expect(one.dataSources?.map((s) => s.id)).toEqual(['ua']);
     expect('dataSources' in removeEntry(one, 'dataSources', 0)).toBe(false);

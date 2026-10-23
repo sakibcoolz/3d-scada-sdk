@@ -188,7 +188,8 @@ export interface OpcUaAddress {
 export type VariableAddress = ModbusAddress | OpcUaAddress | { [key: string]: JsonValue };
 /**
  * A runtime variable (ADR-0024): what a tag is and where it comes from. `id` is the tag id that
- * observations and bindings carry. Read-only: writes wait for the command ADR (D5).
+ * observations and bindings carry. A `readWrite` variable may be the subject of a command *request*
+ * to the host (ADR-0029); the SDK itself never writes.
  */
 export interface RuntimeVariable {
   id: string;
@@ -196,10 +197,25 @@ export interface RuntimeVariable {
   componentId?: string;
   dataType: DataType;
   unit?: string;
-  access: 'read';
+  access: 'read' | 'readWrite';
   source?: { dataSourceId: string; variable?: string; address?: VariableAddress };
   /** How the host converts raw values; descriptive only, the SDK does not apply it. */
   scaling?: { kind: 'linear'; rawMin: number; rawMax: number; min: number; max: number };
+  /** Required on, and only on, a `readWrite` variable (ADR-0029). */
+  command?: CommandLimits;
+}
+
+/**
+ * What a command request may ask for (ADR-0029). Numeric types need `min` and `max`; `bool` takes
+ * neither. The host's gateway must enforce these itself: the SDK's check is a convenience.
+ */
+export interface CommandLimits {
+  min?: number;
+  max?: number;
+  /** Granularity of requested values, counted from `min`. */
+  step?: number;
+  /** Extra plain text shown in the confirmation. */
+  confirm?: string;
 }
 /** Physical quantity of a bindable value; fixes its canonical unit (see `canonicalUnits`). */
 export type Quantity = 'percent' | 'temperature' | 'boolean' | 'flow';

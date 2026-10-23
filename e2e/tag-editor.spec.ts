@@ -97,3 +97,40 @@ test('locked editing shows the tags read only', async ({ page }) => {
   await expect(dialog(page).getByRole('button', { name: /^Add / })).toHaveCount(0);
   await expect(dialog(page).getByRole('button', { name: 'Edit' })).toHaveCount(0);
 });
+
+test('a writable variable needs bounded limits, checked beside the fields (ADR-0029)', async ({ page }) => {
+  await page.goto('/');
+  await waitForCanvas(page);
+  await page.getByRole('button', { name: 'Tags…' }).click();
+  const tags = dialog(page);
+  await tags.getByRole('button', { name: 'Add data source' }).click();
+  await tags.getByLabel('Source ID').fill('plc');
+  await tags.getByRole('button', { name: 'Save data source' }).click();
+  await tags.getByRole('button', { name: 'Add variable' }).click();
+  await tags.getByLabel('Tag ID').fill('SIC-101.SP');
+  await tags.getByLabel('Data type').selectOption('int16');
+  await tags.getByLabel('Source', { exact: true }).selectOption('plc');
+  await tags.getByLabel('Register address').fill('60');
+  await tags.getByLabel('Access').selectOption('readWrite');
+  await expect(tags).toContainText('whose gateway must enforce these limits too');
+
+  // No maximum, then one outside int16, then out of order: each refused beside its field.
+  await tags.getByLabel('Command minimum').fill('0');
+  await tags.getByRole('button', { name: 'Save variable' }).click();
+  await expect(tags.getByLabel('Command maximum')).toHaveAttribute('aria-invalid', 'true');
+  await tags.getByLabel('Command maximum').fill('40000');
+  await tags.getByRole('button', { name: 'Save variable' }).click();
+  await expect(tags.getByLabel('Command maximum')).toHaveAttribute('aria-invalid', 'true');
+  await tags.getByLabel('Command minimum').fill('2000');
+  await tags.getByLabel('Command maximum').fill('1000');
+  await tags.getByRole('button', { name: 'Save variable' }).click();
+  await expect(tags.getByLabel('Command maximum')).toHaveAttribute('aria-invalid', 'true');
+  expect((await sceneJson(page)).runtimeVariables).toBeUndefined();
+
+  await tags.getByLabel('Command minimum').fill('0');
+  await tags.getByLabel('Command maximum').fill('1500');
+  await tags.getByLabel('Command step').fill('10');
+  await tags.getByRole('button', { name: 'Save variable' }).click();
+  await expect(tags.getByRole('listitem', { name: 'Variable SIC-101.SP' })).toBeVisible();
+  expect((await sceneJson(page)).runtimeVariables).toEqual([{ id: 'SIC-101.SP', dataType: 'int16', access: 'readWrite', source: { dataSourceId: 'plc', address: { address: 60, area: 'holding', unitId: 1 } }, command: { min: 0, max: 1500, step: 10 } }]);
+});
