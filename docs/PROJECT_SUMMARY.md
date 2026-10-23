@@ -60,12 +60,9 @@ Graphify is optional development tooling, **not an SDK runtime dependency** and 
 Alternatively a future `sdk.setTagValues([...])` push API can be offered. **These exact observation props/API signatures are planned, not yet verified or guaranteed.** No WebSocket startup or login should be triggered by constructing the SDK.
 
 ## Development status (updated 2026-10-23, T-097)
-- **On npm:** `@sakibcoolz/core`, `components`, `react`, `simulation` and `asset-import` **0.1.2**, under the MIT licence. 0.1.3 was never published.
-- **0.2.0 prepared (T-097):**
-  - all six packages, including the new `@sakibcoolz/views-2d`;
-  - verified from packed tarballs in a stand-alone consumer app, with a browser check of the viewer, editor, process view and `ScadaRuntime`.
-
-  The owner publishes it. Upgrade guide: docs/UPGRADING_TO_0.2.md; release notes: CHANGELOG.md.
+- **On npm:** all six packages at **0.2.0** (`@sakibcoolz/core`, `components`, `react`, `simulation`, `asset-import` and the new `views-2d`), under the MIT licence; published 2026-10-23, tagged `v0.2.0` with a GitHub Release. 0.1.3 was never published.
+  - Verified from packed tarballs in a stand-alone consumer app (with a browser check of the viewer, editor, process view and `ScadaRuntime`), and again by a fresh install from the registry.
+  - Upgrade guide: docs/UPGRADING_TO_0.2.md; release notes: CHANGELOG.md.
 - **Implemented and tested:**
   - the scene document v4 with migrations from v1–v3 (a corpus of real older files), and a JSON Schema;
   - the port graph in five domains, associations and graph queries, snapping, routing and open-joint checks;
