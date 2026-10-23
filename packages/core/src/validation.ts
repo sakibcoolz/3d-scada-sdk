@@ -36,6 +36,7 @@ import {
   type ViewRoute,
   type Vector3Tuple,
   viewKinds,
+  ownValue,
 } from './scene.js';
 import { quaternionFromEuler } from './quaternion.js';
 import { isKnownUnit } from './units.js';
@@ -186,11 +187,12 @@ type ValueBudget = { left: number; exceeded: string };
 const NAMESPACE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
 /** Keys that would reach an object's prototype if copied naively. */
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-const SECRET_WORDS = ['password', 'passwd', 'secret', 'credential', 'apikey', 'privatekey'];
+const SECRET_WORDS = ['password', 'passwd', 'passphrase', 'secret', 'credential', 'apikey', 'accesskey', 'privatekey'];
 /** True for a key that names a credential: scene documents carry references to secrets, never secrets (ADR-0021). */
 export function isSecretKey(key: string): boolean {
   const k = key.toLowerCase().replace(/[-_.\s]/g, '');
-  return k === 'pwd' || k.endsWith('token') || SECRET_WORDS.some((w) => k.includes(w));
+  // "auth" only as a whole name or "authorization…": as a substring it would catch "author" (T-096).
+  return k === 'pwd' || k === 'auth' || k.startsWith('authorization') || k.endsWith('token') || SECRET_WORDS.some((w) => k.includes(w));
 }
 /** Accepted deviation of a rotation quaternion's length from 1; larger values are rejected, never renormalised. */
 const UNIT_TOLERANCE = 1e-6;
@@ -212,6 +214,19 @@ const modbusKeys = ['area', 'address', 'unitId', 'byteOrder', 'wordOrder', 'bit'
 const MODBUS_REGISTERS: Partial<Record<RuntimeVariable['dataType'], number>> = { bool: 1, int16: 1, uint16: 1, int32: 2, uint32: 2, float32: 2, float64: 4 };
 /** `scheme://user:password@host`: an endpoint carrying credentials. */
 const URL_WITH_USER_INFO = /^[a-z][a-z0-9+.-]*:\/\/[^/?#]*@/i;
+/** A URL query or matrix parameter named like a credential, e.g. `?password=…` or `;token=…` (T-096). */
+const SECRET_PARAMETER = /[?&;]([^=&;#]*)=/g;
+/** Whether an endpoint reference carries a credential: user info (also after leading spaces) or a secret-named parameter. */
+function endpointCarriesSecret(ref: string): boolean {
+  return URL_WITH_USER_INFO.test(ref.trim()) || [...ref.matchAll(SECRET_PARAMETER)].some((m) => isSecretKey(decodeSafe(m[1])));
+}
+const decodeSafe = (text: string): string => {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
+};
 const MAX_UNIT_LENGTH = 32;
 const bindingKeys = {
   property: ['id', 'tagId', 'kind', 'instanceId', 'property', 'unit'],
@@ -349,6 +364,11 @@ function readProperties(
   let valid = true;
   for (const [key, v] of entries) {
     const propertyPath = `${path}.${key}`;
+    if (isSecretKey(key)) {
+      errors.push({ code: 'SECRET_FIELD', path: propertyPath, message: `"${key}" looks like a credential; store a reference in the host instead.` });
+      valid = false;
+      continue;
+    }
     if (typeof v === 'string') {
       if (v.length > limits.maxStringLength) {
         errors.push({ code: 'LIMIT_EXCEEDED', path: propertyPath, message: `String longer than ${limits.maxStringLength} characters.` });
@@ -643,7 +663,7 @@ function readDataSource(value: unknown, path: string, limits: SceneLimits, error
   if (value.deviceId !== undefined) source.deviceId = readId(value.deviceId, `${path}.deviceId`, limits, errors);
   if (value.endpointRef !== undefined) {
     const ref = readText(value.endpointRef, `${path}.endpointRef`, limits, errors);
-    if (ref !== undefined && URL_WITH_USER_INFO.test(ref)) {
+    if (ref !== undefined && endpointCarriesSecret(ref)) {
       errors.push({ code: 'SECRET_FIELD', path: `${path}.endpointRef`, message: 'The endpoint carries a user name or password; store a reference the host resolves instead.' });
     } else if (ref !== undefined) source.endpointRef = ref;
   }
@@ -917,7 +937,7 @@ function checkBindings(scene: ScadaScene, options: SceneValidationOptions, error
         return;
       }
       if (options.resolveBindable) {
-        quantity = options.resolveBindable(owner.type)?.[binding.property];
+        quantity = ownValue(options.resolveBindable(owner.type), binding.property);
         if (!quantity) {
           errors.push({ code: 'UNBINDABLE_PROPERTY', path: `${path}.property`, message: `A ${owner.type} has no bindable property "${binding.property}".` });
           return;

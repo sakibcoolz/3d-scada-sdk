@@ -118,7 +118,8 @@ export function terminalBlock(title: string, ports: readonly ConnectionPort[]): 
   const height = head + rows * pitch + (sides.bottom.length > 0 ? 10 : 4);
   const name = title.length > 18 ? `${title.slice(0, 17)}…` : title;
   const shapes: SymbolShape[] = [{ kind: 'rect', x: 0, y: 0, width, height }, { kind: 'text', x: width / 2, y: 8, text: name, size: 4.5 }];
-  const anchors: Record<string, Point> = {};
+  // Null prototype: a port id "__proto__" is just a key (T-096).
+  const anchors: Record<string, Point> = Object.create(null);
   const place = (p: ConnectionPort, at: Point, label: Point, anchor: 'start' | 'middle' | 'end') => {
     anchors[p.id] = at;
     shapes.push({ kind: 'circle', cx: at[0], cy: at[1], r: 1.4, fill: true }, { kind: 'text', x: label[0], y: label[1], text: p.terminal ?? p.id, size: 3.2, anchor });

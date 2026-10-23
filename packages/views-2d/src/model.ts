@@ -2,6 +2,9 @@ import { isBuiltInKind, type ComponentInstance, type ConnectionPort, type PortKi
 import { builtInRegistry, type ComponentRegistry } from '@sakibcoolz/components';
 import { builtInSymbol, fallbackSymbol, hostSymbol, terminalBlock, type Point, type SymbolDefinition } from './symbols.js';
 
+/** `record[key]` for own keys only: ids come from documents, and "constructor" or "toString" would find inherited values (T-096). */
+const ownKey = <T,>(record: Readonly<Record<string, T>> | undefined, key: string): T | undefined => (record && Object.hasOwn(record, key) ? record[key] : undefined);
+
 // What a 2D view shows and where (ADR-0026). Pure and deterministic: the same scene always gives
 // the same drawing. Saved placements and routes are used as they are; everything else is laid out
 // automatically and marked unplaced. Nothing here changes the scene except `placeSymbol`.
@@ -76,7 +79,7 @@ function rotate([x, y]: Point, width: number, height: number, rotation: number):
  * entry, else the port's 3D position seen from the front (x right, y up) scaled into the symbol box.
  */
 export function portAnchor(symbol: SymbolDefinition, port: { id: string; position: readonly number[] }, bounds: { min: readonly number[]; max: readonly number[] }): Point {
-  const own = symbol.ports?.[port.id];
+  const own = ownKey(symbol.ports, port.id);
   if (own) return own;
   const span = (i: number) => bounds.max[i] - bounds.min[i] || 1;
   return [((port.position[0] - bounds.min[0]) / span(0)) * symbol.width, ((bounds.max[1] - port.position[1]) / span(1)) * symbol.height];
@@ -184,7 +187,7 @@ export function orthogonalRoute(a: Point, b: Point): Point[] {
 export function layoutView(scene: ScadaScene, view: ViewKind, registry: ComponentRegistry = builtInRegistry): ViewDrawing {
   const saved = scene.views?.[view];
   const savedSymbols: Readonly<Record<string, SymbolPlacement>> = saved?.symbols ?? {};
-  const members = scene.components.filter((c) => inView(view, c, registry) && !savedSymbols[c.id]?.hidden);
+  const members = scene.components.filter((c) => inView(view, c, registry) && !ownKey(savedSymbols, c.id)?.hidden);
   const memberIds = new Set(members.map((c) => c.id));
   const byId = new Map(members.map((c) => [c.id, c]));
 
@@ -218,12 +221,12 @@ export function layoutView(scene: ScadaScene, view: ViewKind, registry: Componen
   const columns = view === 'process'
     ? processColumns(members, candidates)
     : toColumns(members.map((c) => c.id), new Map(members.map((c) => [c.id, electricalTier(definitions.get(c.id)!.ports)])));
-  const savedBottom = Math.max(-Infinity, ...members.filter((c) => savedSymbols[c.id]).map((c) => savedSymbols[c.id].y + symbolOf.get(c.id)!.height / 2));
+  const savedBottom = Math.max(-Infinity, ...members.filter((c) => ownKey(savedSymbols, c.id)).map((c) => ownKey(savedSymbols, c.id)!.y + symbolOf.get(c.id)!.height / 2));
   const top = Number.isFinite(savedBottom) ? savedBottom + ROW_GAP : MARGIN;
   const auto = new Map<string, Point>();
   columns.forEach((ids, column) => {
     let y = top;
-    for (const id of ids.filter((id) => !savedSymbols[id])) {
+    for (const id of ids.filter((id) => !ownKey(savedSymbols, id))) {
       const height = symbolOf.get(id)!.height;
       auto.set(id, [snap(MARGIN + column * COLUMN[view]), snap(y + height / 2)]);
       y += height + ROW_GAP;
@@ -233,10 +236,11 @@ export function layoutView(scene: ScadaScene, view: ViewKind, registry: Componen
   const symbols: PlacedSymbol[] = members.map((c) => {
     const definition = definitions.get(c.id)!;
     const symbol = symbolOf.get(c.id)!;
-    const own = savedSymbols[c.id];
+    const own = ownKey(savedSymbols, c.id);
     const [x, y] = own ? [own.x, own.y] : auto.get(c.id)!;
     const rotation = own?.rotation ?? 0;
-    const anchors: Record<string, Point> = {};
+    // Null prototype: a port id "__proto__" or "constructor" is just a key (T-096).
+    const anchors: Record<string, Point> = Object.create(null);
     for (const port of definition.ports) {
       const [dx, dy] = rotate(portAnchor(symbol, port, definition.bounds), symbol.width, symbol.height, rotation);
       anchors[port.id] = [x + dx, y + dy];
@@ -247,11 +251,11 @@ export function layoutView(scene: ScadaScene, view: ViewKind, registry: Componen
   const placed = new Map(symbols.map((s) => [s.id, s]));
   const scenePorts = new Map(scene.connections.map((c) => [c.id, c]));
   const edges: DrawnEdge[] = candidates.map((e) => {
-    const route = saved?.routes?.[e.id];
+    const route = ownKey(saved?.routes, e.id);
     if (route) return { ...e, points: route.points.map(([x, y]) => [x, y] as Point), routed: true };
     const connection = e.kind === 'connection' ? scenePorts.get(e.id) : undefined;
     if (!connection) return { ...e, points: betweenSymbols(placed.get(e.from)!, placed.get(e.to)!), routed: false };
-    return { ...e, points: orthogonalRoute(placed.get(e.from)!.anchors[connection.from.portId], placed.get(e.to)!.anchors[connection.to.portId]), routed: false };
+    return { ...e, points: orthogonalRoute(ownKey(placed.get(e.from)!.anchors, connection.from.portId)!, ownKey(placed.get(e.to)!.anchors, connection.to.portId)!), routed: false };
   });
 
   let bounds: ViewDrawing['bounds'];
@@ -274,6 +278,6 @@ export function layoutView(scene: ScadaScene, view: ViewKind, registry: Componen
 export function placeSymbol(scene: ScadaScene, view: ViewKind, componentId: string, x: number, y: number): ScadaScene {
   if (!scene.components.some((c) => c.id === componentId)) return scene;
   const layout = scene.views?.[view] ?? {};
-  const symbols = { ...layout.symbols, [componentId]: { ...layout.symbols?.[componentId], x: snap(x), y: snap(y) } };
+  const symbols = { ...layout.symbols, [componentId]: { ...ownKey(layout.symbols, componentId), x: snap(x), y: snap(y) } };
   return { ...scene, views: { ...scene.views, [view]: { ...layout, symbols } } };
 }

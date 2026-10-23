@@ -2216,3 +2216,50 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test:consumer` 0 (1 test).
   - `pnpm perf` 0 (5 scenes, numbers in PERFORMANCE.md).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-096: security review of the M9 surfaces (Phase 11b)
+- Owner merged #97 (T-095). Branch `feat/T-096-security-review` from `origin/develop`.
+- Method:
+  - an independent read-only review agent covered validation, digest, runtime, commands, registry, views-2d, tag forms, status, telemetry, clipboard and the transport examples;
+  - I extended the seeded fuzzing in parallel;
+  - each finding was reproduced, fixed, and given a regression test checked to fail on the unfixed code.
+- Found by fuzzing:
+  - a hostile alarm message threw in `componentStatus`;
+  - hostile host type definitions threw `TypeError`s in `createComponentRegistry`: a non-object parameter, non-finite limits, a bad symbol size, array species;
+  - `Number()` accepted hex, binary and octal in the command dialog and the Tags… dialog;
+  - the host command status was rendered raw.
+- Found by the review (verified):
+  - inherited-name lookups (`constructor`, `toString`, `__proto__`) made `validateScene`/`resolveTelemetry` throw and blanked the 2D view;
+  - an open confirmation survived a change of approved document;
+  - alarm folding was quadratic (4.2 s for 40k);
+  - credential checks had gaps;
+  - `null` observations threw;
+  - the step tolerance drifted at large step counts;
+  - the transport examples had an unbounded tag map and an uncapped REST body read;
+  - clipboard copies shared nested data.
+- Fixes: as in SECURITY_AND_SAFETY "M9 security review" (12 rows). Open and recorded (6):
+  - the digest does not pin component types;
+  - trusted host definitions (shallow copy, unvalidated `build`);
+  - no host alarm count limit;
+  - underlay provenance;
+  - glTF (T-020);
+  - dev-only advisories in vitest and ajv.
+- Tests:
+  - core: `security.test.ts` (+6), `acquisition.test.ts` path update, `clipboard.test.ts` (+1);
+  - components: `registry.test.ts` fuzz (+1);
+  - views-2d: `model.test.ts` (+2);
+  - react: `commands.test.ts` (+5), `tagForms.test.ts` (+2);
+  - transports: +3.
+  - The registry fuzz and the core T-096 fuzz also passed with 10 extra seeds each.
+- Docs:
+  - SECURITY_AND_SAFETY "M9 security review" (`pnpm audit --prod`: no known vulnerabilities);
+  - RELEASE.md migration notes;
+  - backlog: T-095 DONE, T-096 REVIEW, T-028 note; plan row.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1748 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (170 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - GitHub Actions CI not awaited.

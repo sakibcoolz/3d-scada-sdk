@@ -67,6 +67,63 @@ If requirements imply real actuator commands, emergency switching, disabling ala
   - A 16 MB document parses and validates in about 130 ms. Hosts may pass a lower `maxLength`.
 - **Variable addresses:** each address has its own budget of 64 JSON values, separate from the document-wide 10,000-value extension budget. The total is therefore bounded by `maxVariables` × 64.
 
+## M9 security review (T-096, 2026-10-23)
+**Scope:**
+- every surface added since 0.1: v4 sections, host types and symbols, 2D views, tag engine and Tags… dialog, the runtime pin, alarms, command requests and the transport examples;
+- T-028's transport and SVG parts.
+
+**Method:**
+- an independent read-only review of the code;
+- new seeded fuzzing;
+- a regression test per finding. Each test was checked to fail on the unfixed code.
+
+### New fuzzing
+- **v4 documents:** the fuzz base now has writable variables with command limits, and the hostile values include `constructor`, `toString`, `__proto__` and `hasOwnProperty` as ids and names.
+- **The runtime pin:** for 2,000 mutated documents, every accepted one has a stable digest across save and load, and no two different saved texts share one.
+- **Hostile host data:** alarms and observations for `componentStatus`, `resolveTelemetry` and `resolveVariableValues` (1,000 rounds).
+- **Command values:** 5,000 random inputs. Whatever is accepted is a plain decimal within the limits, on a step and of the type.
+- **Tags… dialog:** 2,000 hostile forms. They never throw, and what is committed is exactly what validation keeps.
+- **Host type registration:** 2,000 mutated definitions with a 2D symbol. Each either registers or fails with the listed problems.
+- **Transport examples:** 3,000 hostile messages for `parseBatch`.
+- **Extra seeds:** the registry fuzz and the core T-096 fuzz also passed with 10 extra seeds each, run once and not kept in the suite.
+
+### Findings and fixes
+| Finding | Effect | Fix |
+|---|---|---|
+| Bindable properties and units were looked up on plain objects, so `constructor`, `toString` or `__proto__` matched inherited values | **`validateScene` threw** on such a binding with a variable unit. Without one it validated, and then `resolveTelemetry` threw on the first observation, taking down the runtime | own-key lookups (`ownValue`); such bindings are `UNBINDABLE_PROPERTY` |
+| The same flaw in the 2D view model: saved symbols, routes and port anchors | a component `constructor` was drawn at NaN, so the diagram was blank; an id `toString` with saved routes threw | own-key lookups; null-prototype anchor maps |
+| A confirmation open while the approved document changed | a value checked against the old limits was sent under the new revision | re-checked against the current document at Send (`recheckCommand`); the panel is reset per digest |
+| Alarm folding copied arrays per alarm (quadratic) | 40,000 alarms on one component took 4.2 s per evaluation, every second | linear folding; the unlinked list shows 100, then a count |
+| Credential checks missed component properties, `passphrase`, `accessKey`, `auth`, endpoint refs with a leading space, and secret query parameters | such values validated and came out unchanged in `projectAcquisition` | wider `isSecretKey`; component properties checked; `endpointRef` trimmed, and secret-named parameters refused |
+| An alarm message, id or command status that is an object | `String()` threw in `componentStatus`; React would throw on an object child | alarms normalised to plain text (`componentStatus`); host command status shown only with a known state (`hostCommandStatus`) |
+| `null` in the `telemetry.observations` prop | `resolveTelemetry`/`resolveVariableValues` threw | non-objects skipped |
+| `Number()` takes `0x10`, `0b11`, `0o7` | a hex value could be requested or saved as a limit | plain decimals only (`parseDecimal`), in the command dialog and the Tags… dialog |
+| The step check's tolerance grew with the step count | half-steps were accepted beyond 5×10⁸ steps from `min` | fixed tolerance in steps |
+| Host definitions: a non-object parameter, non-finite limits, a symbol with a bad size, or an array with its own `constructor` | `createComponentRegistry` threw a `TypeError` instead of listing problems | shape checks; `Array.from` in place of `.map` |
+| Transport examples | the tag map was unbounded, and REST read the whole body before the size check | `maxTags` (50,000), with drops counted as `TOO_MANY_TAGS`; the body read stops at `maxMessageChars` |
+| Clipboard copies | `labels` and `extensions` were shared with the original | deep copies |
+
+### Checked and sound
+- **SHA-256:** matches `node:crypto`, including padding edge lengths.
+- **Digest canonicalization:** sorted keys, `-0` written as 0, and a lone surrogate distinct from U+FFFD.
+- **The runtime pin:** `validateScene` returns a fresh copy, so mutating the input after approval changes nothing shown.
+- **Command requests:** they need a digest pin, limits are required, and requests are refused on simulated or unknown readings.
+- **No markup sinks:** there is no `dangerouslySetInnerHTML`. All host and document text renders as React text, and host SVG is reduced to path data, numbers and hex colours.
+- **Prototype pollution:** guarded in `readJson`, `parseBatch` and the tag forms.
+- **No network access** anywhere in the SDK.
+
+### Open, not changed
+- **The digest pins the document, not the component types.** A different host registry can change geometry, ports or symbols under the same digest, and `typeVersion` is not compared with the definition's `version`. A host should pin its registry version next to the digest; an SDK check needs a design decision.
+- **Host type definitions are trusted host code:**
+  - registration copies them only one level deep;
+  - a parametric `build()` result is not validated.
+- **No count limit on host alarms:** folding is linear and the list is capped on screen, but the count itself is unlimited.
+- **Underlay provenance:** the source file name and hash are not recorded (part of T-028). Adding them is a schema change for a later task. The underlay's sanitizing and resource limits are as in "SVG underlays" below.
+- **glTF import (T-020):** not built, so T-028 stays open for it.
+- **Dependency audit:**
+  - `pnpm audit --prod`: no known vulnerabilities.
+  - Development only, never shipped: three moderate advisories, all in test tools. `vitest` 4.1.11 needs ≥ 4.1.12 (GHSA-qxg6-89mg-rqv8, GHSA-xp26-3454-mjgp), and `ajv` 8.17.1 needs ≥ 8.18.0 (GHSA-2g4f-4pwh-qvx6). The `ajv` advisory needs the `$data` option, which the tests do not use. Upgrading is proposed to the owner.
+
 ## Transport-independent SDK rule
 The SDK must never require a WebSocket connection, broker, network endpoint, credentials or OPC UA service to initialize, edit or render a scene. Host applications own acquisition and network connections, while the SDK accepts optional validated read-only observations through a snapshot, push call or host-supplied provider. Test offline operation and prevent socket creation from SDK core/render/editor modules.
 

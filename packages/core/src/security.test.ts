@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  componentStatus,
   createObservationStore,
   parseScene,
   resolveFlow,
   resolveTelemetry,
+  resolveVariableValues,
+  sceneDigest,
   serializeScene,
   validateScene,
   type SceneValidationErrorCode,
@@ -196,6 +199,105 @@ describe('runtime resolvers against hostile host data', () => {
       expect(() => resolveTelemetry(valid.scene, junk, { now: Date.now(), resolveBindable: options.resolveBindable })).not.toThrow();
       expect(() => resolveFlow(valid.scene, junk, { now: Date.now() })).not.toThrow();
     }
+  });
+});
+
+describe('the runtime pin (T-096, ADR-0028)', () => {
+  it('gives every accepted document a stable digest, and a different one to any document saved differently', () => {
+    const base = validateScene(baseV4(), options);
+    if (!base.ok) throw new Error('expected valid base scene');
+    // Digest per saved text: two texts with one digest would let a changed document pass the pin.
+    const seen = new Map<string, string>([[sceneDigest(base.scene), serializeScene(base.scene)]]);
+    const next = rng(20261096);
+    let accepted = 0;
+    for (let i = 0; i < 2000; i++) {
+      const doc = baseV4() as unknown as Json;
+      mutate(doc, next);
+      const result = validateScene(doc, options);
+      if (!result.ok) continue;
+      accepted++;
+      const text = serializeScene(result.scene);
+      const reloaded = parseScene(text, options);
+      if (!reloaded.ok) throw new Error(`iteration ${i}: accepted document did not reload`);
+      const digest = sceneDigest(result.scene);
+      expect(sceneDigest(reloaded.scene), `iteration ${i}`).toBe(digest);
+      const before = seen.get(digest);
+      if (before !== undefined) expect(before, `iteration ${i}: digest collision`).toBe(text);
+      seen.set(digest, text);
+    }
+    expect(accepted).toBeGreaterThan(200);
+  });
+});
+
+describe('status and variable values against hostile host data (T-096)', () => {
+  it('never throw on hostile alarms and observations, and show an unknown severity as critical', () => {
+    const valid = validateScene(baseV4(), options);
+    if (!valid.ok) throw new Error('expected valid base scene');
+    const pick = (next: () => number) => hostile[Math.floor(next() * hostile.length)];
+    const next = rng(96);
+    for (let i = 0; i < 1000; i++) {
+      const observations = Array.from({ length: 4 }, () => ({ tagId: next() < 0.7 ? 'LT-101' : pick(next), value: pick(next), quality: next() < 0.5 ? 'GOOD' : pick(next), sourceTimestamp: next() < 0.5 ? new Date().toISOString() : pick(next), dataType: next() < 0.5 ? undefined : pick(next), source: next() < 0.7 ? undefined : pick(next) })) as never[];
+      const alarms = Array.from({ length: 4 }, () => ({ id: pick(next), severity: next() < 0.5 ? 'high' : pick(next), message: pick(next), active: next() < 0.8 ? true : pick(next), acknowledged: pick(next), componentId: next() < 0.5 ? 'tank' : pick(next), tagId: next() < 0.5 ? 'LT-101' : pick(next) })) as never[];
+      expect(() => resolveVariableValues(valid.scene, observations, { now: Date.now() }), `iteration ${i}`).not.toThrow();
+      let telemetry: ReturnType<typeof resolveTelemetry> | undefined;
+      expect(() => (telemetry = resolveTelemetry(valid.scene, observations, { now: Date.now(), resolveBindable: options.resolveBindable })), `iteration ${i}`).not.toThrow();
+      expect(() => componentStatus(valid.scene, telemetry, alarms), `iteration ${i}`).not.toThrow();
+      expect(() => componentStatus(valid.scene, undefined, alarms), `iteration ${i}`).not.toThrow();
+    }
+    const odd = componentStatus(valid.scene, undefined, [{ id: 'a', severity: 'catastrophic' as never, message: 'x', active: true, componentId: 'tank' }]);
+    expect(odd.byComponent.get('tank')).toMatchObject({ status: 'alarm', severity: 'critical' });
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+});
+
+describe('findings of the T-096 review', () => {
+  const v4 = (patch: Record<string, unknown>) => ({ ...baseV4(), ...patch });
+  const codes = (input: unknown) => {
+    const r = validateScene(input, options);
+    return r.ok ? [] : r.errors.map((e) => [e.code, e.path]);
+  };
+
+  it('treats inherited names as unknown properties, never as bindable', () => {
+    for (const property of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      const doc = v4({ tagBindings: [{ id: 'b1', tagId: 'LT-101', kind: 'property', instanceId: 'tank', property }] });
+      expect(() => validateScene(doc, options), property).not.toThrow();
+      expect(codes(doc), property).toEqual([['UNBINDABLE_PROPERTY', 'tagBindings[0].property']]);
+      // A scene built in code, past validation: the resolver still does not throw.
+      const valid = validateScene(baseV4(), options);
+      if (!valid.ok) throw new Error('expected valid base scene');
+      const scene = { ...valid.scene, tagBindings: [{ id: 'b1', tagId: 'LT-101', kind: 'property' as const, instanceId: 'tank', property }] };
+      const observation = { tagId: 'LT-101', value: 1, quality: 'GOOD' as const, sourceTimestamp: new Date().toISOString(), unit: 'm' };
+      expect(() => resolveTelemetry(scene, [observation], { now: Date.now(), resolveBindable: options.resolveBindable }), property).not.toThrow();
+    }
+  });
+
+  it('skips null and non-object observations', () => {
+    const valid = validateScene(baseV4(), options);
+    if (!valid.ok) throw new Error('expected valid base scene');
+    const junk = [null, undefined, 1, 'LT-101', { tagId: {} }] as never[];
+    expect(() => resolveVariableValues(valid.scene, junk, { now: Date.now() })).not.toThrow();
+    expect(resolveTelemetry(valid.scene, junk, { now: Date.now(), resolveBindable: options.resolveBindable }).unmatchedTagIds).toEqual([]);
+  });
+
+  it('folds many alarms in linear time', () => {
+    const valid = validateScene(baseV4(), options);
+    if (!valid.ok) throw new Error('expected valid base scene');
+    const alarms = Array.from({ length: 40_000 }, (_, i) => ({ id: `a${i}`, severity: 'low' as const, message: 'x', active: true, componentId: 'tank' }));
+    const start = performance.now();
+    const status = componentStatus(valid.scene, undefined, alarms);
+    // Quadratic folding took 4.2 s here; linear takes a few milliseconds.
+    expect(performance.now() - start).toBeLessThan(1000);
+    expect(status.byComponent.get('tank')?.alarms).toHaveLength(40_000);
+  });
+
+  it('refuses more credential forms: component properties, passphrases, access keys, auth, and endpoint secrets', () => {
+    const base = baseV4();
+    const withProperty = (key: string) => v4({ components: [{ ...base.components[0], properties: { level: 45, [key]: 'x' } }, base.components[1]] });
+    for (const key of ['password', 'passphrase', 'accessKey', 'auth', 'Authorization', 'apiToken']) expect(codes(withProperty(key)), key).toEqual([['SECRET_FIELD', `components[0].properties.${key}`]]);
+    for (const key of ['author', 'authority', 'level2']) expect(codes(withProperty(key)).filter(([c]) => c === 'SECRET_FIELD'), key).toEqual([]);
+    const withEndpoint = (endpointRef: string) => v4({ dataSources: [{ ...base.dataSources[0], endpointRef }] });
+    for (const ref of [' opc.tcp://user:pw@plc:4840', 'https://gw.example/plc?password=pw', 'https://gw.example/plc?site=1&api%5Fkey=k', 'host:plc;token=abc']) expect(codes(withEndpoint(ref)), ref).toEqual([['SECRET_FIELD', 'dataSources[0].endpointRef']]);
+    for (const ref of ['host:plc', 'opc.tcp://plc:4840/ua', 'https://gw.example/plc?site=1&author=me']) expect(codes(withEndpoint(ref)), ref).toEqual([]);
   });
 });
 

@@ -120,7 +120,7 @@ function registerSymbol(symbol: HostSymbol, portIds: ReadonlySet<string>, label:
   if (!symbol || typeof symbol !== 'object' || typeof symbol.svg !== 'string') return { problems: [`${label} needs svg text`] };
   const problems: string[] = [];
   const side = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 1 && v <= MAX_SYMBOL_SIZE;
-  if (!side(symbol.width) || !side(symbol.height)) problems.push(`${label} needs a width and height of 1 to ${MAX_SYMBOL_SIZE}`);
+  if (!side(symbol.width) || !side(symbol.height)) return { problems: [`${label} needs a width and height of 1 to ${MAX_SYMBOL_SIZE}`] };
   const ports: Record<string, readonly [number, number]> = {};
   for (const [id, point] of Object.entries(symbol.ports ?? {})) {
     if (!portIds.has(id)) problems.push(`${label} places "${id}", which is not one of its ports`);
@@ -136,7 +136,8 @@ function registerSymbol(symbol: HostSymbol, portIds: ReadonlySet<string>, label:
 
 /** The sanitized symbols of a definition, by view, with any problems. */
 function hostSymbols(d: ComponentTypeDefinition, name: string): { symbols: Partial<Record<'process' | 'electrical', RegisteredSymbol>>; problems: string[] } {
-  const portIds = new Set(Array.isArray(d.ports) ? d.ports.map((p) => p?.id) : []);
+  // Array.from, not .map: a host array with its own `constructor` would make .map throw (T-096).
+  const portIds = new Set(Array.isArray(d.ports) ? Array.from(d.ports, (p) => p?.id) : []);
   const symbols: Partial<Record<'process' | 'electrical', RegisteredSymbol>> = {};
   const problems: string[] = [];
   for (const [view, field] of [['process', 'symbol2D'], ['electrical', 'electricalSymbol']] as const) {
@@ -178,7 +179,7 @@ function definitionProblems(d: ComponentTypeDefinition): string[] {
     else {
       const seen = new Set<string>();
       for (const t of d.variables) {
-        const label = `${name} variable "${String(t?.name)}"`;
+        const label = `${name} variable "${typeof t?.name === 'string' ? t.name : '?'}"`;
         if (typeof t?.name !== 'string' || !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$/.test(t.name)) { problems.push(`${label} needs a name of letters, digits, "_", "." or "-"`); continue; }
         if (seen.has(t.name)) problems.push(`${name} has two variables "${t.name}"`);
         seen.add(t.name);
@@ -192,8 +193,12 @@ function definitionProblems(d: ComponentTypeDefinition): string[] {
     problems.push(`${name} needs views as distinct names from ${viewKinds.join(', ')}`);
   }
   problems.push(...hostSymbols(d, name).problems);
-  for (const [param, spec] of Object.entries(d.parameters ?? {})) {
-    const ok = isChoiceParameter(spec) ? spec.choices.includes(spec.default) : finite(spec.default) && spec.default >= spec.min && spec.default <= spec.max;
+  if (d.parameters !== undefined && (typeof d.parameters !== 'object' || d.parameters === null || Array.isArray(d.parameters))) problems.push(`${name} needs parameters as an object`);
+  else for (const [param, spec] of Object.entries(d.parameters ?? {})) {
+    if (typeof spec !== 'object' || spec === null) { problems.push(`${name} parameter "${param}" must be an object`); continue; }
+    const ok = isChoiceParameter(spec)
+      ? Array.isArray(spec.choices) && spec.choices.every((c) => typeof c === 'string') && spec.choices.includes(spec.default)
+      : finite(spec.default) && finite(spec.min) && finite(spec.max) && spec.default >= spec.min && spec.default <= spec.max;
     if (!ok) problems.push(`${name} parameter "${param}" has a default outside its range or choices`);
   }
   return problems;
@@ -217,7 +222,7 @@ export function createComponentRegistry(...definitions: ComponentTypeDefinition[
   for (const d of definitions) {
     const { build, symbol2D: _p, electricalSymbol: _e, ...rest } = d;
     const { symbols } = hostSymbols(d, d.type);
-    const variables = rest.variables && Object.freeze(rest.variables.map((t) => Object.freeze({ ...t })));
+    const variables = rest.variables && Object.freeze(Array.from(rest.variables, (t) => Object.freeze({ ...t })));
     const views = rest.views && Object.freeze([...rest.views]);
     const base = Object.freeze({ ...rest, ...(variables ? { variables } : {}), ...(views ? { views } : {}), ...(Object.keys(symbols).length > 0 ? { symbols: Object.freeze(symbols) } : {}), defaultSize: rest.defaultSize ?? sizeOf(rest.bounds) }) as IndustrialComponentDefinition;
     custom.set(d.type, { base, build });

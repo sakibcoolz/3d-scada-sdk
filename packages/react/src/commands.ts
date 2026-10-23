@@ -27,6 +27,20 @@ export interface CommandStatus {
   message?: string;
 }
 
+const commandStates: readonly string[] = ['pending', 'accepted', 'rejected', 'completed', 'failed'];
+
+/** The host's answer as it may be shown: a known state, and the message as plain text; otherwise none (T-096). */
+export function hostCommandStatus(value: unknown): CommandStatus | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { state, message } = value as { state?: unknown; message?: unknown };
+  if (typeof state !== 'string' || !commandStates.includes(state)) return undefined;
+  return { state: state as CommandState, ...(typeof message === 'string' && message !== '' ? { message } : {}) };
+}
+
+const DECIMAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+/** A typed number in plain decimal, or NaN: `Number()` would also take "0x10", "0b11" and "0o7" (T-096). */
+export const parseDecimal = (text: string): number => (DECIMAL.test(text.trim()) ? Number(text.trim()) : Number.NaN);
+
 /** Shown in every confirmation, whatever the host adds. */
 export const COMMAND_NOTICE = 'This sends a request to the host application. It does not change the plant by itself: the host’s authorization and the controller’s interlocks decide whether anything happens.';
 
@@ -50,17 +64,31 @@ export function checkCommandValue(variable: RuntimeVariable, input: string | boo
   if (variable.dataType === 'bool') return typeof input === 'boolean' ? { ok: true, value: input } : { ok: false, message: 'Choose on or off.' };
   const text = typeof input === 'string' ? input.trim() : '';
   if (text === '') return { ok: false, message: 'Enter a value.' };
-  const value = Number(text);
+  const value = parseDecimal(text);
   if (!Number.isFinite(value)) return { ok: false, message: 'Enter a number.' };
   const { min, max, step } = variable.command ?? {};
   if (min === undefined || max === undefined) return { ok: false, message: 'This variable has no limits, so it cannot be requested.' };
   if (value < min || value > max) return { ok: false, message: `Enter a value from ${min} to ${max}.` };
   if (step !== undefined) {
     const k = (value - min) / step;
-    if (Math.abs(k - Math.round(k)) > 1e-9 * Math.max(1, Math.abs(k))) return { ok: false, message: `Enter a value in steps of ${step} from ${min}.` };
+    // A fixed tolerance in steps: one relative to k accepted half-steps beyond 5e8 steps (T-096).
+    if (Math.abs(k - Math.round(k)) > 1e-6) return { ok: false, message: `Enter a value in steps of ${step} from ${min}.` };
   }
   if (!valueFitsDataType(value, variable.dataType, !!variable.scaling)) return { ok: false, message: `${value} does not fit ${variable.dataType}.` };
   return { ok: true, value };
+}
+
+/**
+ * At Send: the variable as the approved document has it now, and the reviewed value still valid for it.
+ * The document may have changed while the confirmation was open (T-096).
+ */
+export function recheckCommand(scene: ScadaScene, componentId: string, tagId: string, input: string | boolean, reviewed: number | boolean): { ok: true; variable: RuntimeVariable } | { ok: false; message: string; variable?: RuntimeVariable } {
+  const variable = writableVariables(scene, componentId).find((v) => v.id === tagId);
+  if (!variable) return { ok: false, message: 'This variable can no longer be requested.' };
+  const again = checkCommandValue(variable, input);
+  if (!again.ok) return { ok: false, message: again.message, variable };
+  if (again.value !== reviewed) return { ok: false, message: 'The limits have changed; review the value again.', variable };
+  return { ok: true, variable };
 }
 
 /** "on", "off" or "55 %". */

@@ -149,7 +149,7 @@ describe('addresses', () => {
     expect(seen).toEqual([['com.vendor.bus', { slot: 3 }]]);
     const r = validateScene(custom({ slot: 4 }), strict);
     expect(r.ok ? [] : r.errors.map((e) => [e.code, e.message])).toEqual([['INVALID_ADDRESS', 'slot must be 3']]);
-    expect(errors(custom({ slot: 3, auth: { apiKey: 'x' } }))).toEqual([['SECRET_FIELD', 'runtimeVariables[0].source.address.auth.apiKey']]);
+    expect(errors(custom({ slot: 3, auth: { apiKey: 'x' } }))).toEqual([['SECRET_FIELD', 'runtimeVariables[0].source.address.auth']]);
   });
 });
 

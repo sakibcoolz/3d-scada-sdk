@@ -19,7 +19,7 @@ export interface Observation {
 }
 
 /** Why a message, or one observation in it, was dropped. */
-export type DropReason = 'TOO_LARGE' | 'NOT_TEXT' | 'NOT_JSON' | 'NOT_A_BATCH' | 'INVALID_OBSERVATION';
+export type DropReason = 'TOO_LARGE' | 'NOT_TEXT' | 'NOT_JSON' | 'NOT_A_BATCH' | 'INVALID_OBSERVATION' | 'TOO_MANY_TAGS';
 
 const qualities: readonly string[] = ['GOOD', 'UNCERTAIN', 'BAD', 'STALE', 'DISCONNECTED'];
 const sources: readonly string[] = ['MEASURED', 'SIMULATED'];

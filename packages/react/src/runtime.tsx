@@ -12,6 +12,9 @@ import { describeAlarm, describeAttention, summarizeStatus } from './statusText.
 import { Commands, useCommandSession } from './commandPanel.js';
 import type { CommandRequest, CommandStatus } from './commands.js';
 
+/** Host alarms are unbounded: the list of unlinked ones shows this many, then a count (T-096). */
+const MAX_LISTED_ALARMS = 100;
+
 // The locked runtime (ADR-0028): an approved document shown with live values, never changed. Built from
 // the viewer and the 2D views only. This module must not import the editor, so no edit path exists here
 // at all (a test checks the import graph). UI locks are not a security boundary; approval and access
@@ -87,7 +90,8 @@ function Attention({ scene, status, onGo }: { scene: ScadaScene; status: StatusR
         <>
           <h3 style={heading}>Not linked to equipment</h3>
           <ul aria-label="Alarms not linked to equipment" style={{ fontSize: 12, paddingLeft: 16, margin: 0 }}>
-            {status.unlinked.map((a, i) => <li key={`${a.id}:${i}`} style={{ color: statusColors[a.severity] }}>{a.id}: {describeAlarm(a)}{a.componentId ? ` (component ${a.componentId})` : a.tagId ? ` (tag ${a.tagId})` : ''}</li>)}
+            {status.unlinked.slice(0, MAX_LISTED_ALARMS).map((a, i) => <li key={`${a.id}:${i}`} style={{ color: statusColors[a.severity] }}>{a.id}: {describeAlarm(a)}{a.componentId ? ` (component ${a.componentId})` : a.tagId ? ` (tag ${a.tagId})` : ''}</li>)}
+            {status.unlinked.length > MAX_LISTED_ALARMS && <li>…and {status.unlinked.length - MAX_LISTED_ALARMS} more.</li>}
           </ul>
         </>
       )}
@@ -157,7 +161,7 @@ function Approved({ scene, digest, onCommandRequest, commandStatus, expected, re
   const session = useCommandSession();
   const variableStates = useMemo(() => (commandsOn ? resolveVariableValues(scene, telemetry?.observations ?? [], { now, source: telemetry?.source, staleAfterMs: telemetry?.staleAfterMs }) : undefined), [commandsOn, scene, telemetry, now]);
   const commands = commandsOn && variableStates
-    ? (id: string) => <Commands scene={scene} componentId={id} states={variableStates} source={telemetry?.source} revision={scene.project?.revision ?? ''} digest={digest} onCommandRequest={onCommandRequest!} commandStatus={commandStatus} session={session} />
+    ? (id: string) => <Commands key={`${digest}:${id}`} scene={scene} componentId={id} states={variableStates} source={telemetry?.source} revision={scene.project?.revision ?? ''} digest={digest} onCommandRequest={onCommandRequest!} commandStatus={commandStatus} session={session} />
     : undefined;
   const diagram = { scene, registry, telemetry, status: status.byComponent, selectedIds: selection, onSelectionChange: select, editable: false, style: { height: '100%' } };
   const show3d = shown === '3d' || shown === 'split';

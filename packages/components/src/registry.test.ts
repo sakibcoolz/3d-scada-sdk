@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { componentKinds, connect, findCollisions, parseScene, routeScene, serializeScene, validateScene, type ComponentInstance, type ScadaScene } from '@sakibcoolz/core';
 import { builtInRegistry, catalogResolvers, componentCatalog, createComponentRegistry, unknownTypeDefinition, type ComponentTypeDefinition } from './index.js';
 import { pipeSizes } from './sizes.js';
+import { mutate, rng, type Json } from '../../core/src/fixtures/fuzz.js';
 
 // Open component registry (ADR-0022): host types next to the built-in kinds, with no SDK change.
 
@@ -185,5 +186,31 @@ describe('a host type in a scene, through core', () => {
     const small = scene([at('P-1', 'com.example.press', 0, 0), at('pipe', 'pipe', 1.6, 0.5, { length: 2, size: 'DN80' })]);
     const joined = connect(small, { id: 'c1', from: { instanceId: 'P-1', portId: 'out' }, to: { instanceId: 'pipe', portId: 'in' } }, registry.resolvers);
     expect(joined.ok ? undefined : joined.error.code).toBe('INCOMPATIBLE_PORTS');
+  });
+});
+
+describe('hostile definitions (T-096)', () => {
+  it('either register or fail with the listed problems, never with a stray error, across 2000 mutations', () => {
+    const next = rng(2096);
+    let registered = 0;
+    for (let i = 0; i < 2000; i++) {
+      const { build: _build, ...plain } = press();
+      // With a host symbol, so its registration (ports, size, SVG) is fuzzed too.
+      const symbol2D = { width: 40, height: 20, svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20"><path d="M0 10H40" stroke="#000"/></svg>', ports: { in: [0, 10], out: [40, 10] } };
+      const definition = structuredClone({ ...plain, symbol2D }) as unknown as Json;
+      for (let m = 0, n = 1 + Math.floor(next() * 3); m < n; m++) mutate(definition, next);
+      try {
+        const registry = createComponentRegistry(definition as unknown as ComponentTypeDefinition);
+        registered++;
+        // A registered type must behave like any part.
+        const type = (definition as { type: string }).type;
+        expect(() => registry.definitionFor(type, {}), `iteration ${i}`).not.toThrow();
+        expect(() => validateScene(scene([at('p', type, 0, 0)]), registry.resolvers), `iteration ${i}`).not.toThrow();
+      } catch (error) {
+        expect(error instanceof Error && error.message.startsWith('Cannot register component types:'), `iteration ${i}: ${(error as Error).stack?.split('\n').slice(0, 3).join(' | ')}`).toBe(true);
+      }
+    }
+    expect(registered).toBeGreaterThan(100);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 });

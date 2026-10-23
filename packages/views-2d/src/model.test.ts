@@ -136,3 +136,27 @@ describe('<ProcessView>', () => {
     expect(html).toContain('temperature: unknown (disconnected)');
   });
 });
+
+describe('inherited names as ids (T-096)', () => {
+  it('lays out components and lines named constructor, toString or __proto__ like any other', () => {
+    const scene = valid({
+      components: [at('constructor', 'tank'), at('toString', 'valve'), at('__proto__', 'pump')],
+      connections: [edge('hasOwnProperty', 'constructor', 'outlet', 'toString', 'in'), edge('toString', 'toString', 'out', '__proto__', 'suction')],
+      views: { process: { symbols: {}, routes: {} } },
+    });
+    let drawing: ReturnType<typeof layoutView> | undefined;
+    expect(() => (drawing = layoutView(scene, 'process', registry))).not.toThrow();
+    expect(drawing!.symbols.map((s) => s.id).sort()).toEqual(['__proto__', 'constructor', 'toString']);
+    for (const s of drawing!.symbols) expect([s.x, s.y].every(Number.isFinite) && !s.placed, s.id).toBe(true);
+    for (const e of drawing!.edges) expect(e.points.flat().every(Number.isFinite) && !e.routed, e.id).toBe(true);
+    const moved = placeSymbol(scene, 'process', 'constructor', 40, 40);
+    expect(Object.hasOwn(moved.views!.process!.symbols!, 'constructor')).toBe(true);
+  });
+
+  it('anchors a host port named __proto__ or constructor at its own point', () => {
+    const symbol = { width: 20, height: 10, shapes: [], ports: { __proto__: [0, 5] } } as unknown as Parameters<typeof portAnchor>[0];
+    const bounds = { min: [-1, 0, 0], max: [1, 1, 0] };
+    expect(portAnchor({ width: 20, height: 10, shapes: [] } as unknown as Parameters<typeof portAnchor>[0], { id: 'constructor', position: [1, 0.5, 0] }, bounds)).toEqual([20, 5]);
+    expect(Array.isArray(portAnchor(symbol, { id: 'toString', position: [-1, 0.5, 0] }, bounds))).toBe(true);
+  });
+});
