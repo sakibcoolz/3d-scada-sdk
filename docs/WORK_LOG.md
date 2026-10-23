@@ -2180,3 +2180,39 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-095: migration corpus and scale at the limits (Phase 11a)
+- Owner merged #96 (T-094) and approved the Phase 11 rows: T-095..T-097, scale at the existing limits, and T-028 kept open for glTF only. Branch `feat/T-095-migration-and-scale` from `origin/develop`.
+- Change:
+  - **Migration corpus** in `packages/core/schema/fixtures/migration/` (README gives provenance):
+    - v1, v2 and v3 documents written by the code of their time: the playground demo at `814f520^` and `32de410^`, the demo and generated line at `v0.1.2`, and the three plant files shipped in 0.1.x;
+    - each with its golden v4 output.
+    - `packages/react/src/migration-corpus.test.ts` loads each as the editor does (`importSceneText`) and checks the golden file, the JSON Schema, an unchanged reload, and the open joints.
+  - **Scale:**
+    - `fixtures/scale.ts` builds "limits-10000" (10,000 components, 19,998 connections, 20,000 variables, 19,999 bindings);
+    - `scale.bench.ts` benchmarks it;
+    - `scale.test.ts` checks validity at the limits, refusal of one component more, save and load under the default cap, and coarse budgets;
+    - `perf/frame-time.perf.ts` adds runtime chain-1000 and chain-5000 and a load time.
+- Found and fixed (owner-approved):
+  - a document at the count limits is 16 MB, over the 10 MB parse cap, so it could not be opened again. `parseScene` and `MAX_SCENE_FILE_BYTES` are now 32 MB;
+  - variable addresses used the document-wide extension budget, so about 2,500 sourced variables was the real limit. Each address now has its own 64-value budget, with a correct error message.
+- Also: T-060, T-061 and T-062..T-065 were merged long ago but still REVIEW; marked DONE.
+- Tests:
+  - `migration-corpus.test.ts` (33);
+  - `scale.test.ts` (13);
+  - one in `acquisition.test.ts`.
+  - The save-and-load test fails with the old 10 MB cap; the address test failed at variable 2,500 before the fix.
+- Docs:
+  - PERFORMANCE.md "Scale at the validator limits";
+  - SECURITY_AND_SAFETY "Scale limits";
+  - RELEASE.md migration note; DECISION_LOG (two rows);
+  - backlog T-095 REVIEW, T-096/T-097 TODO; plan rows.
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1728 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (170 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - `pnpm perf` 0 (5 scenes, numbers in PERFORMANCE.md).
+  - GitHub Actions CI not awaited.

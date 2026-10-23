@@ -159,6 +159,15 @@ describe('limits and removal', () => {
     expect(errors(doc([], [{ id: 'a', dataType: 'bool', access: 'read' }, { id: 'b', dataType: 'bool', access: 'read' }]), { ...options, limits: { maxVariables: 1 } })).toEqual([['LIMIT_EXCEEDED', 'runtimeVariables']]);
   });
 
+  it('give each address its own value budget, apart from extensions (T-095)', () => {
+    // Addresses once shared the document's extension budget, so about 2,500 Modbus variables were refused.
+    const many = Array.from({ length: 5_000 }, (_, i) => ({ ...modbus({ address: i }), id: `V${i}` }));
+    expect(errors(doc([plc], many))).toEqual([]);
+    const host = { id: 'ds-host', protocol: 'com.example.bus' };
+    const big = { id: 'B', dataType: 'float32', access: 'read', source: { dataSourceId: 'ds-host', address: { path: Array.from({ length: 64 }, (_, i) => i) } } };
+    expect(validateScene(doc([host], [big]), options)).toEqual({ ok: false, errors: [{ code: 'LIMIT_EXCEEDED', path: 'runtimeVariables[0].source.address.path[62]', message: 'An address holds more than 64 values.' }] });
+  });
+
   it('removing a component keeps sources and variables but drops their link to it', () => {
     const r = validateScene(doc([plc], [{ ...modbus({}), componentId: 'PLC-01' }, { id: 'W', componentId: 'T-101', dataType: 'bool', access: 'read' }]), options);
     if (!r.ok) throw new Error(JSON.stringify(r.errors));

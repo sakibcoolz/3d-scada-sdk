@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "components": [
+    {
+      "id": "tank",
+      "kind": "tank",
+      "position": [
+        0,
+        1.535,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "properties": {
+        "level": 60
+      }
+    },
+    {
+      "id": "valve",
+      "kind": "valve",
+      "position": [
+        3,
+        0.6349999999999999,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "pipe",
+      "kind": "pipe",
+      "position": [
+        5.6,
+        0.6349999999999999,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "properties": {}
+    },
+    {
+      "id": "tee",
+      "kind": "tee",
+      "position": [
+        8.6,
+        0.6349999999999999,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "properties": {}
+    },
+    {
+      "id": "valve-a",
+      "kind": "valve",
+      "position": [
+        11,
+        0.6349999999999999,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "valve-b",
+      "kind": "valve",
+      "position": [
+        11,
+        2.0349999999999997,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "properties": {
+        "open": true
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "tank-valve",
+      "from": {
+        "instanceId": "tank",
+        "portId": "outlet"
+      },
+      "to": {
+        "instanceId": "valve",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "valve-pipe",
+      "from": {
+        "instanceId": "valve",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "pipe",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "pipe-tee",
+      "from": {
+        "instanceId": "pipe",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "tee",
+        "portId": "left"
+      }
+    },
+    {
+      "id": "tee-a",
+      "from": {
+        "instanceId": "tee",
+        "portId": "right"
+      },
+      "to": {
+        "instanceId": "valve-a",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "tee-b",
+      "from": {
+        "instanceId": "tee",
+        "portId": "branch"
+      },
+      "to": {
+        "instanceId": "valve-b",
+        "portId": "in"
+      }
+    }
+  ]
+}

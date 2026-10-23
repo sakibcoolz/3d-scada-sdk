@@ -178,6 +178,10 @@ const componentKeys: Record<SchemaVersion, string[]> = {
 /** Deepest nesting accepted inside one extension value, and most values in all extensions of a scene (ADR-0021). */
 const MAX_EXTENSION_DEPTH = 16;
 const MAX_EXTENSION_VALUES = 10_000;
+/** Most JSON values in one variable address. Each address has its own budget, so `maxVariables` bounds the total. */
+const MAX_ADDRESS_VALUES = 64;
+/** JSON values still accepted, and the error once they run out. */
+type ValueBudget = { left: number; exceeded: string };
 /** Reverse-DNS namespace for extension keys, e.g. `com.example.app`. */
 const NAMESPACE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
 /** Keys that would reach an object's prototype if copied naively. */
@@ -439,7 +443,7 @@ function readLabels(value: unknown, path: string, limits: SceneLimits, errors: E
  * Extensions: reverse-DNS namespaces to plain JSON, bounded in depth and size, with no prototype
  * keys and no credentials anywhere inside (ADR-0021). Returns a fresh copy.
  */
-function readExtensions(value: unknown, path: string, budget: { left: number }, limits: SceneLimits, errors: Errors): SceneExtensions | undefined {
+function readExtensions(value: unknown, path: string, budget: ValueBudget, limits: SceneLimits, errors: Errors): SceneExtensions | undefined {
   if (!isObject(value)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected an object keyed by namespace.' });
     return undefined;
@@ -456,9 +460,9 @@ function readExtensions(value: unknown, path: string, budget: { left: number }, 
   return out;
 }
 
-function readJson(value: unknown, path: string, depth: number, budget: { left: number }, limits: SceneLimits, errors: Errors): JsonValue | undefined {
+function readJson(value: unknown, path: string, depth: number, budget: ValueBudget, limits: SceneLimits, errors: Errors): JsonValue | undefined {
   if (--budget.left < 0) {
-    if (budget.left === -1) errors.push({ code: 'LIMIT_EXCEEDED', path, message: `Extensions hold more than ${MAX_EXTENSION_VALUES} values.` });
+    if (budget.left === -1) errors.push({ code: 'LIMIT_EXCEEDED', path, message: budget.exceeded });
     return undefined;
   }
   if (depth > MAX_EXTENSION_DEPTH) {
@@ -519,7 +523,7 @@ function readComponent(
   version: SchemaVersion,
   limits: SceneLimits,
   errors: Errors,
-  extensionBudget: { left: number },
+  extensionBudget: ValueBudget,
   resolveType: ((type: ComponentType) => boolean) | undefined,
 ): ComponentInstance | undefined {
   if (!isObject(value)) {
@@ -655,7 +659,7 @@ function readFinite(value: unknown, path: string, errors: Errors): number | unde
 }
 
 /** Reads a variable; its address stays plain JSON here and is checked against its source's protocol in `checkAcquisition`. */
-function readVariable(value: unknown, path: string, limits: SceneLimits, errors: Errors, budget: { left: number }): RuntimeVariable | undefined {
+function readVariable(value: unknown, path: string, limits: SceneLimits, errors: Errors): RuntimeVariable | undefined {
   if (!isObject(value)) {
     errors.push({ code: 'INVALID_FIELD', path, message: 'Expected a runtime variable object.' });
     return undefined;
@@ -684,7 +688,7 @@ function readVariable(value: unknown, path: string, limits: SceneLimits, errors:
       let address: JsonValue | undefined;
       if (s.address !== undefined) {
         if (!isObject(s.address)) errors.push({ code: 'INVALID_ADDRESS', path: `${path}.source.address`, message: 'Expected an address object.' });
-        else address = readJson(s.address, `${path}.source.address`, 1, budget, limits, errors);
+        else address = readJson(s.address, `${path}.source.address`, 1, { left: MAX_ADDRESS_VALUES, exceeded: `An address holds more than ${MAX_ADDRESS_VALUES} values.` }, limits, errors);
       }
       if (dataSourceId) variable.source = { dataSourceId, ...(name !== undefined ? { variable: name } : {}), ...(address !== undefined ? { address: address as VariableAddress } : {}) };
     }
@@ -1290,7 +1294,7 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
     }
   }
   checkKeys(input, sceneKeys[version], '', errors);
-  const extensionBudget = { left: MAX_EXTENSION_VALUES };
+  const extensionBudget: ValueBudget = { left: MAX_EXTENSION_VALUES, exceeded: `Extensions hold more than ${MAX_EXTENSION_VALUES} values.` };
   const project = version === 4 && input.project !== undefined ? readProject(input.project, limits, errors) : undefined;
   const components = readList(input.components, 'components', limits.maxComponents, errors, (item, path) =>
     readComponent(item, path, version, limits, errors, extensionBudget, options.resolveType),
@@ -1308,7 +1312,7 @@ export function validateScene(input: unknown, options: SceneValidationOptions): 
       : undefined;
   const runtimeVariables =
     version === 4 && input.runtimeVariables !== undefined
-      ? readList(input.runtimeVariables, 'runtimeVariables', limits.maxVariables, errors, (item, path) => readVariable(item, path, limits, errors, extensionBudget))
+      ? readList(input.runtimeVariables, 'runtimeVariables', limits.maxVariables, errors, (item, path) => readVariable(item, path, limits, errors))
       : undefined;
   const tagBindings =
     version !== 1 && input.tagBindings !== undefined

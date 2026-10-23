@@ -1,0 +1,245 @@
+{
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
+  "units": "m",
+  "components": [
+    {
+      "id": "tank",
+      "type": "tank",
+      "position": {
+        "x": 0,
+        "y": 1.535,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "level": 60
+      }
+    },
+    {
+      "id": "valve",
+      "type": "valve",
+      "position": {
+        "x": 3,
+        "y": 0.6349999999999999,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "pipe",
+      "type": "pipe",
+      "position": {
+        "x": 5.6,
+        "y": 0.6349999999999999,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "tee",
+      "type": "tee",
+      "position": {
+        "x": 8.6,
+        "y": 0.6349999999999999,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "valve-a",
+      "type": "valve",
+      "position": {
+        "x": 11,
+        "y": 0.6349999999999999,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "valve-b",
+      "type": "valve",
+      "position": {
+        "x": 11,
+        "y": 2.0349999999999997,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "open": true
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "tank-valve",
+      "from": {
+        "instanceId": "tank",
+        "portId": "outlet"
+      },
+      "to": {
+        "instanceId": "valve",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "valve-pipe",
+      "from": {
+        "instanceId": "valve",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "pipe",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "pipe-tee",
+      "from": {
+        "instanceId": "pipe",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "tee",
+        "portId": "left"
+      }
+    },
+    {
+      "id": "tee-a",
+      "from": {
+        "instanceId": "tee",
+        "portId": "right"
+      },
+      "to": {
+        "instanceId": "valve-a",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "tee-b",
+      "from": {
+        "instanceId": "tee",
+        "portId": "branch"
+      },
+      "to": {
+        "instanceId": "valve-b",
+        "portId": "in"
+      }
+    }
+  ],
+  "tagBindings": [
+    {
+      "id": "b-level",
+      "tagId": "LT-101",
+      "kind": "property",
+      "instanceId": "tank",
+      "property": "level"
+    },
+    {
+      "id": "b-temp",
+      "tagId": "TT-101",
+      "kind": "property",
+      "instanceId": "tank",
+      "property": "temperature"
+    },
+    {
+      "id": "b-xv",
+      "tagId": "XV-101",
+      "kind": "property",
+      "instanceId": "valve",
+      "property": "open"
+    },
+    {
+      "id": "b-ft1",
+      "tagId": "FT-101",
+      "kind": "flow",
+      "connectionId": "tank-valve"
+    },
+    {
+      "id": "b-ft2",
+      "tagId": "FT-102",
+      "kind": "flow",
+      "connectionId": "valve-pipe"
+    },
+    {
+      "id": "b-ft3",
+      "tagId": "FT-103",
+      "kind": "flow",
+      "connectionId": "pipe-tee"
+    },
+    {
+      "id": "b-ft4",
+      "tagId": "FT-104",
+      "kind": "flow",
+      "connectionId": "tee-a"
+    }
+  ]
+}

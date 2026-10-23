@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 4,
+  "documentType": "industrial.scene",
+  "units": "m",
+  "components": [
+    {
+      "id": "tank",
+      "type": "tank",
+      "parentId": "valve-b",
+      "position": {
+        "x": -2.8000000000000003,
+        "y": 1.535,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "level": 60
+      }
+    },
+    {
+      "id": "valve",
+      "type": "valve",
+      "parentId": "valve-b",
+      "position": {
+        "x": -1.4665000000000004,
+        "y": 0.6349999999999999,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "pipe",
+      "type": "pipe",
+      "parentId": "valve-b",
+      "position": {
+        "x": -0.3330000000000004,
+        "y": 0.6349999999999999,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "tee",
+      "type": "tee",
+      "parentId": "valve-b",
+      "position": {
+        "x": 2.6,
+        "y": 0.6349999999999999,
+        "z": 0
+      },
+      "rotation": {
+        "x": 3.885780586188047e-16,
+        "y": -0.7071067811865474,
+        "z": -0.7071067811865478,
+        "w": -4.440892098500625e-16
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "valve-a",
+      "type": "valve",
+      "parentId": "valve-b",
+      "position": {
+        "x": 4.199999999999996,
+        "y": 0.6349999999999999,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "valve-b",
+      "type": "valve",
+      "position": {
+        "x": 2.6,
+        "y": 0.65,
+        "z": 1.6
+      },
+      "rotation": {
+        "x": 0,
+        "y": -0.7071067811865475,
+        "z": 1.1102230246251563e-16,
+        "w": 0.7071067811865475
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v3",
+      "type": "valve",
+      "position": {
+        "x": -4.6000000000000005,
+        "y": 2.35,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "motor",
+      "type": "motor",
+      "position": {
+        "x": 16.8,
+        "y": 0.38,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "sensor",
+      "type": "sensor",
+      "position": {
+        "x": 1.308733549771195,
+        "y": 0.3,
+        "z": -2.875216936834527
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    },
+    {
+      "id": "pump",
+      "type": "pump",
+      "position": {
+        "x": 5.4,
+        "y": 0.6000000000000001,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "w": 1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "properties": {}
+    }
+  ],
+  "connections": [
+    {
+      "id": "tank-valve",
+      "from": {
+        "instanceId": "tank",
+        "portId": "outlet"
+      },
+      "to": {
+        "instanceId": "valve",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "valve-pipe",
+      "from": {
+        "instanceId": "valve",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "pipe",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "pipe-tee",
+      "from": {
+        "instanceId": "pipe",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "tee",
+        "portId": "left"
+      }
+    },
+    {
+      "id": "tee-a",
+      "from": {
+        "instanceId": "tee",
+        "portId": "right"
+      },
+      "to": {
+        "instanceId": "valve-a",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "tee-b",
+      "from": {
+        "instanceId": "tee",
+        "portId": "branch"
+      },
+      "to": {
+        "instanceId": "valve-b",
+        "portId": "in"
+      }
+    }
+  ]
+}

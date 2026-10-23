@@ -14,6 +14,8 @@ interface Result {
   /** Per frame, averaged over the sample window. */
   drawCalls: number;
   triangles: number;
+  /** From navigation until the canvas is shown (validation, digest, first render). */
+  loadMs: number;
 }
 
 const results: Result[] = [];
@@ -23,12 +25,19 @@ for (const [scene, url] of [
   ['demo (6 components, live flow)', '/?demo'],
   ['chain-200 (200 valves, 199 animated routes)', '/?generate=200'],
   ['chain-1000 (1000 valves, 999 animated routes)', '/?generate=1000'],
+  // The locked runtime (T-095): digest-pinned, with status and the demo feed. 5000 is the playground's cap.
+  ['runtime chain-1000 (ScadaRuntime, pinned)', '/?runtime&generate=1000'],
+  ['runtime chain-5000 (ScadaRuntime, pinned)', '/?runtime&generate=5000'],
 ] as const) {
   test(`frame time: ${scene}`, async ({ page }) => {
     test.setTimeout(120_000);
     await installThreeHook(page);
+    const started = Date.now();
     await page.goto(url);
-    await waitForCanvas(page);
+    // The runtime shares its row with the information panel, so its canvas is narrower than <main>.
+    if (url.includes('runtime')) await expect(page.locator('canvas').first()).toBeVisible({ timeout: 60_000 });
+    else await waitForCanvas(page);
+    const loadMs = Date.now() - started;
     await page.waitForTimeout(1500); // warm up: shader compile, first uploads
     gpu = await page.evaluate(() => {
       const gl = document.createElement('canvas').getContext('webgl2');
@@ -73,6 +82,7 @@ for (const [scene, url] of [
       geometries: sample.info.geometries,
       drawCalls: sample.info.calls,
       triangles: sample.info.triangles,
+      loadMs,
     };
     results.push(result);
     console.log(JSON.stringify(result));
