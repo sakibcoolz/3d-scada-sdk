@@ -32,6 +32,13 @@ If requirements imply real actuator commands, emergency switching, disabling ala
 - Runtime variables are read-only (`access: "read"`). No document can claim a writable tag before an approved command boundary (D5).
 - The SDK describes acquisition and never performs it: no connections, polling or writes.
 
+## Runtime mode and approved revisions (ADR-0028)
+- **No edit path:** `ScadaRuntime` is built from the viewer and the 2D views only. It cannot reach the editor, the history, the tag editor, keyboard moves or the workspace, which `runtime.test.ts` checks over the import graph.
+- **Pinned documents:** it shows a document only when it is valid and matches the host's approval record: the exact `project.revision`, and `sceneDigest` (SHA-256 of the canonical serialization, FIPS 180-4, implemented in core and tested against the standard vectors and Node's own SHA-256).
+- **Integrity, not authenticity:** the digest proves the runtime shows exactly the approved document, not who approved it. Signing approval records, access control and roles remain the host's.
+- **Not a security boundary:** a browser user can still change what the host sends. The guarantee is that the SDK itself never changes the document.
+- **Alarms (T-091):** host-supplied and display only. The SDK never evaluates limits, raises, clears or acknowledges an alarm.
+
 ## Transport-independent SDK rule
 The SDK must never require a WebSocket connection, broker, network endpoint, credentials or OPC UA service to initialize, edit or render a scene. Host applications own acquisition and network connections, while the SDK accepts optional validated read-only observations through a snapshot, push call or host-supplied provider. Test offline operation and prevent socket creation from SDK core/render/editor modules.
 

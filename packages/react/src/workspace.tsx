@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { createEmptyScene, type ScadaScene } from '@sakibcoolz/core';
 import { ElectricalView, ProcessView } from '@sakibcoolz/views-2d';
-import { Scada3DEditor, type ScadaHandle } from './index.js';
+import { Scada3DEditor } from './editor.js';
+import type { ScadaHandle } from './viewer.js';
 
 // One document, one selection, several views (ADR-0026): the 3D editor and the 2D process and
 // electrical diagrams. The editor owns the scene and its history; a symbol dragged in 2D is committed

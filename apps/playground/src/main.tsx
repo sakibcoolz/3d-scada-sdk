@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createEmptyScene, validateScene, type ScadaScene } from '@sakibcoolz/core';
+import { createEmptyScene, sceneDigest, serializeScene, validateScene, type ScadaScene } from '@sakibcoolz/core';
 import { controlLibrary, createComponentRegistry } from '@sakibcoolz/components';
-import { Scada3DEditor, Scada3DViewer, ScadaWorkspace, type ScadaHandle, type WorkspaceLayout } from '@sakibcoolz/react';
+import { Scada3DEditor, Scada3DViewer, ScadaRuntime, ScadaWorkspace, type ScadaHandle, type WorkspaceLayout } from '@sakibcoolz/react';
 import { demoScene, demoTagRows, generatedScene } from './demo';
 import { useDemoFeed } from './DemoFeed';
 import { useSimulation } from './SimulationPanel';
@@ -19,7 +19,10 @@ const simulate = params.has('simulate');
 // `?custom` adds example host types on top (ADR-0022).
 const registry = createComponentRegistry(...controlLibrary, ...(params.has('custom') ? exampleTypes : []));
 // `?control` opens the PLC → VFD → Motor → pump demo built from the control library.
-const control = params.has('control');
+// `?runtime` shows the control demo in the locked runtime (ADR-0028), pinned to its approved revision
+// and digest; `?runtime=tampered` passes an altered copy, and `&revision=N` expects another revision.
+const runtime = params.has('runtime');
+const control = params.has('control') || runtime;
 const simulateModel = params.get('simulate') === 'hydraulic' ? 'hydraulic' : 'mass-balance';
 const demo = params.has('demo') || generated !== undefined || simulate || control;
 // `?collisions=off` shows the host switch for the default-on collision highlight.
@@ -52,6 +55,16 @@ function initialScene(): ScadaScene | undefined {
 }
 
 const start = initialScene();
+
+/** The runtime demo's approval record and document, computed once like a host's approval step. */
+function runtimeDocument(): { text: string; expected: { revision: string; digest: string } } | undefined {
+  if (!runtime || !start) return undefined;
+  const approved: ScadaScene = { ...start, project: { name: 'Demo line', revision: '1' } };
+  const expected = { revision: params.get('revision') ?? '1', digest: sceneDigest(approved) };
+  const shown = params.get('runtime') === 'tampered' ? { ...approved, components: approved.components.map((c, i) => (i === 0 ? { ...c, position: { ...c.position, x: c.position.x + 1 } } : c)) } : approved;
+  return { text: serializeScene(shown), expected };
+}
+const runtimeDemo = runtimeDocument();
 
 function App() {
   const [scene, setScene] = useState<ScadaScene>(start ?? createEmptyScene());
@@ -91,7 +104,9 @@ function App() {
         <label><input type="checkbox" aria-label="Floor" checked={floor} onChange={(e) => setFloor(e.target.checked)} /> Floor</label>
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
-        {mounted && (workspaceLayout ? (
+        {mounted && runtimeDemo ? (
+          <ScadaRuntime scene={runtimeDemo.text} expected={runtimeDemo.expected} registry={registry} telemetry={editorProps.telemetry} defaultLayout={workspaceLayout ?? '3d'} />
+        ) : mounted && (workspaceLayout ? (
           <ScadaWorkspace {...editorProps} defaultLayout={workspaceLayout} defaultDiagram={workspaceDiagram} editorRef={editorRef} />
         ) : (
           <Scada3DEditor {...editorProps} ref={editorRef} />

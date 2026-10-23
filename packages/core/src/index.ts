@@ -48,6 +48,7 @@ export { canonicalUnits, isKnownUnit, toCanonical } from './units.js';
 export { defaultSceneLimits, validateScene } from './validation.js';
 export type { SceneLimits, SceneValidationError, SceneValidationErrorCode, SceneValidationOptions, SceneValidationResult } from './validation.js';
 export { parseScene, serializeScene } from './serialization.js';
+export { sceneDigest, sha256Hex } from './digest.js';
 export type { ParseSceneOptions } from './serialization.js';
 
 // Transforms

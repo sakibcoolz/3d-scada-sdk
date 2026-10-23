@@ -1,5 +1,6 @@
 // Plain Node, no bundler: the core and catalog must load as ES modules and validate a scene.
-import { applyTagSuggestions, parseScene, serializeScene, findOpenJoints, pathBetween, projectAcquisition, relatedComponents, reviewTags, suggestVariables } from '@sakibcoolz/core';
+import { createHash } from 'node:crypto';
+import { applyTagSuggestions, sceneDigest, sha256Hex, parseScene, serializeScene, findOpenJoints, pathBetween, projectAcquisition, relatedComponents, reviewTags, suggestVariables } from '@sakibcoolz/core';
 import { catalogResolvers, controlLibrary, createComponentRegistry, pipeSizes } from '@sakibcoolz/components';
 import { createSimulation } from '@sakibcoolz/simulation';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
@@ -119,6 +120,8 @@ if (drawn.get('com.example.relay').symbols.electrical.drawing.shapes.length !== 
 let refusedScript = false;
 try { createComponentRegistry({ ...relay, electricalSymbol: { svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><script>x</script></svg>', width: 10, height: 10 } }); } catch { refusedScript = true; }
 if (!refusedScript) throw new Error('a symbol with a script must be refused');
+// The runtime's approval digest (ADR-0028): SHA-256 of the canonical form, identical to Node's own.
+if (sceneDigest(libraryLine.scene) !== createHash('sha256').update(serializeScene(libraryLine.scene)).digest('hex') || sha256Hex('abc') !== 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad') throw new Error('scene digest differs from SHA-256');
 // The JSON Schema ships with core and resolves through the package exports (T-069).
 const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
 const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));

@@ -154,6 +154,13 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
 
+## Locked runtime (T-090, ADR-0028)
+- **`<ScadaRuntime scene expected? registry? telemetry? layout?/defaultLayout?/onLayoutChange? selectedIds?/onSelectionChange? onRefused? style? />`** shows an approved document, view only: 3D, process, electrical or split, with an information panel (live values, ports, related).
+  - It has no editing controls and cannot reach the editor's code.
+  - `scene` may be text or parsed JSON. A document that is invalid, or does not match `expected.revision` or `expected.digest`, shows a refusal screen and calls `onRefused(RuntimeRefusal)`.
+- **Core:** `sceneDigest(scene)`, the SHA-256 hex of the canonical serialization, which a host records when it approves a revision; and `sha256Hex(text)`.
+- **Types:** `ScadaRuntimeProps`, `RuntimeLayout`, `ApprovalRecord` and `RuntimeRefusal`.
+
 ## Editor: tags and variables (T-089, ADR-0027)
 - **"Tags…"** opens a dialog for the scene's data sources and read-only runtime variables:
   - protocol address forms (Modbus, OPC UA, host, or JSON for host protocols) and linear scaling;

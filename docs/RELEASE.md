@@ -42,6 +42,7 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, locked runtime (T-090, ADR-0028):** new `ScadaRuntime` and core `sceneDigest`/`sha256Hex`. The react package's internals moved to `viewer.tsx` and `editor.tsx`; the public exports are unchanged.
 - **0.2.0, workspace (T-086, ADR-0026):** `@sakibcoolz/react` depends on `@sakibcoolz/views-2d` and exports `ScadaWorkspace`. The editor's selection can be controlled, and `ScadaHandle` gains the optional `setViews`.
 - **0.2.0, electrical view and host symbols (T-085, ADR-0026):** `@sakibcoolz/components` depends on `@sakibcoolz/asset-import`. Definitions may carry `symbol2D` and `electricalSymbol`; an unsafe SVG fails registration.
 - **0.2.0, new package `@sakibcoolz/views-2d` (T-084, ADR-0026):** publish it with the others, at the same version. Definitions may set `views`.
