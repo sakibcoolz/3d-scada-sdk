@@ -37,7 +37,11 @@ If requirements imply real actuator commands, emergency switching, disabling ala
 - **Pinned documents:** it shows a document only when it is valid and matches the host's approval record: the exact `project.revision`, and `sceneDigest` (SHA-256 of the canonical serialization, FIPS 180-4, implemented in core and tested against the standard vectors and Node's own SHA-256).
 - **Integrity, not authenticity:** the digest proves the runtime shows exactly the approved document, not who approved it. Signing approval records, access control and roles remain the host's.
 - **Not a security boundary:** a browser user can still change what the host sends. The guarantee is that the SDK itself never changes the document.
-- **Alarms (T-091):** host-supplied and display only. The SDK never evaluates limits, raises, clears or acknowledges an alarm.
+- **Alarms (T-091):** host-supplied and display only. The SDK never evaluates limits, raises, clears or acknowledges an alarm. There is no acknowledge control: that would be a command (Phase 10, D5).
+  - Host alarm data is untrusted: odd entries are skipped, an unrecognised severity is shown as critical, and an alarm that matches no equipment is still listed.
+  - Status colour is never the only cue: alarms have a severity letter badge and text, and unknown values a dashed outline and text.
+  - Unknown always outranks ok, so a simulated value never hides an unknown measured one; simulated values are labelled SIMULATED.
+  - Blinking is limited to unacknowledged alarms, at 1 Hz, and is off under `prefers-reduced-motion`.
 
 ## Transport-independent SDK rule
 The SDK must never require a WebSocket connection, broker, network endpoint, credentials or OPC UA service to initialize, edit or render a scene. Host applications own acquisition and network connections, while the SDK accepts optional validated read-only observations through a snapshot, push call or host-supplied provider. Test offline operation and prevent socket creation from SDK core/render/editor modules.

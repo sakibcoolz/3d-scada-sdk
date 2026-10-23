@@ -5,6 +5,7 @@ import { controlLibrary, createComponentRegistry } from '@sakibcoolz/components'
 import { Scada3DEditor, Scada3DViewer, ScadaRuntime, ScadaWorkspace, type ScadaHandle, type WorkspaceLayout } from '@sakibcoolz/react';
 import { demoScene, demoTagRows, generatedScene } from './demo';
 import { useDemoFeed } from './DemoFeed';
+import { useDemoAlarms } from './DemoAlarms';
 import { useSimulation } from './SimulationPanel';
 import { exampleTypes } from './customTypes';
 import { controlScene, controlTagRows } from './controlDemo';
@@ -20,7 +21,8 @@ const simulate = params.has('simulate');
 const registry = createComponentRegistry(...controlLibrary, ...(params.has('custom') ? exampleTypes : []));
 // `?control` opens the PLC → VFD → Motor → pump demo built from the control library.
 // `?runtime` shows the control demo in the locked runtime (ADR-0028), pinned to its approved revision
-// and digest; `?runtime=tampered` passes an altered copy, and `&revision=N` expects another revision.
+// and digest, with demo host alarms; `?runtime=tampered` passes an altered copy, and `&revision=N`
+// expects another revision.
 const runtime = params.has('runtime');
 const control = params.has('control') || runtime;
 const simulateModel = params.get('simulate') === 'hydraulic' ? 'hydraulic' : 'mass-balance';
@@ -70,6 +72,7 @@ function App() {
   const [scene, setScene] = useState<ScadaScene>(start ?? createEmptyScene());
   const { telemetry, panel } = useDemoFeed(scene, generated?.rows ?? (control ? controlTagRows : demo && !simulate ? demoTagRows : {}));
   const simulation = useSimulation(scene, simulate, simulateModel);
+  const demoAlarms = useDemoAlarms();
   const [mounted, setMounted] = useState(true);
   const [second, setSecond] = useState(false);
   const [floor, setFloor] = useState(floorDefault);
@@ -97,6 +100,7 @@ function App() {
         <b>3D SCADA SDK</b> <span style={{ opacity: 0.6 }}> / R&D Playground</span>
       </header>
       {demo && !generated && !simulate && panel}
+      {runtimeDemo && demoAlarms.panel}
       {simulation.panel}
       <div style={{ display: 'flex', gap: 14, padding: '4px 20px', background: '#0f1d2c', color: '#ebf2fa', fontFamily: 'system-ui', fontSize: 12 }}>
         <label><input type="checkbox" aria-label="Mount editor" checked={mounted} onChange={(e) => setMounted(e.target.checked)} /> Mount editor</label>
@@ -105,7 +109,7 @@ function App() {
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         {mounted && runtimeDemo ? (
-          <ScadaRuntime scene={runtimeDemo.text} expected={runtimeDemo.expected} registry={registry} telemetry={editorProps.telemetry} defaultLayout={workspaceLayout ?? '3d'} />
+          <ScadaRuntime scene={runtimeDemo.text} expected={runtimeDemo.expected} registry={registry} telemetry={editorProps.telemetry} alarms={demoAlarms.alarms} defaultLayout={workspaceLayout ?? '3d'} />
         ) : mounted && (workspaceLayout ? (
           <ScadaWorkspace {...editorProps} defaultLayout={workspaceLayout} defaultDiagram={workspaceDiagram} editorRef={editorRef} />
         ) : (

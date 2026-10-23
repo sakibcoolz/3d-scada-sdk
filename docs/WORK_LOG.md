@@ -2053,3 +2053,31 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm verify:consumer` 0.
   - `pnpm test:consumer` 0 (1 test).
   - GitHub Actions CI not awaited.
+
+## 2026-10-23 — T-091: alarm and quality status per component (Phase 9b, ADR-0028)
+- Owner merged #92 (T-090). Branch `feat/T-091-alarm-status` from `origin/develop`. No new ADR: ADR-0028 §3–4 covers this task.
+- Change:
+  - **core:** `status.ts` (`componentStatus`, `alarmSeverities`, `AlarmState` and status types). Alarms resolve by component, or by tag through property bindings, flow bindings and variables; unresolved active alarms are kept as `unlinked`.
+  - **views-2d:** an optional `status` prop: status-coloured outlines, "!"+severity badges (filled while unacknowledged), a dashed outline for unknown, and status words in the accessible name. Also `statusColors` and `describeStatus`, the one colour table.
+  - **react:**
+    - `Scada3DViewer` takes an optional `status`: rings above the bounds (`statusMarkers.tsx`) that blink only for unacknowledged alarms and never under reduced motion;
+    - `ScadaRuntime` takes `alarms`. It resolves telemetry once and shares one status with every view. The panel gains the Attention list, unlinked alarms, the selected component's active alarms and SIMULATED labels, plus a status summary overlay;
+    - text helpers are in `statusText.ts`.
+  - **playground:** a "Demo alarms (host side)" panel on `?runtime`.
+  - **consumer:** `node-check` resolves alarms with the packed core.
+- Found in testing:
+  - my first e2e expected "Nothing needs attention" after the tank's alarm was cleared and the tag became good. The unlinked demo alarm was still active, so the list correctly stayed non-empty. The test now clears it first.
+- Tests:
+  - `status.test.ts` (7);
+  - views-2d `status.test.ts` (1);
+  - react `statusText.test.ts` (3);
+  - e2e `runtime-status.spec.ts` (4).
+- Verification (exit codes):
+  - `pnpm typecheck` 0.
+  - `pnpm test` 0 (1634 tests).
+  - `pnpm build` 0.
+  - `pnpm test:e2e` 0 (164 tests).
+  - `pnpm verify:consumer` 0.
+  - `pnpm test:consumer` 0 (1 test).
+  - Screenshot of `?runtime&layout=split` checked by eye.
+  - GitHub Actions CI not awaited.

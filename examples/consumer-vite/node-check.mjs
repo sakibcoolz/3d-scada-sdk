@@ -1,6 +1,6 @@
 // Plain Node, no bundler: the core and catalog must load as ES modules and validate a scene.
 import { createHash } from 'node:crypto';
-import { applyTagSuggestions, sceneDigest, sha256Hex, parseScene, serializeScene, findOpenJoints, pathBetween, projectAcquisition, relatedComponents, reviewTags, suggestVariables } from '@sakibcoolz/core';
+import { applyTagSuggestions, componentStatus, sceneDigest, sha256Hex, parseScene, serializeScene, findOpenJoints, pathBetween, projectAcquisition, relatedComponents, reviewTags, suggestVariables } from '@sakibcoolz/core';
 import { catalogResolvers, controlLibrary, createComponentRegistry, pipeSizes } from '@sakibcoolz/components';
 import { createSimulation } from '@sakibcoolz/simulation';
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
@@ -122,8 +122,11 @@ try { createComponentRegistry({ ...relay, electricalSymbol: { svg: '<svg xmlns="
 if (!refusedScript) throw new Error('a symbol with a script must be refused');
 // The runtime's approval digest (ADR-0028): SHA-256 of the canonical form, identical to Node's own.
 if (sceneDigest(libraryLine.scene) !== createHash('sha256').update(serializeScene(libraryLine.scene)).digest('hex') || sha256Hex('abc') !== 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad') throw new Error('scene digest differs from SHA-256');
+// Host alarms resolve to equipment for display (ADR-0028 §3–4); an unknown component is still listed.
+const status = componentStatus(libraryLine.scene, undefined, [{ id: 'a', componentId: 'VFD-101', severity: 'high', message: 'Drive fault', active: true }, { id: 'b', componentId: 'XV-9', severity: 'low', message: 'Spare', active: true }]);
+if (status.byComponent.get('VFD-101').severity !== 'high' || status.attention[0].componentId !== 'VFD-101' || status.unlinked.length !== 1) throw new Error('unexpected component status');
 // The JSON Schema ships with core and resolves through the package exports (T-069).
 const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
 const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));
 if (schema.properties?.documentType?.const !== 'industrial.scene') throw new Error('scene JSON Schema missing from the package');
-console.log(`node-check ok: control chain ${chain.join(' → ')}, SVG sanitizer ok, ${Object.keys(pipeSizes).length} sizes, ${serializeScene(result.scene).length} bytes of canonical JSON, simulated level ${simulated.levels.t.toFixed(1)} % (mass-balance) / ${hydraulic.levels.t.toFixed(1)} % (hydraulic) after 30 s`);
+console.log(`node-check ok: control chain ${chain.join(' → ')}, SVG sanitizer ok, alarm status ok, ${Object.keys(pipeSizes).length} sizes, ${serializeScene(result.scene).length} bytes of canonical JSON, simulated level ${simulated.levels.t.toFixed(1)} % (mass-balance) / ${hydraulic.levels.t.toFixed(1)} % (hydraulic) after 30 s`);
