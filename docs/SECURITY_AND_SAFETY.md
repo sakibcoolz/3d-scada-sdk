@@ -61,6 +61,12 @@ If requirements imply real actuator commands, emergency switching, disabling ala
   - Unknown always outranks ok, so a simulated value never hides an unknown measured one; simulated values are labelled SIMULATED.
   - Blinking is limited to unacknowledged alarms, at 1 Hz, and is off under `prefers-reduced-motion`.
 
+## Scale limits (T-095, owner-approved 2026-10-23)
+- **Parse cap 32 MB:** the default `parseScene` `maxLength` and the editor's `MAX_SCENE_FILE_BYTES`, raised from 10 MB.
+  - Why: a document at every default count limit is about 16 MB and failed to load again.
+  - A 16 MB document parses and validates in about 130 ms. Hosts may pass a lower `maxLength`.
+- **Variable addresses:** each address has its own budget of 64 JSON values, separate from the document-wide 10,000-value extension budget. The total is therefore bounded by `maxVariables` × 64.
+
 ## Transport-independent SDK rule
 The SDK must never require a WebSocket connection, broker, network endpoint, credentials or OPC UA service to initialize, edit or render a scene. Host applications own acquisition and network connections, while the SDK accepts optional validated read-only observations through a snapshot, push call or host-supplied provider. Test offline operation and prevent socket creation from SDK core/render/editor modules.
 

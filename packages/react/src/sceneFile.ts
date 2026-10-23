@@ -3,7 +3,7 @@ import { builtInRegistry, legacyCatalogResolvers, type ComponentRegistry } from 
 import { sanitizeSvg } from '@sakibcoolz/asset-import';
 
 /** Largest scene file the editor will read (bytes for files, characters for pasted text). */
-export const MAX_SCENE_FILE_BYTES = 10_000_000;
+export const MAX_SCENE_FILE_BYTES = 32_000_000;
 const MAX_LISTED_ERRORS = 20;
 
 

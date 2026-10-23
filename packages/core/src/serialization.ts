@@ -2,7 +2,7 @@ import { SCENE_DOCUMENT_TYPE, viewKinds, type JsonValue, type ScadaScene, type S
 import { validateScene, type SceneValidationOptions, type SceneValidationResult } from './validation.js';
 
 export interface ParseSceneOptions extends SceneValidationOptions {
-  /** Largest accepted text length in characters, checked before parsing. Default 10,000,000. */
+  /** Largest accepted text length in characters, checked before parsing. Default 32,000,000: a document at every default count limit is about 16 MB (T-095). */
   maxLength?: number;
 }
 
@@ -169,7 +169,7 @@ export function serializeScene(scene: ScadaScene): string {
 
 /** Parses scene JSON text: size check, JSON parse, then `validateScene` (which migrates versions 1–3). */
 export function parseScene(text: string, options: ParseSceneOptions): SceneValidationResult {
-  const maxLength = options.maxLength ?? 10_000_000;
+  const maxLength = options.maxLength ?? 32_000_000;
   if (text.length > maxLength) {
     return { ok: false, errors: [{ code: 'LIMIT_EXCEEDED', path: '', message: `Scene text is longer than ${maxLength} characters.` }] };
   }

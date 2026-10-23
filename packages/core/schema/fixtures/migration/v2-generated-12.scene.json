@@ -1,0 +1,473 @@
+{
+  "schemaVersion": 2,
+  "units": "m",
+  "components": [
+    {
+      "id": "v0",
+      "type": "valve",
+      "position": [
+        0,
+        0.2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v1",
+      "type": "valve",
+      "position": [
+        3,
+        1.7,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v2",
+      "type": "valve",
+      "position": [
+        6,
+        0.2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v3",
+      "type": "valve",
+      "position": [
+        9,
+        1.7,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v4",
+      "type": "valve",
+      "position": [
+        12,
+        0.2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v5",
+      "type": "valve",
+      "position": [
+        15,
+        1.7,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v6",
+      "type": "valve",
+      "position": [
+        18,
+        0.2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v7",
+      "type": "valve",
+      "position": [
+        21,
+        1.7,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v8",
+      "type": "valve",
+      "position": [
+        24,
+        0.2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v9",
+      "type": "valve",
+      "position": [
+        27,
+        1.7,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v10",
+      "type": "valve",
+      "position": [
+        30,
+        0.2,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    },
+    {
+      "id": "v11",
+      "type": "valve",
+      "position": [
+        33,
+        1.7,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "properties": {
+        "open": true
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "e1",
+      "from": {
+        "instanceId": "v0",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v1",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "e2",
+      "from": {
+        "instanceId": "v1",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v2",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "e3",
+      "from": {
+        "instanceId": "v2",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v3",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "e4",
+      "from": {
+        "instanceId": "v3",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v4",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "e5",
+      "from": {
+        "instanceId": "v4",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v5",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "e6",
+      "from": {
+        "instanceId": "v5",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v6",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "e7",
+      "from": {
+        "instanceId": "v6",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v7",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "e8",
+      "from": {
+        "instanceId": "v7",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v8",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "e9",
+      "from": {
+        "instanceId": "v8",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v9",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "e10",
+      "from": {
+        "instanceId": "v9",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v10",
+        "portId": "in"
+      }
+    },
+    {
+      "id": "e11",
+      "from": {
+        "instanceId": "v10",
+        "portId": "out"
+      },
+      "to": {
+        "instanceId": "v11",
+        "portId": "in"
+      }
+    }
+  ],
+  "tagBindings": [
+    {
+      "id": "b-e1",
+      "tagId": "FT-e1",
+      "kind": "flow",
+      "connectionId": "e1"
+    },
+    {
+      "id": "b-e2",
+      "tagId": "FT-e2",
+      "kind": "flow",
+      "connectionId": "e2"
+    },
+    {
+      "id": "b-e3",
+      "tagId": "FT-e3",
+      "kind": "flow",
+      "connectionId": "e3"
+    },
+    {
+      "id": "b-e4",
+      "tagId": "FT-e4",
+      "kind": "flow",
+      "connectionId": "e4"
+    },
+    {
+      "id": "b-e5",
+      "tagId": "FT-e5",
+      "kind": "flow",
+      "connectionId": "e5"
+    },
+    {
+      "id": "b-e6",
+      "tagId": "FT-e6",
+      "kind": "flow",
+      "connectionId": "e6"
+    },
+    {
+      "id": "b-e7",
+      "tagId": "FT-e7",
+      "kind": "flow",
+      "connectionId": "e7"
+    },
+    {
+      "id": "b-e8",
+      "tagId": "FT-e8",
+      "kind": "flow",
+      "connectionId": "e8"
+    },
+    {
+      "id": "b-e9",
+      "tagId": "FT-e9",
+      "kind": "flow",
+      "connectionId": "e9"
+    },
+    {
+      "id": "b-e10",
+      "tagId": "FT-e10",
+      "kind": "flow",
+      "connectionId": "e10"
+    },
+    {
+      "id": "b-e11",
+      "tagId": "FT-e11",
+      "kind": "flow",
+      "connectionId": "e11"
+    }
+  ]
+}

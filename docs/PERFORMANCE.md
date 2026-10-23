@@ -124,3 +124,50 @@ Time from clicking "Process" in the workspace (`?generate=N&layout=3d`) until ev
 
 - **Budget:** 500 ms for 1,000 components, asserted by `e2e/workspace.spec.ts`.
 - **At 5,000:** usable, with no virtualisation. Pan and zoom re-render every symbol; that is not measured yet.
+
+## Scale at the validator limits (T-095, 2026-10-23)
+**Scene "limits-10000"** (`packages/core/src/fixtures/scale.ts`): 10,000 valves in a line, each joined to the next by a pipe run and a signal wire. Each valve has a flow variable (Modbus holding register, bound to the outgoing run) and an open/closed variable (coil, bound to the valve). That gives:
+- 19,998 connections;
+- 20,000 variables on 10 data sources;
+- 19,999 bindings;
+- 1,000 active alarms for `componentStatus`.
+
+Saved, it is **16.0 MB**.
+
+### Core (`pnpm bench`, `scale.bench.ts`; mean ms per call, same machine as the baseline)
+| Operation | limits-10000 | Coarse budget (`scale.test.ts`) |
+|---|---:|---:|
+| validateScene | 83 | 800 |
+| parseScene (parse + validate, 16 MB) | 127 | 1,500 |
+| serializeScene | 47 | 600 |
+| sceneDigest | 394 | 3,000 |
+| projectAcquisition | 11 | 150 |
+| resolveTelemetry | 11 | 150 |
+| resolveVariableValues | 9 | 150 |
+| componentStatus (1,000 alarms) | 24 | 300 |
+| connectedGroups | 3 | 100 |
+| routeScene | 463 | 4,000 |
+
+- **Budgets** are best-of-3 times asserted in the normal `pnpm test`. At about 10× the measured time, they catch only order-of-magnitude regressions on slower CI machines.
+- **The runtime's load** at the limits is about half a second: parse plus validate (127 ms) and `sceneDigest` (394 ms).
+- **The editor** re-routes on every scene change (`routeScene`, 463 ms). At the limits, editing is therefore noticeably slow, but viewing is not, since the runtime routes once.
+
+### Found and fixed
+- **The saved document did not load:** at 16 MB it was over the 10 MB parse cap, which binds from about 6,200 components in this scene. With owner approval, the cap is now 32 MB, in both `parseScene` and the editor's `MAX_SCENE_FILE_BYTES`. `scale.test.ts` checks save and load at the limits, and fails at 10 MB.
+- **Sourced variables were capped at about 2,500:** each variable's address used the document-wide extension budget (10,000 values). With owner approval, each address now has its own 64-value budget, so `maxVariables` bounds the total.
+
+### Browser (`pnpm perf`, SwiftShader, 3 s sample after 1.5 s warm-up)
+| Scene | Frames | Median | p95 | JS heap | Load |
+|---|---:|---:|---:|---:|---:|
+| demo | 181 | 16.7 ms | 16.8 ms | 15.4 MB | 860 ms |
+| chain-200 | 21 | 150 ms | 167 ms | 29.8 MB | 1,704 ms |
+| chain-1000 | 9 | 417 ms | 433 ms | 77.6 MB | 3,741 ms |
+| runtime chain-1000 (`?runtime&generate=1000`) | 9 | 417 ms | 433 ms | 82.4 MB | 220 ms |
+| runtime chain-5000 (`?runtime&generate=5000`, the playground's cap) | 3 | 1,750 ms | 1,750 ms | 368 MB | 667 ms |
+
+- **Frame cost:** the runtime adds none over the editor at 1,000 valves.
+- **The load column is not comparable across rows:**
+  - for the editor rows, it waits until the canvas fills `<main>`, plus 200 ms;
+  - for the runtime rows, it waits only until the canvas is visible.
+- **The chain scenes are slower than the 2026-10-15 baseline**, because more triangles are drawn per valve (chain-200: 856k against 407k, from ASME fittings and joint hardware).
+- **This is CPU rasterization.** On hardware GPUs, see the T-029 and T-046 sections. The browser at 10,000 components was not run here: the playground caps `generate` at 5,000.
