@@ -6,6 +6,7 @@ import { Scada3DEditor, Scada3DViewer, ScadaRuntime, ScadaWorkspace, type ScadaH
 import { demoScene, demoTagRows, generatedScene } from './demo';
 import { useDemoFeed } from './DemoFeed';
 import { useDemoAlarms } from './DemoAlarms';
+import { useDemoCommands } from './DemoCommands';
 import { useSimulation } from './SimulationPanel';
 import { exampleTypes } from './customTypes';
 import { controlScene, controlTagRows } from './controlDemo';
@@ -21,7 +22,7 @@ const simulate = params.has('simulate');
 const registry = createComponentRegistry(...controlLibrary, ...(params.has('custom') ? exampleTypes : []));
 // `?control` opens the PLC → VFD → Motor → pump demo built from the control library.
 // `?runtime` shows the control demo in the locked runtime (ADR-0028), pinned to its approved revision
-// and digest, with demo host alarms; `?runtime=tampered` passes an altered copy, and `&revision=N`
+// and digest, with demo host alarms and a host-side log of command requests; `?runtime=tampered` passes an altered copy, and `&revision=N`
 // expects another revision.
 const runtime = params.has('runtime');
 const control = params.has('control') || runtime;
@@ -59,10 +60,11 @@ function initialScene(): ScadaScene | undefined {
 const start = initialScene();
 
 /** The runtime demo's approval record and document, computed once like a host's approval step. */
-function runtimeDocument(): { text: string; expected: { revision: string; digest: string } } | undefined {
+function runtimeDocument(): { text: string; expected: { revision: string; digest?: string } } | undefined {
   if (!runtime || !start) return undefined;
   const approved: ScadaScene = { ...start, project: { name: 'Demo line', revision: '1' } };
-  const expected = { revision: params.get('revision') ?? '1', digest: sceneDigest(approved) };
+  // `&pin=revision` approves by revision only, without a digest: the runtime then offers no commands.
+  const expected = { revision: params.get('revision') ?? '1', ...(params.get('pin') === 'revision' ? {} : { digest: sceneDigest(approved) }) };
   const shown = params.get('runtime') === 'tampered' ? { ...approved, components: approved.components.map((c, i) => (i === 0 ? { ...c, position: { ...c.position, x: c.position.x + 1 } } : c)) } : approved;
   return { text: serializeScene(shown), expected };
 }
@@ -73,6 +75,7 @@ function App() {
   const { telemetry, panel } = useDemoFeed(scene, generated?.rows ?? (control ? controlTagRows : demo && !simulate ? demoTagRows : {}));
   const simulation = useSimulation(scene, simulate, simulateModel);
   const demoAlarms = useDemoAlarms();
+  const demoCommands = useDemoCommands();
   const [mounted, setMounted] = useState(true);
   const [second, setSecond] = useState(false);
   const [floor, setFloor] = useState(floorDefault);
@@ -101,6 +104,7 @@ function App() {
       </header>
       {demo && !generated && !simulate && panel}
       {runtimeDemo && demoAlarms.panel}
+      {runtimeDemo && demoCommands.panel}
       {simulation.panel}
       <div style={{ display: 'flex', gap: 14, padding: '4px 20px', background: '#0f1d2c', color: '#ebf2fa', fontFamily: 'system-ui', fontSize: 12 }}>
         <label><input type="checkbox" aria-label="Mount editor" checked={mounted} onChange={(e) => setMounted(e.target.checked)} /> Mount editor</label>
@@ -109,7 +113,7 @@ function App() {
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         {mounted && runtimeDemo ? (
-          <ScadaRuntime scene={runtimeDemo.text} expected={runtimeDemo.expected} registry={registry} telemetry={editorProps.telemetry} alarms={demoAlarms.alarms} defaultLayout={workspaceLayout ?? '3d'} />
+          <ScadaRuntime scene={runtimeDemo.text} expected={runtimeDemo.expected} registry={registry} telemetry={editorProps.telemetry} alarms={demoAlarms.alarms} onCommandRequest={params.get('commands') === 'off' ? undefined : demoCommands.onCommandRequest} commandStatus={demoCommands.commandStatus} defaultLayout={workspaceLayout ?? '3d'} />
         ) : mounted && (workspaceLayout ? (
           <ScadaWorkspace {...editorProps} defaultLayout={workspaceLayout} defaultDiagram={workspaceDiagram} editorRef={editorRef} />
         ) : (

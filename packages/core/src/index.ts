@@ -4,6 +4,7 @@
 // Scene model and units
 export { SCENE_DOCUMENT_TYPE, SCENE_SCHEMA_VERSION, componentKinds, createEmptyScene, isBuiltInKind, isNamespacedType, isRelationship, relationshipKinds, dataTypes, modbusAreas, protocols, checkPorts, matesPhysically, portCapacity, portKinds, portsCompatible, powerKinds, signalTypes, viewKinds } from './scene.js';
 export type {
+  CommandLimits,
   ComponentDefinition,
   VariableTemplate,
   ComponentInstance,
@@ -102,7 +103,7 @@ export type { CollisionOptions, CollisionPair, CollisionResult } from './collisi
 export { resolveFlow } from './flow.js';
 export type { FlowDirection, FlowOptions, FlowReading, FlowResolution, FlowState, FlowUnknownReason, Quality, ValueSource } from './flow.js';
 export type { FreshnessOptions } from './observation.js';
-export { displayScene, resolveTelemetry, valueFitsDataType } from './telemetry.js';
-export type { Observation, PropertyState, TelemetryOptions, TelemetryResolution, TelemetryUnknownReason } from './telemetry.js';
+export { displayScene, resolveTelemetry, resolveVariableValues, valueFitsDataType } from './telemetry.js';
+export type { Observation, PropertyState, VariableState, TelemetryOptions, TelemetryResolution, TelemetryUnknownReason } from './telemetry.js';
 export { connectProvider, createObservationStore } from './dataInput.js';
 export type { DataProvider, ObservationStore } from './dataInput.js';

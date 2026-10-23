@@ -41,6 +41,12 @@ export interface VariableForm {
   rawMax: string;
   min: string;
   max: string;
+  /** 'readWrite' allows confirmed command requests to the host (ADR-0029). */
+  access: 'read' | 'readWrite';
+  commandMin: string;
+  commandMax: string;
+  commandStep: string;
+  commandConfirm: string;
 }
 
 export type AddressKind = 'modbus' | 'opcua' | 'none' | 'json';
@@ -58,6 +64,7 @@ export const emptyVariable = (): VariableForm => ({
   id: '', name: '', componentId: '', dataType: 'float32', unit: '', dataSourceId: '', variable: '',
   area: 'holding', address: '', unitId: '1', byteOrder: '', wordOrder: '', bit: '', nodeId: '', namespaceUri: '', rawAddress: '',
   scaling: false, rawMin: '', rawMax: '', min: '', max: '',
+  access: 'read', commandMin: '', commandMax: '', commandStep: '', commandConfirm: '',
 });
 
 export function dataSourceForm(s: SceneDataSource): DataSourceForm {
@@ -103,6 +110,11 @@ export function variableForm(v: RuntimeVariable): VariableForm {
     rawMax: text(v.scaling?.rawMax),
     min: text(v.scaling?.min),
     max: text(v.scaling?.max),
+    access: v.access,
+    commandMin: text(v.command?.min),
+    commandMax: text(v.command?.max),
+    commandStep: text(v.command?.step),
+    commandConfirm: v.command?.confirm ?? '',
   };
 }
 
@@ -110,7 +122,7 @@ export function variableForm(v: RuntimeVariable): VariableForm {
 const num = (s: string): number | string | undefined => (s.trim() === '' ? undefined : Number.isFinite(Number(s)) ? Number(s) : s);
 
 /**
- * The read-only variable a form describes, given its data source's protocol. The address takes the
+ * The variable a form describes (read-only, or writable with command limits), given its data source's protocol. The address takes the
  * protocol's form; empty optional fields are left out. A raw JSON address that does not parse is an
  * error on `rawAddress`.
  */
@@ -137,9 +149,19 @@ export function toVariable(form: VariableForm, protocol: string | undefined): { 
     ...(form.componentId ? { componentId: form.componentId } : {}),
     dataType: form.dataType,
     ...(form.unit.trim() ? { unit: form.unit.trim() } : {}),
-    access: 'read' as const,
+    access: form.access,
     ...(form.dataSourceId ? { source: { dataSourceId: form.dataSourceId, ...(form.variable.trim() ? { variable: form.variable.trim() } : {}), ...(address ? { address } : {}) } } : {}),
     ...(form.scaling ? { scaling: { kind: 'linear', rawMin: num(form.rawMin), rawMax: num(form.rawMax), min: num(form.min), max: num(form.max) } } : {}),
+    ...(form.access === 'readWrite'
+      ? {
+          command: {
+            ...(form.commandMin.trim() ? { min: num(form.commandMin) } : {}),
+            ...(form.commandMax.trim() ? { max: num(form.commandMax) } : {}),
+            ...(form.commandStep.trim() ? { step: num(form.commandStep) } : {}),
+            ...(form.commandConfirm.trim() ? { confirm: form.commandConfirm.trim() } : {}),
+          },
+        }
+      : {}),
   };
   return { variable: variable as RuntimeVariable };
 }
@@ -156,6 +178,9 @@ export function errorField(error: SceneValidationError, prefix: string): string 
   if (rest === 'source.address') return 'address';
   if (rest === 'source.dataSourceId') return 'dataSourceId';
   if (rest === 'source') return 'dataSourceId';
+  // Command limits have their own fields, apart from the scaling's min and max.
+  if (rest === 'command') return 'access';
+  if (rest.startsWith('command.')) return `command${last[0].toUpperCase()}${last.slice(1)}`;
   return last;
 }
 

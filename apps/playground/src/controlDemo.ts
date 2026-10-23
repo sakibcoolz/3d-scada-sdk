@@ -78,6 +78,9 @@ export const controlScene: ScadaScene = {
     { id: 'FT-101', dataType: 'float32', access: 'read', source: { dataSourceId: 'demo-feed' } },
     { id: 'VFD-101.ACTUAL_SPEED', componentId: 'VFD-101', dataType: 'float32', unit: 'rpm', access: 'read', source: { dataSourceId: 'demo-feed' } },
     { id: 'VFD-101.RUNNING', componentId: 'VFD-101', dataType: 'bool', access: 'read', source: { dataSourceId: 'demo-feed' } },
+    // Writable (ADR-0029): `?runtime` can send confirmed requests for these to the host side.
+    { id: 'VFD-101.SPEED_SP', name: 'Speed setpoint', componentId: 'VFD-101', dataType: 'float32', unit: 'rpm', access: 'readWrite', source: { dataSourceId: 'demo-feed' }, command: { min: 0, max: 1500, step: 10, confirm: 'The drive ramps to the new speed, and the pump flow follows.' } },
+    { id: 'VFD-101.RUN_CMD', name: 'Run command', componentId: 'VFD-101', dataType: 'bool', access: 'readWrite', source: { dataSourceId: 'demo-feed' }, command: { confirm: 'The PLC blocks a start while the tank is below its low level.' } },
   ],
   tagBindings: [
     { id: 'b-level', tagId: 'LT-101.PV', kind: 'property', instanceId: 'TK-101', property: 'level' },
@@ -91,4 +94,6 @@ export const controlTagRows: Record<string, TagRow> = {
   'LT-101.PV': { value: '55', quality: 'GOOD' },
   'TT-101': { value: '24', quality: 'DISCONNECTED' },
   'FT-101': { value: '1.5', quality: 'GOOD' },
+  'VFD-101.SPEED_SP': { value: '1200', quality: 'GOOD' },
+  'VFD-101.RUN_CMD': { value: 'true', quality: 'GOOD' },
 };

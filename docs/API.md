@@ -23,7 +23,7 @@ All geometry is right-handed, Y-up, metres. Scene components use named vectors (
 | Open joints | `findOpenJoints`, `seatOnConnection` | `JointOptions`, `OpenJoint`, `SeatResult` |
 | Collisions | `findCollisions` | `CollisionOptions`, `CollisionPair`, `CollisionResult` |
 | Flow | `resolveFlow` | `FlowReading`, `FlowState`, `FlowDirection`, `FlowUnknownReason`, `FlowOptions`, `FlowResolution`, `Quality`, `ValueSource` |
-| Telemetry | `resolveTelemetry`, `displayScene`, `valueFitsDataType` | `Observation`, `PropertyState`, `TelemetryOptions`, `TelemetryResolution`, `TelemetryUnknownReason`, `FreshnessOptions` |
+| Telemetry | `resolveTelemetry`, `resolveVariableValues`, `displayScene`, `valueFitsDataType` | `Observation`, `PropertyState`, `TelemetryOptions`, `TelemetryResolution`, `TelemetryUnknownReason`, `FreshnessOptions` |
 | Host data input | `createObservationStore`, `connectProvider` | `DataProvider`, `ObservationStore` |
 
 Pure functions take the current time (`now`) and the catalog lookups (`resolvePorts`, `resolveBindable`) as parameters; core has no dependency on React, Three.js, the DOM or the component catalog.
@@ -153,6 +153,18 @@ Without `flow` and `telemetry` no live data is shown. Live values never change t
   Missing details never fail a check. `portsCompatible` is `checkPorts(...).ok`.
 - **Capacity and mating:** `portCapacity(port)` gives the connection limit. `matesPhysically(port)` says whether snapping, touching and attach use it: fluid and mechanical ports do; power, signal and network ports are wired instead.
 - **Safety:** these are engineering-aid checks on the model you describe. They never verify physical wiring, protective earth or functional safety.
+
+## Command requests (T-093, ADR-0029)
+- **Writable variables:** `access: 'readWrite'` with `command: { min?, max?, step?, confirm? }` (`CommandLimits`).
+  - Numeric types need `min < max` within their type; `bool` takes neither; `string` cannot be writable.
+  - A writable variable needs a `source`. `projectAcquisition` carries the limits, and the gateway must enforce them.
+- **`<ScadaRuntime onCommandRequest? commandStatus?>`:** offered only with `expected.digest`. The selected component's writable variables show their current value and a "Request change…" button.
+  - **Flow:** a form, then a confirmation, then one call to `onCommandRequest(CommandRequest)` with `{ requestId, tagId, componentId?, dataType, value, unit?, current?, sceneRevision, sceneDigest, requestedAt }`.
+  - **Refused** while the reading is unknown or telemetry is simulated.
+  - **No optimistic display:** the shown value changes only when telemetry does.
+  - **`commandStatus`** (by `requestId`: `pending`, `accepted`, `rejected`, `completed` or `failed`, plus `message`) is shown as given.
+- **Core:** `resolveVariableValues(scene, observations, options)` gives `Map<tagId, VariableState>`.
+- **Types:** `CommandLimits` and `VariableState` (core); `CommandRequest`, `CommandState` and `CommandStatus` (react).
 
 ## Typed telemetry and projection fixtures (T-092, ADR-0029)
 - **`Observation.dataType?`:** the type as the gateway read it. If it differs from the tag's runtime variable, the value is unknown with the new reason `TYPE_MISMATCH`.

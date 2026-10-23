@@ -125,8 +125,12 @@ if (sceneDigest(libraryLine.scene) !== createHash('sha256').update(serializeScen
 // Host alarms resolve to equipment for display (ADR-0028 §3–4); an unknown component is still listed.
 const status = componentStatus(libraryLine.scene, undefined, [{ id: 'a', componentId: 'VFD-101', severity: 'high', message: 'Drive fault', active: true }, { id: 'b', componentId: 'XV-9', severity: 'low', message: 'Spare', active: true }]);
 if (status.byComponent.get('VFD-101').severity !== 'high' || status.attention[0].componentId !== 'VFD-101' || status.unlinked.length !== 1) throw new Error('unexpected component status');
+// Writable variables (ADR-0029): bounded limits are required and reach the gateway's plan; the SDK never writes.
+const writable = (command) => ({ ...pumpLine, dataSources: [{ id: 'gw', protocol: 'host' }], runtimeVariables: [{ id: 'SP', componentId: 'VFD-101', dataType: 'float32', access: 'readWrite', source: { dataSourceId: 'gw' }, command }] });
+const bounded = parseScene(JSON.stringify(writable({ min: 0, max: 1500 })), library.resolvers);
+if (!bounded.ok || projectAcquisition(bounded.scene).variables[0].command.max !== 1500 || parseScene(JSON.stringify(writable({ min: 0 })), library.resolvers).ok) throw new Error('unexpected command limits');
 // The JSON Schema ships with core and resolves through the package exports (T-069).
 const schemaFile = fileURLToPath(import.meta.resolve('@sakibcoolz/core/schema/industrial-scene.v4.schema.json'));
 const schema = JSON.parse(readFileSync(schemaFile, 'utf8'));
 if (schema.properties?.documentType?.const !== 'industrial.scene') throw new Error('scene JSON Schema missing from the package');
-console.log(`node-check ok: control chain ${chain.join(' → ')}, SVG sanitizer ok, alarm status ok, ${Object.keys(pipeSizes).length} sizes, ${serializeScene(result.scene).length} bytes of canonical JSON, simulated level ${simulated.levels.t.toFixed(1)} % (mass-balance) / ${hydraulic.levels.t.toFixed(1)} % (hydraulic) after 30 s`);
+console.log(`node-check ok: control chain ${chain.join(' → ')}, SVG sanitizer ok, alarm status ok, command limits ok, ${Object.keys(pipeSizes).length} sizes, ${serializeScene(result.scene).length} bytes of canonical JSON, simulated level ${simulated.levels.t.toFixed(1)} % (mass-balance) / ${hydraulic.levels.t.toFixed(1)} % (hydraulic) after 30 s`);

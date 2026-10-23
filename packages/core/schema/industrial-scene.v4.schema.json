@@ -184,7 +184,7 @@
         "componentId": { "$ref": "#/$defs/id" },
         "dataType": { "enum": ["bool", "int16", "uint16", "int32", "uint32", "float32", "float64", "string"] },
         "unit": { "type": "string", "maxLength": 32 },
-        "access": { "description": "Read-only until an approved command boundary (ADR-0024, D5).", "const": "read" },
+        "access": { "description": "\"readWrite\" allows a confirmed command request to the host (ADR-0029); the SDK never writes.", "enum": ["read", "readWrite"] },
         "source": {
           "type": "object",
           "additionalProperties": false,
@@ -210,8 +210,34 @@
             "min": { "type": "number" },
             "max": { "type": "number" }
           }
+        },
+        "command": {
+          "description": "Limits of a readWrite variable (ADR-0029); the host's gateway must enforce them too. validateScene also checks min < max and that both fit the data type.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min": { "type": "number" },
+            "max": { "type": "number" },
+            "step": { "type": "number", "exclusiveMinimum": 0 },
+            "confirm": { "$ref": "#/$defs/text" }
+          }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["access"], "properties": { "access": { "const": "readWrite" } } },
+          "then": { "required": ["command", "source"], "properties": { "command": true, "source": true, "dataType": { "not": { "const": "string" } } } },
+          "else": { "not": { "required": ["command"], "properties": { "command": true } } }
+        },
+        {
+          "if": { "required": ["access", "dataType"], "properties": { "access": { "const": "readWrite" }, "dataType": { "not": { "const": "bool" } } } },
+          "then": { "properties": { "command": { "type": "object", "required": ["min", "max"], "properties": { "min": true, "max": true } } } }
+        },
+        {
+          "if": { "required": ["dataType"], "properties": { "dataType": { "const": "bool" } } },
+          "then": { "properties": { "command": { "not": { "anyOf": [{ "type": "object", "required": ["min"], "properties": { "min": true } }, { "type": "object", "required": ["max"], "properties": { "max": true } }] } } } }
+        }
+      ]
     },
     "association": {
       "type": "object",

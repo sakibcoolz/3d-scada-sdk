@@ -62,6 +62,7 @@ const publicApi = [
   'removeComponent',
   'resolveFlow',
   'resolveTelemetry',
+  'resolveVariableValues',
   'reviewTags',
   'rotateVector',
   'routeConnection',

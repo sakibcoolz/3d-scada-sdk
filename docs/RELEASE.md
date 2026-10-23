@@ -42,6 +42,7 @@ Licences of everything installed in the consumer app (2026-10-15):
 - Re-check when dependencies change.
 
 ## Migration notes for hosts
+- **0.2.0, command requests (T-093, ADR-0029):** `RuntimeVariable.access` may be `readWrite`, with required `command` limits. Code that assumed `access` is always `read` must handle it. Older 0.1.x readers refuse such documents. `ScadaRuntime` gains `onCommandRequest` and `commandStatus`. Core adds `resolveVariableValues`, and the projection carries `command`. Fixture `invalid/writable-variable` was renamed `writable-without-limits`.
 - **0.2.0, typed telemetry (T-092, ADR-0029):** `Observation` gains an optional `dataType`, and `TelemetryUnknownReason` gains `TYPE_MISMATCH`. An unscaled variable's values must fit its type: a host sending 1.5 for an `int16` tag now sees it as unknown. Code that switches over the reasons exhaustively needs the new case. Core adds `valueFitsDataType`, and the package includes golden projection fixtures.
 - **0.2.0, alarm status (T-091, ADR-0028):** `ScadaRuntime` takes `alarms`. Core adds `componentStatus` and `alarmSeverities`. `Scada3DViewer` and the 2D views take an optional `status`, and views-2d adds `statusColors`/`describeStatus`. All additive.
 - **0.2.0, locked runtime (T-090, ADR-0028):** new `ScadaRuntime` and core `sceneDigest`/`sha256Hex`. The react package's internals moved to `viewer.tsx` and `editor.tsx`; the public exports are unchanged.

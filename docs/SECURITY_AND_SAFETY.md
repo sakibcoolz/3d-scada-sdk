@@ -34,7 +34,18 @@ If requirements imply real actuator commands, emergency switching, disabling ala
 
 ## Host and edge contracts (ADR-0029)
 - **Typed observations:** a value that does not fit its tag's declared data type, or a gateway that reports another type, is shown as unknown (`INVALID_VALUE`, `TYPE_MISMATCH`), never as a value.
-- **Command requests (T-093):** describe-only plus a confirmed host callback. The SDK still has no device write method and holds no credentials (ADR-0003 as amended).
+- **Command requests (T-093):** describe-only plus a confirmed host callback. The SDK still has no device write method, holds no credentials, and opens no connection; a test checks that the command modules contain no network or write call.
+  - **When offered:** only in `ScadaRuntime`, only when the host passes `onCommandRequest`, and only for a digest-pinned document. Each request names the approved revision and digest.
+  - **Limits:**
+    - writable variables must have bounded numeric limits within their data type, or be on/off; text cannot be commanded;
+    - the gateway gets the limits in the projection and must enforce them itself. The SDK's check is a convenience, not the protection.
+  - **Refused** while the variable's reading is unknown (disconnected, stale, bad, missing, mistyped) or telemetry is simulated, and re-checked at the moment of sending.
+  - **Sending:**
+    - every request needs a form and a confirmation. Cancel has focus at confirmation, so a stray Enter sends nothing;
+    - the same variable rests 2 s after a send;
+    - there are no retries, queues or batches, and no keyboard shortcut sends.
+  - **No optimistic display:** the shown value changes only when telemetry reports it.
+  - **The confirmation states** that the host's authorization and the controller's interlocks decide whether anything happens. Authorization, audit and the write itself are the host's.
 
 ## Runtime mode and approved revisions (ADR-0028)
 - **No edit path:** `ScadaRuntime` is built from the viewer and the 2D views only. It cannot reach the editor, the history, the tag editor, keyboard moves or the workspace, which `runtime.test.ts` checks over the import graph.

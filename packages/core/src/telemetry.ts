@@ -1,6 +1,6 @@
 import type { FlowReading, Quality, ValueSource } from './flow.js';
 import { assessObservation, isNewer, type FreshnessOptions } from './observation.js';
-import { dataTypes, type ComponentType, type DataType, type Quantity, type ScadaScene } from './scene.js';
+import { dataTypes, type ComponentType, type DataType, type Quantity, type RuntimeVariable, type ScadaScene } from './scene.js';
 import { isKnownUnit, toCanonical } from './units.js';
 
 /** One value for a host tag. Read-only: the SDK never writes tags (ADR-0003). */
@@ -84,6 +84,46 @@ export function valueFitsDataType(value: unknown, dataType: DataType, scaled = f
   return !!range && Number.isInteger(value) && value >= range[0] && value <= range[1];
 }
 
+/** The declared type wins; a gateway's stated type must match it, and the value must fit (ADR-0029). */
+function typeProblemOf(o: Observation, variable: RuntimeVariable | undefined): 'TYPE_MISMATCH' | 'INVALID_VALUE' | undefined {
+  if (o.dataType !== undefined && (!dataTypes.includes(o.dataType) || (variable && o.dataType !== variable.dataType))) return 'TYPE_MISMATCH';
+  const declared = variable?.dataType ?? o.dataType;
+  return declared && !valueFitsDataType(o.value, declared, !!variable?.scaling) ? 'INVALID_VALUE' : undefined;
+}
+
+/** The current value of one runtime variable, as the host sent it (its own unit; no conversion). */
+export type VariableState =
+  | { tagId: string; status: 'ok'; value: number | boolean | string; quality: Quality; source: ValueSource; sourceTimestamp: string; uncertain: boolean; reason?: undefined }
+  | { tagId: string; status: 'unknown'; reason: TelemetryUnknownReason; quality?: Quality; source?: ValueSource; sourceTimestamp?: string; value?: undefined };
+
+/**
+ * The latest value of every runtime variable, bound or not, with the same trust rules as bindings:
+ * type, quality and freshness (ADR-0029). The runtime shows it beside a writable variable, so an
+ * operator sees the state a request would change. Pure.
+ */
+export function resolveVariableValues(scene: ScadaScene, observations: readonly Observation[], options: FreshnessOptions & { source?: ValueSource }): Map<string, VariableState> {
+  const source = options.source ?? 'MEASURED';
+  const variables = new Map((scene.runtimeVariables ?? []).map((v) => [v.id, v]));
+  const latest = new Map<string, Observation>();
+  for (const o of observations) {
+    if (!variables.has(o.tagId) || (o.source ?? 'MEASURED') !== source) continue;
+    if (isNewer(o, latest.get(o.tagId))) latest.set(o.tagId, o);
+  }
+  const states = new Map<string, VariableState>();
+  for (const [tagId, variable] of variables) {
+    const o = latest.get(tagId);
+    if (!o) {
+      states.set(tagId, { tagId, status: 'unknown', reason: 'NO_READING' });
+      continue;
+    }
+    const problem = typeProblemOf(o, variable) ?? assessObservation(o, options);
+    states.set(tagId, problem
+      ? { tagId, status: 'unknown', reason: problem, quality: o.quality, source, sourceTimestamp: o.sourceTimestamp }
+      : { tagId, status: 'ok', value: o.value, quality: o.quality, source, sourceTimestamp: o.sourceTimestamp, uncertain: o.quality === 'UNCERTAIN' });
+  }
+  return states;
+}
+
 /** Value in the canonical unit, or the reason it cannot be used. */
 function convert(value: Observation['value'], quantity: Quantity | undefined, unit: string | undefined): { value: number | boolean } | { reason: 'INVALID_VALUE' | 'INVALID_UNIT' } {
   if (quantity === 'boolean' || (quantity === undefined && typeof value === 'boolean')) {
@@ -120,13 +160,7 @@ export function resolveTelemetry(scene: ScadaScene, observations: readonly Obser
   // A runtime variable's unit applies when neither the observation nor the binding gives one (ADR-0024).
   const variableUnits = new Map((scene.runtimeVariables ?? []).filter((v) => v.unit !== undefined).map((v) => [v.id, v.unit]));
   const variables = new Map((scene.runtimeVariables ?? []).map((v) => [v.id, v]));
-  /** The declared type wins; a gateway's stated type must match it, and the value must fit (ADR-0029). */
-  const typeProblem = (o: Observation): 'TYPE_MISMATCH' | 'INVALID_VALUE' | undefined => {
-    const variable = variables.get(o.tagId);
-    if (o.dataType !== undefined && (!dataTypes.includes(o.dataType) || (variable && o.dataType !== variable.dataType))) return 'TYPE_MISMATCH';
-    const declared = variable?.dataType ?? o.dataType;
-    return declared && !valueFitsDataType(o.value, declared, !!variable?.scaling) ? 'INVALID_VALUE' : undefined;
-  };
+  const typeProblem = (o: Observation) => typeProblemOf(o, variables.get(o.tagId));
   const properties: PropertyState[] = [];
   const flowReadings: FlowReading[] = [];
   for (const binding of bindings) {

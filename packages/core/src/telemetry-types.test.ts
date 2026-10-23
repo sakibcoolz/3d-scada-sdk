@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEmptyScene, resolveTelemetry, valueFitsDataType, type DataType, type Observation, type RuntimeVariable, type ScadaScene } from './index.js';
+import { createEmptyScene, resolveTelemetry, resolveVariableValues, valueFitsDataType, type DataType, type Observation, type RuntimeVariable, type ScadaScene } from './index.js';
 
 // Normalized telemetry (ADR-0029, T-092): a tag's declared data type is checked against what arrives.
 
@@ -82,5 +82,25 @@ describe('resolveTelemetry with declared data types', () => {
     const [reading] = resolveTelemetry(flowScene, [obs('FT', 2, { dataType: 'int32' })], { now: NOW }).flowReadings;
     expect(reading.rate).toBeNaN();
     expect(resolveTelemetry(flowScene, [obs('FT', 2)], { now: NOW }).flowReadings[0].rate).toBe(2);
+  });
+});
+
+describe('resolveVariableValues', () => {
+  const now = NOW;
+  const at = (ms: number) => new Date(NOW - ms).toISOString();
+  it('gives every variable, bound or not, its newest trusted value or the reason it has none', () => {
+    const states = resolveVariableValues(scene, [obs('RUN', true, { sourceTimestamp: at(5000) }), obs('RUN', false, { sourceTimestamp: at(100) }), obs('COUNT', 1.5), obs('LT', 50, { quality: 'DISCONNECTED' }), obs('NOT-A-VARIABLE', 1)], { now });
+    expect([...states.keys()]).toEqual(['LT', 'COUNT', 'RAW', 'RUN']);
+    expect(states.get('RUN')).toMatchObject({ status: 'ok', value: false, quality: 'GOOD', source: 'MEASURED' });
+    expect(states.get('COUNT')).toMatchObject({ status: 'unknown', reason: 'INVALID_VALUE' });
+    expect(states.get('LT')).toMatchObject({ status: 'unknown', reason: 'DISCONNECTED' });
+    expect(states.get('RAW')).toEqual({ tagId: 'RAW', status: 'unknown', reason: 'NO_READING' });
+  });
+
+  it('ages values into STALE and keeps measured and simulated apart', () => {
+    expect(resolveVariableValues(scene, [obs('RUN', true, { sourceTimestamp: at(20_000) })], { now }).get('RUN')).toMatchObject({ status: 'unknown', reason: 'STALE' });
+    const simulated = [obs('RUN', true, { source: 'SIMULATED' })];
+    expect(resolveVariableValues(scene, simulated, { now }).get('RUN')!.status).toBe('unknown');
+    expect(resolveVariableValues(scene, simulated, { now, source: 'SIMULATED' }).get('RUN')).toMatchObject({ status: 'ok', source: 'SIMULATED' });
   });
 });
