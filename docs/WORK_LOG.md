@@ -2317,3 +2317,17 @@ Record one entry per agent session, with UTC timestamp, task IDs, branch, commit
   - `pnpm test` 0 (1748 tests).
   - GitHub Actions CI not awaited.
   - The Pages workflow itself runs only after merge: NOT RUN.
+
+## 2026-10-23 — T-099: component designer, Phase 0 (ADR-0030 Proposed)
+- Owner request: the "Babylon.js Component Designer Development Plan" (general 3D modelling first, SCADA layer optional). Branch `docs/T-099-component-designer-adr` from `origin/develop`.
+- Audit findings (source):
+  - ADR-0022 host definitions are plain data (`GeometryPart` primitives, ports, bounds, bindable) and render with no new renderer code: a designer can reach the factory editor without glTF.
+  - Blockers for that path: parts are axis-aligned (no rotation), have no appearance per part, nothing moves except built-in roles, and `Quantity` has no rotational speed (`packages/components/src/geometry.ts`, `packages/core/src/scene.ts:221`).
+  - glTF import does not exist (T-020 TODO, hardening in T-028).
+  - ARCHITECTURE.md and ADR-0001 name Three.js as the renderer; Babylon.js would be a new major dependency.
+- Owner decisions (AskUserQuestion): Three.js/R3F rather than Babylon.js; ADR-0022 definitions first, GLB later; docs-only Phase 0 now.
+- Change (docs only):
+  - new docs/adr/0030-component-designer.md (Proposed), with four decisions for the owner to approve;
+  - DECISION_LOG (ADR row and dated row), DEVELOPMENT_PLAN M10 row, IMPLEMENTATION_ACCEPTANCE designer rows from the owner's checklist;
+  - backlog T-099 (REVIEW) and T-100..T-106 (TODO).
+- Verification: docs only; `pnpm typecheck`, `pnpm test` NOT RUN. GitHub Actions CI not awaited.
